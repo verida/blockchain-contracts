@@ -8,7 +8,7 @@ import "@openzeppelin/contracts-upgradeable/access/AccessControlEnumerableUpgrad
 import "./IVDA.sol";
 import "./ITestUpgradeable.sol";
 
-import "hardhat/console.sol";
+// import "hardhat/console.sol";
 
 contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable, 
     IVeridaToken, AccessControlEnumerableUpgradeable, ITestUpgradeable {
@@ -20,6 +20,30 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
     uint256 public constant MAX_SUPPLY = 1_000_000_000 * (10 ** DECIMAL);
     
     bytes32 internal constant MINT_ROLE = keccak256('MintRole');
+
+    // LockInfo List
+    // mapping(address => LockInfo) lockInfoList;
+    /** @dev LockType of each user. General users are not locked and type is 0 */
+    mapping(address => LockType) public holderLockType;
+    /** @dev lock total amount for each other */
+    mapping(address => uint256) public lockTotal;
+    /** @dev LockInfo of each LockType */
+    mapping(uint256 => LockInfo) public lockInfo;
+
+    /** @dev Release start time */
+    uint256 releaseStart;
+
+    /**
+     * @dev LockInformation for each lock type. There is 4 'LockInfo's.
+     */
+    struct LockInfo {
+        uint256 releaseDuration;
+        uint256 releaseInterval;        
+    }
+
+    enum LockType {
+        None, Seed, Founder, Team, Advisor
+    }
     
     function initialize() public initializer {
         __ERC20_init(TOKEN_NAME, TOKEN_SYMBOL);
@@ -28,14 +52,35 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
         __AccessControlEnumerable_init();
 
         _grantRole(DEFAULT_ADMIN_ROLE, owner());
-        grantRole(MINT_ROLE, owner());
-
-        
+        grantRole(MINT_ROLE, owner());   
     }
 
-    function decimals() public view virtual override returns (uint8) {
-        return DECIMAL;
-    }
+    function _initReleaseInfo() internal {
+        releaseStart = 1672531200; //2023-1-1 0:0:0 UTC
+        // Seed Investors
+        lockInfo[1] = LockInfo(
+            2 * 365 days,
+            30 days
+        );
+
+        // Founders
+        lockInfo[2] = LockInfo(
+            4 * 365 days,
+            30 days
+        );
+
+        // Team members
+        lockInfo[3] = LockInfo(
+            3 * 365 days,
+            365 days
+        );
+
+        // Advisors
+        lockInfo[4] = LockInfo(
+            2 * 365 days,
+            30 days
+        );
+    }   
 
     /**
      * @dev Mint `amount` tokens to `to`.
@@ -97,10 +142,88 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
     }
 
     /**
-     * @dev Get Version of current Contract
+     * @dev Get Version of current Contract. Test purpose only.
      */
     function getVersion() external override returns(string memory){
         return "1.0";
+    }
+
+    /**
+     * @dev See {IERC20-transfer}.
+     * Checked for lockedAmount on transfer
+     */
+    function transfer(address recipient, uint256 amount) public virtual override returns (bool) {
+        uint256 balance = balanceOf(_msgSender());
+        uint256 lockedAmount = getLockedAmount(_msgSender());
+        require(amount <= (balance - lockedAmount), "Insufficient balance by lock");
+        _transfer(_msgSender(), recipient, amount);
+        return true;
+    }
+
+    /** @dev Get current lock type of a user*/
+    function getLockType(address to) external view returns(uint8) {
+        return uint8(holderLockType[to]);
+    }
+
+    /** @dev Get locked amount */
+    function getLockedAmount(address to) public view returns(uint256) {
+        uint8 lockType = uint8(holderLockType[to]);
+        LockInfo storage info = lockInfo[lockType];
+
+        if (lockType == uint8(LockType.None) || 
+            block.timestamp >= (releaseStart + info.releaseDuration)) {
+            return 0;
+        }
+        
+        if (block.timestamp < releaseStart)
+            return lockTotal[to];
+
+        // Calculate locked amount
+        uint256 intervalCount = info.releaseDuration / info.releaseInterval;
+        if (info.releaseDuration % info.releaseInterval != 0)
+            intervalCount++;
+
+        uint256 releasePerInterval = lockTotal[to] / intervalCount;
+        intervalCount = (block.timestamp - releaseStart) / info.releaseInterval;
+
+        return (lockTotal[to] - (releasePerInterval * intervalCount));
+    }
+
+
+
+
+    /** @dev Add LockHolders. Mint locked amount.
+     * This function can be removed in later versions once all locktypes are released.
+     */
+    function addLockHolder(address to, uint8 _lockType, uint256 _lockAmount) public onlyOwner {
+        require(_lockType > uint8(LockType.None) && _lockType <= uint8(LockType.Advisor), "Invalid lock type");
+        require(_lockAmount > 0, "Invalid lock amount");
+        require(block.timestamp < releaseStart, "Release started");
+        
+        if (holderLockType[to] != LockType.None) {
+            _burn(to, lockTotal[to]);
+        }
+
+        holderLockType[to] = LockType(_lockType);
+        lockTotal[to] = _lockAmount;
+        _mint(to, _lockAmount);
+    }
+
+    /** @dev Remove LockHolder. Burn locked amount. 
+     * This function can be removed in later versions once all locktypes are released.
+     */
+    function removeLockHolder(address to) public onlyOwner {
+        uint8 userLockType = uint8(holderLockType[to]);
+        require(userLockType > 0 && userLockType <= uint8(LockType.Advisor), "Not a lock holder");
+        require(block.timestamp < releaseStart, "Release started");
+
+        _burn(to, lockTotal[to]);
+        delete lockTotal[to];
+        delete holderLockType[to];
+    }
+
+    function decimals() public view virtual override returns (uint8) {
+        return DECIMAL;
     }
     
 }
