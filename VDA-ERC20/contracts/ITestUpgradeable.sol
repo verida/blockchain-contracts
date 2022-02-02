@@ -2,5 +2,8 @@
 pragma solidity ^0.8.0;
 
 interface ITestUpgradeable {
-    function getVersion() external returns(string memory);
+    /**
+     * @dev Get Version of current Token. Test purpose only.
+     */
+    function getVersion() external pure returns(string memory);
 }

@@ -7,6 +7,8 @@ import "@typechain/hardhat";
 import "hardhat-gas-reporter";
 import "solidity-coverage";
 
+import "@nomiclabs/hardhat-ethers";
+
 dotenv.config();
 
 // For upgradeable - deploy
@@ -31,6 +33,13 @@ task("accounts", "Prints the list of accounts", async (taskArgs, hre) => {
 const config: HardhatUserConfig = {
   solidity: "0.8.7",
   networks: {
+    hardhat: {
+      forking: {
+        url: "https://eth-mainnet.alchemyapi.io/v2/8083RqnyKiUZRjMqH28dBbb6BDhEjcm8",
+        // blockNumber : 100
+      }
+    },
+
     ropsten: {
       url: process.env.ROPSTEN_URL || "",
       accounts:

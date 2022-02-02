@@ -25,8 +25,10 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
     // mapping(address => LockInfo) lockInfoList;
     /** @dev LockType of each user. General users are not locked and type is 0 */
     mapping(address => LockType) public holderLockType;
+
     /** @dev lock total amount for each other */
     mapping(address => uint256) public lockTotal;
+
     /** @dev LockInfo of each LockType */
     mapping(uint256 => LockInfo) public lockInfo;
 
@@ -41,6 +43,18 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
         uint256 releaseInterval;        
     }
 
+    modifier validMint(uint256 amount) {
+        require((totalSupply() + amount) <= MAX_SUPPLY, "Max supply limit");
+        _;
+    }
+
+    event AddLockHolder(address indexed to, uint8 indexed lockType, uint256 lockAmount);
+
+    event RemoveLockHolder(address indexed to);
+
+    /**
+     * @dev Lock type of Holders.
+     */
     enum LockType {
         None, Seed, Founder, Team, Advisor
     }
@@ -53,9 +67,12 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
 
         _grantRole(DEFAULT_ADMIN_ROLE, owner());
         grantRole(MINT_ROLE, owner());   
+
+        _initReleaseInfo();
     }
 
     function _initReleaseInfo() internal {
+        // releaseStart = 1672531200; //2023-1-1 0:0:0 UTC
         releaseStart = 1672531200; //2023-1-1 0:0:0 UTC
         // Seed Investors
         lockInfo[1] = LockInfo(
@@ -85,7 +102,7 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
     /**
      * @dev Mint `amount` tokens to `to`.
      */
-    function mint(address to, uint256 amount) public {
+    function mint(address to, uint256 amount) public validMint(amount) {
         require(hasRole(MINT_ROLE, _msgSender()), 'Not a minter');
         _mint(to, amount);
     }
@@ -97,7 +114,6 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
         require(hasRole(MINT_ROLE, _msgSender()), 'Not a minter');
         _burn(from, amount);
     }
-
 
     /**
      * @dev see {IVeridaToken-addMinter}
@@ -142,9 +158,9 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
     }
 
     /**
-     * @dev Get Version of current Contract. Test purpose only.
+     * @dev see {ITestUpgradeable}
      */
-    function getVersion() external override returns(string memory){
+    function getVersion() external pure override returns(string memory){
         return "1.0";
     }
 
@@ -154,8 +170,8 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
      */
     function transfer(address recipient, uint256 amount) public virtual override returns (bool) {
         uint256 balance = balanceOf(_msgSender());
-        uint256 lockedAmount = getLockedAmount(_msgSender());
-        require(amount <= (balance - lockedAmount), "Insufficient balance by lock");
+        uint256 _lockedAmount = getLockedAmount(_msgSender());
+        require(amount <= (balance - _lockedAmount), "Insufficient balance by lock");
         _transfer(_msgSender(), recipient, amount);
         return true;
     }
@@ -165,8 +181,13 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
         return uint8(holderLockType[to]);
     }
 
+    /** @dev Return locked amount. */
+    function lockedAmount() public view returns(uint256) {
+        return getLockedAmount(_msgSender());
+    }
+
     /** @dev Get locked amount */
-    function getLockedAmount(address to) public view returns(uint256) {
+    function getLockedAmount(address to) internal view returns(uint256) {
         uint8 lockType = uint8(holderLockType[to]);
         LockInfo storage info = lockInfo[lockType];
 
@@ -189,13 +210,10 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
         return (lockTotal[to] - (releasePerInterval * intervalCount));
     }
 
-
-
-
     /** @dev Add LockHolders. Mint locked amount.
      * This function can be removed in later versions once all locktypes are released.
      */
-    function addLockHolder(address to, uint8 _lockType, uint256 _lockAmount) public onlyOwner {
+    function addLockHolder(address to, uint8 _lockType, uint256 _lockAmount) public onlyOwner validMint(_lockAmount) {
         require(_lockType > uint8(LockType.None) && _lockType <= uint8(LockType.Advisor), "Invalid lock type");
         require(_lockAmount > 0, "Invalid lock amount");
         require(block.timestamp < releaseStart, "Release started");
@@ -207,6 +225,8 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
         holderLockType[to] = LockType(_lockType);
         lockTotal[to] = _lockAmount;
         _mint(to, _lockAmount);
+
+        emit AddLockHolder(to, _lockType, _lockAmount);
     }
 
     /** @dev Remove LockHolder. Burn locked amount. 
@@ -220,6 +240,8 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
         _burn(to, lockTotal[to]);
         delete lockTotal[to];
         delete holderLockType[to];
+
+        emit RemoveLockHolder(to);
     }
 
     function decimals() public view virtual override returns (uint8) {

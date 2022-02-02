@@ -14,6 +14,30 @@ contract VeridaTokenV2 is ERC20PausableUpgradeable, OwnableUpgradeable,
     IVeridaToken, AccessControlEnumerableUpgradeable, ITestUpgradeable {
     
     bytes32 internal constant MINT_ROLE = keccak256('MintRole');
+
+    // LockInfo List
+    // mapping(address => LockInfo) lockInfoList;
+    /** @dev LockType of each user. General users are not locked and type is 0 */
+    mapping(address => LockType) public holderLockType;
+    /** @dev lock total amount for each other */
+    mapping(address => uint256) public lockTotal;
+    /** @dev LockInfo of each LockType */
+    mapping(uint256 => LockInfo) public lockInfo;
+
+    /** @dev Release start time */
+    uint256 releaseStart;
+
+    /**
+     * @dev LockInformation for each lock type. There is 4 'LockInfo's.
+     */
+    struct LockInfo {
+        uint256 releaseDuration;
+        uint256 releaseInterval;        
+    }
+
+    enum LockType {
+        None, Seed, Founder, Team, Advisor
+    }
     
     /**
      * @dev see {IVeridaToken-addMinter}
@@ -58,9 +82,9 @@ contract VeridaTokenV2 is ERC20PausableUpgradeable, OwnableUpgradeable,
     }
 
     /**
-     * @dev Get Version of current Contract
+     * @dev see {ITestUpgradeable}
      */
-    function getVersion() external override returns(string memory){
+    function getVersion() external pure override returns(string memory){
         return "2.0";
     }
     

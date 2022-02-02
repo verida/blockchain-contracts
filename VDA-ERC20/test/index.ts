@@ -17,14 +17,19 @@ chai.use(chaiAsPromised)
 let accountList : SignerWithAddress[];
 
 before(async function () {
+  await hre.network.provider.send("hardhat_reset");
+  
   accountList = await ethers.getSigners();
-
-  for (let i = 0; i < accountList.length; i++)
-      console.log("## ", accountList[i].address);
+  // for (let i = 0; i < accountList.length; i++)
+  //     console.log("## ", accountList[i].address);
 })
-
+/*
 describe("Upgradeable Test", async function () {
   let deployedProxyAddress : string
+
+  this.beforeAll(async function () {
+    await hre.network.provider.send("hardhat_reset");
+  })
 
   it ("Deploy Verida Token 1.0", async function () {
     let vda : VeridaToken;
@@ -37,7 +42,15 @@ describe("Upgradeable Test", async function () {
     await vda.deployed()
     deployedProxyAddress = vda.address;
 
+    console.log("Deployed At : ", deployedProxyAddress);
   });
+
+  it ("Check Version of Deployed Address", async function () {
+    const tokenFactory = await ethers.getContractFactory('VeridaToken');
+    const token = await tokenFactory.attach(deployedProxyAddress);
+    console.log("Version : ", await token.name());
+    // expect(await token.getVersion()).to.be.eq('1.0');
+  })
 
   it("Upgrade to Version 2.0", async function() {
     let vda2 : VeridaTokenV2;
@@ -50,15 +63,14 @@ describe("Upgradeable Test", async function () {
     await vda2.deployed();
   })
 
-  it ("Name of Current", async function(){
-    let token : ERC20Upgradeable;
-    const tokenFactory = await ethers.getContractFactory('ERC20Upgradeable');
-    token = tokenFactory.attach(deployedProxyAddress);
-
-    console.log("TokenName : ", await token.name());
+  it ("Check Version of Deployed Address", async function () {
+    const tokenFactory = await ethers.getContractFactory('VeridaToken');
+    const token = await tokenFactory.attach(deployedProxyAddress);
+    console.log("Attached:", token.name());
+    // console.log("Version : ", await token.getVersion());
+    // expect(await token.getVersion()).to.be.eq('2.0');
   })
-
-})
+})*/
 
 // describe("Verida Token", function() {
 //   let vda: VeridaToken;  
