@@ -21,26 +21,40 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
     
     bytes32 internal constant MINT_ROLE = keccak256('MintRole');
 
-    // LockInfo List
-    // mapping(address => LockInfo) lockInfoList;
-    /** @dev LockType of each user. General users are not locked and type is 0 */
-    mapping(address => LockType) public holderLockType;
+    /** @dev Token publish time */
+    uint256 public tokenPublishTime;
 
-    /** @dev lock total amount for each other */
-    mapping(address => uint256) public lockTotal;
+    /** @dev number of lock types registered */
+    uint8 public lockTypeCount;
 
-    /** @dev LockInfo of each LockType */
-    mapping(uint256 => LockInfo) public lockInfo;
-
-    /** @dev Release start time */
-    uint256 releaseStart;
+    /** 
+     * @dev LockTypeInfo of each LockType
+     * lockType => LockTypeInfo
+     */
+    mapping(uint8 => LockTypeInfo) public lockTypeInfo;
 
     /**
-     * @dev LockInformation for each lock type. There is 4 'LockInfo's.
+     * @dev LockInfo of user
      */
-    struct LockInfo {
-        uint256 releaseDuration;
-        uint256 releaseInterval;        
+    mapping(address => UserLockInfo) public userLockInfo; 
+        
+    /**
+     * @dev LockTypeInformation for each lock type. There is 5 'LockTypeInfo's.
+     */
+    struct LockTypeInfo {
+        uint256 lockDuration;
+        uint256 releaseInterval;
+        uint256 releaseDelay;
+        bool isValidFromTGE;
+    }
+    
+    /**
+     * @dev User Lock Info
+     */
+    struct UserLockInfo {
+        uint8 lockType;
+        uint256 lockAmount;
+        uint256 lockStart;
     }
 
     modifier validMint(uint256 amount) {
@@ -52,12 +66,6 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
 
     event RemoveLockHolder(address indexed to);
 
-    /**
-     * @dev Lock type of Holders.
-     */
-    enum LockType {
-        None, Seed, Founder, Team, Advisor
-    }
     
     function initialize() public initializer {
         __ERC20_init(TOKEN_NAME, TOKEN_SYMBOL);
@@ -72,30 +80,49 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
     }
 
     function _initReleaseInfo() internal {
-        // releaseStart = 1672531200; //2023-1-1 0:0:0 UTC
-        releaseStart = 1672531200; //2023-1-1 0:0:0 UTC
-        // Seed Investors
-        lockInfo[1] = LockInfo(
+        // tokenPublishTime = 1672531200; //2023-1-1 0:0:0 UTC
+        tokenPublishTime = 1672531200; //2023-1-1 0:0:0 UTC
+
+        lockTypeCount = 5;
+
+        // Investors
+        lockTypeInfo[1] = LockTypeInfo(
             2 * 365 days,
-            30 days
+            30 days,
+            0,
+            true
         );
 
-        // Founders
-        lockInfo[2] = LockInfo(
+        // Founders, Mozzler grant
+        lockTypeInfo[2] = LockTypeInfo(
             4 * 365 days,
-            30 days
+            30 days,
+            0,
+            true
         );
 
         // Team members
-        lockInfo[3] = LockInfo(
-            3 * 365 days,
-            365 days
+        lockTypeInfo[3] = LockTypeInfo(
+            4 * 365 days,
+            365 days,
+            365 days,
+            false
         );
 
         // Advisors
-        lockInfo[4] = LockInfo(
+        lockTypeInfo[4] = LockTypeInfo(
             2 * 365 days,
-            30 days
+            30 days,
+            0,
+            true
+        );
+
+        // Advisors
+        lockTypeInfo[5] = LockTypeInfo(
+            5 * 365 days,
+            30 days,
+            0,
+            true
         );
     }   
 
@@ -176,9 +203,19 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
         return true;
     }
 
-    /** @dev Get current lock type of a user*/
-    function getLockType(address to) external view returns(uint8) {
-        return uint8(holderLockType[to]);
+    /**
+     * @dev add lock type info
+     */
+    function addLockType(uint256 lockDuration, uint256 releaseInterval, uint256 releaseDelay, bool isValidFromTGE) public {
+        require(lockDuration > 0, "Invalid lock duration");
+        require(releaseInterval > 0, "Invalid release interval");
+        lockTypeCount++;
+        lockTypeInfo[lockTypeCount] = LockTypeInfo(
+            lockDuration,
+            releaseInterval,
+            releaseDelay,
+            isValidFromTGE
+        );
     }
 
     /** @dev Return locked amount. */
@@ -188,43 +225,51 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
 
     /** @dev Get locked amount */
     function getLockedAmount(address to) internal view returns(uint256) {
-        uint8 lockType = uint8(holderLockType[to]);
-        LockInfo storage info = lockInfo[lockType];
-
-        if (lockType == uint8(LockType.None) || 
-            block.timestamp >= (releaseStart + info.releaseDuration)) {
+        UserLockInfo storage userInfo = userLockInfo[to];
+        LockTypeInfo storage lockInfo = lockTypeInfo[userInfo.lockType];
+        
+        if (userInfo.lockType == 0 || block.timestamp >= (userInfo.lockStart + lockInfo.lockDuration + lockInfo.releaseDelay)) {
             return 0;
         }
         
-        if (block.timestamp < releaseStart)
-            return lockTotal[to];
+        if (block.timestamp < (userInfo.lockStart + lockInfo.releaseInterval + lockInfo.releaseDelay))
+            return userInfo.lockAmount;
 
-        // Calculate locked amount
-        uint256 intervalCount = info.releaseDuration / info.releaseInterval;
-        if (info.releaseDuration % info.releaseInterval != 0)
-            intervalCount++;
+    
+        uint256 releasePerInterval = userInfo.lockAmount * lockInfo.releaseInterval / lockInfo.lockDuration;
+        uint256 intervalCount = (block.timestamp - userInfo.lockStart - lockInfo.releaseDelay) / lockInfo.releaseInterval;
 
-        uint256 releasePerInterval = lockTotal[to] / intervalCount;
-        intervalCount = (block.timestamp - releaseStart) / info.releaseInterval;
-
-        return (lockTotal[to] - (releasePerInterval * intervalCount));
+        return (userInfo.lockAmount - (releasePerInterval * intervalCount));
     }
 
     /** @dev Add LockHolders. Mint locked amount.
      * This function can be removed in later versions once all locktypes are released.
+     * @param to address of lock holder
+     * @param _lockType can be one of 1 ~ lockTypeCount. 0 means general user not lock-up holder.
+     * @param _lockAmount Initial locked-up amount
+     * @param _lockStart start time of lock-up. This is only for lock types that is not validated from TGE
      */
-    function addLockHolder(address to, uint8 _lockType, uint256 _lockAmount) public onlyOwner validMint(_lockAmount) {
-        require(_lockType > uint8(LockType.None) && _lockType <= uint8(LockType.Advisor), "Invalid lock type");
+    function addLockHolder(address to, uint8 _lockType, uint256 _lockAmount, uint256 _lockStart) public onlyOwner validMint(_lockAmount) {
+        require(_lockType > 0 && _lockType <= lockTypeCount, "Invalid lock type");
         require(_lockAmount > 0, "Invalid lock amount");
-        require(block.timestamp < releaseStart, "Release started");
-        
-        if (holderLockType[to] != LockType.None) {
-            _burn(to, lockTotal[to]);
+        if (lockTypeInfo[_lockType].isValidFromTGE) {
+            require(block.timestamp < tokenPublishTime, "Token published");
+        } else {
+            require(_lockStart >= block.timestamp, "Invalid lock start time");
         }
 
-        holderLockType[to] = LockType(_lockType);
-        lockTotal[to] = _lockAmount;
+        UserLockInfo storage userInfo = userLockInfo[to];
+        if (userInfo.lockType != 0) {
+            _burn(to, userInfo.lockAmount);
+        }
+
         _mint(to, _lockAmount);
+
+        userInfo.lockType = _lockType;
+        userInfo.lockAmount = _lockAmount;
+        userInfo.lockStart = lockTypeInfo[_lockType].isValidFromTGE ? 
+            ( tokenPublishTime ) :
+            (_lockStart );
 
         emit AddLockHolder(to, _lockType, _lockAmount);
     }
@@ -233,13 +278,18 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
      * This function can be removed in later versions once all locktypes are released.
      */
     function removeLockHolder(address to) public onlyOwner {
-        uint8 userLockType = uint8(holderLockType[to]);
-        require(userLockType > 0 && userLockType <= uint8(LockType.Advisor), "Not a lock holder");
-        require(block.timestamp < releaseStart, "Release started");
+        UserLockInfo storage userInfo = userLockInfo[to];
+        require(userInfo.lockType > 0 && userInfo.lockType <= lockTypeCount, "Not a lock holder");
 
-        _burn(to, lockTotal[to]);
-        delete lockTotal[to];
-        delete holderLockType[to];
+        LockTypeInfo storage lockInfo = lockTypeInfo[userInfo.lockType];
+
+        if (lockInfo.isValidFromTGE) {
+            require(block.timestamp < tokenPublishTime, "Token published");
+            _burn(to, userLockInfo[to].lockAmount);
+        } else {
+            _burn(to, getLockedAmount(to));
+        }
+        delete userLockInfo[to];
 
         emit RemoveLockHolder(to);
     }
@@ -247,5 +297,7 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
     function decimals() public view virtual override returns (uint8) {
         return DECIMAL;
     }
+
+
     
 }
