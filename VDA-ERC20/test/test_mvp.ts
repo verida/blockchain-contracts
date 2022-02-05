@@ -405,6 +405,59 @@ describe("MVP-Verida Test", async function () {
             })
         })
 
-        
+        describe("Transfer with locked-up feature", async function() {
+            const investorType = 1;
+            
+            it ("Investor transfer failed until first release",async function() {
+                const lockInfo = await vda.lockTypeInfo(investorType);
+                const lockAmount = (lockInfo.lockDuration.mul(10));
+                const releasePerInterval = lockInfo.releaseInterval.mul(lockAmount).div(lockInfo.lockDuration).toNumber();
+
+                await vda.addLockHolder(testAccount.address, investorType, lockAmount, 0);
+
+                await expect(vda.connect(testAccount).transfer(accountList[0].address, 1)).to.be.rejectedWith('Insufficient balance by lock');
+
+                // TGE
+                await setBlockTimeStamp((await vda.tokenPublishTime()).toNumber());
+                await expect(vda.connect(testAccount).transfer(accountList[0].address, 1)).to.be.rejectedWith('Insufficient balance by lock');
+            })
+
+            it ("Investor transfer release successfully",async function() {
+                const lockInfo = await vda.lockTypeInfo(investorType);
+                const lockAmount = (lockInfo.lockDuration.mul(10));
+                const releasePerInterval = lockInfo.releaseInterval.mul(lockAmount).div(lockInfo.lockDuration).toNumber();
+
+                // console.log('release : ', releasePerInterval);
+
+                await vda.addLockHolder(testAccount.address, investorType, lockAmount, 0);
+
+                // console.log('locked : ', (await vda.connect(testAccount).lockedAmount()).toNumber());
+
+                const firstRelease = (await vda.tokenPublishTime()).add(lockInfo.releaseInterval).add(lockInfo.releaseDelay);
+                await setBlockTimeStamp(firstRelease.toNumber());
+
+                // console.log('locked : ', (await vda.connect(testAccount).lockedAmount()).toNumber());
+
+                const receiverAccount = accountList[2];
+
+                const releaseCount = lockInfo.lockDuration.div(lockInfo.releaseInterval).toNumber();
+                const releaseInterval = lockInfo.releaseInterval.toNumber();                
+                
+                for (let i = 0; i < releaseCount; i++) {
+                    expect(await vda.balanceOf(receiverAccount.address)).to.be.eq(releasePerInterval * i);
+                    // Transferr successfully
+                    await vda.connect(testAccount).transfer(receiverAccount.address, releasePerInterval);
+
+                    expect(await vda.balanceOf(receiverAccount.address)).to.be.eq(releasePerInterval * (i+1));
+
+                    await evmIncreaseTime(releaseInterval);
+                }
+
+                const remainingAmount = await vda.balanceOf(testAccount.address);
+                await vda.connect(testAccount).transfer(receiverAccount.address, remainingAmount);
+
+                expect(await vda.balanceOf(receiverAccount.address)).to.be.eq(lockAmount);                
+            })            
+        })
     })
 })
