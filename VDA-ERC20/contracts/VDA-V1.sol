@@ -5,13 +5,19 @@ import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20Pausable
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/AccessControlEnumerableUpgradeable.sol";
 
+import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Factory.sol";
+import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Pair.sol";
+// import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router01.sol";
+import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
+
 import "./IVDA.sol";
 import "./ITestUpgradeable.sol";
 
 // import "hardhat/console.sol";
 
-contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable, 
+    contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable, 
     IVeridaToken, AccessControlEnumerableUpgradeable, ITestUpgradeable {
+
 
     string public constant TOKEN_NAME = "Verida";
     string public constant TOKEN_SYMBOL = "VDA";
@@ -20,6 +26,18 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
     uint256 public constant MAX_SUPPLY = 1_000_000_000 * (10 ** DECIMAL);
     
     bytes32 internal constant MINT_ROLE = keccak256('MintRole');
+
+    uint32 public constant RATE_DENOMINATOR = 1000; // Set up rate from 0.001%
+
+    // Rate values can be set up to 30%
+    uint32 public constant AMOUNT_RATE_LIMIT = 30 * RATE_DENOMINATOR;
+    
+    uint32 public maxAmountPerWalletRate;
+    uint32 public maxAmountPerSellRate;
+
+    uint256 private maxAmountPerWallet;
+    uint256 private maxAmountPerSell;
+    
 
     /** @dev Token publish time */
     uint256 public tokenPublishTime;
@@ -37,34 +55,35 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
      * @dev LockInfo of user
      */
     mapping(address => UserLockInfo) public userLockInfo; 
-        
+
     /**
-     * @dev LockTypeInformation for each lock type. There is 5 'LockTypeInfo's.
+     * Store addresses that a automatic market make pairs.
+     * Any transfers to these addresses could be subject to a maximum transfer amount
      */
-    struct LockTypeInfo {
-        uint256 lockDuration;
-        uint256 releaseInterval;
-        uint256 releaseDelay;
-        bool isValidFromTGE;
-    }
-    
+    mapping(address => bool) public automatedMarketMakerPairs;
     /**
-     * @dev User Lock Info
+     * @dev Uniswap Router
      */
-    struct UserLockInfo {
-        uint8 lockType;
-        uint256 lockAmount;
-        uint256 lockStart;
-    }
+    IUniswapV2Router02 public uniswapV2Router;
+
+    /** @dev Current automatic market maker pair */
+    address public uniswapV2Pair;
 
     modifier validMint(uint256 amount) {
         require((totalSupply() + amount) <= MAX_SUPPLY, "Max supply limit");
         _;
     }
 
-    event AddLockHolder(address indexed to, uint8 indexed lockType, uint256 lockAmount);
+    event UpdateUniswapV2Router(
+        address indexed newAddress,
+        address indexed oldAddress
+    );
 
-    event RemoveLockHolder(address indexed to);
+    event SetAutomatedMarketMakerPair(address indexed pair, bool indexed value);
+
+    event UpdateMaxAmountPerWalletRate(uint32 newRate, uint32 oldRate);
+
+    event UpdateMaxAmountPerSell(uint32 newRate, uint32 oldRate);
 
     
     function initialize() public initializer {
@@ -76,10 +95,21 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
         _grantRole(DEFAULT_ADMIN_ROLE, owner());
         grantRole(MINT_ROLE, owner());   
 
-        _initReleaseInfo();
+        _initLockupType();
+
+        maxAmountPerSellRate = 1000; //1000 % RATE_DENOMINATOR = 0.1%
+        maxAmountPerWalletRate = 20 * RATE_DENOMINATOR; // 20%
+        _updateMaxAmountPerWallet();
+        _updateMaxAmountPerSell();
+
+        // _initSwap();
+
     }
 
-    function _initReleaseInfo() internal {
+    /**
+     * @dev Initialize lock-up types.
+     */
+    function _initLockupType() internal {
         // tokenPublishTime = 1672531200; //2023-1-1 0:0:0 UTC
         tokenPublishTime = 1672531200; //2023-1-1 0:0:0 UTC
 
@@ -124,7 +154,34 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
             0,
             true
         );
-    }   
+    }
+
+    /**
+     * @dev Initialize Uniswap features
+     */
+    function _initSwap() internal {
+        address routerAddress = 
+            0x1Ed675D5e63314B760162A3D1Cae1803DCFC87C7 // BSC TestNet (ME)
+            // 0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3 //TestNet (John)
+            // 0x10ED43C718714eb63d5aA57B78B54704E256024E // BSC Mainnet
+        ;
+
+        uniswapV2Router = IUniswapV2Router02(
+            routerAddress
+        );
+
+        uniswapV2Pair = IUniswapV2Factory(uniswapV2Router.factory()).createPair(
+            address(this),
+            uniswapV2Router.WETH()
+        );
+
+        _setAutomatedMarketMakerPair(uniswapV2Pair, true);
+    }
+
+    /** @dev Decimals of Verida token */
+    function decimals() public view virtual override returns (uint8) {
+        return DECIMAL;
+    }
 
     /**
      * @dev Mint `amount` tokens to `to`.
@@ -195,18 +252,31 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
      * @dev See {IERC20-transfer}.
      * Checked for lockedAmount on transfer
      */
-    function transfer(address recipient, uint256 amount) public virtual override returns (bool) {
-        uint256 balance = balanceOf(_msgSender());
-        uint256 _lockedAmount = getLockedAmount(_msgSender());
-        require(amount <= (balance - _lockedAmount), "Insufficient balance by lock");
-        _transfer(_msgSender(), recipient, amount);
-        return true;
+    function _transfer(
+        address sender,
+        address recipient,
+        uint256 amount
+    ) internal override {
+
+        // No need
+        require(amount <= (balanceOf(sender) - getLockedAmount(sender)), 
+            "Insufficient balance by lock");
+
+        require((balanceOf(recipient) + amount) < maxAmountPerWallet, 
+            "Receiver amount exceeds limit");
+
+        // isSelling
+        if (automatedMarketMakerPairs[recipient]) {
+            require(amount < maxAmountPerSell, 'Sell amount exceeds limit');
+        }
+        
+        super._transfer(sender, recipient, amount);
     }
 
     /**
-     * @dev add lock type info
+     * @dev See {IVDA}
      */
-    function addLockType(uint256 lockDuration, uint256 releaseInterval, uint256 releaseDelay, bool isValidFromTGE) public {
+    function addLockType(uint256 lockDuration, uint256 releaseInterval, uint256 releaseDelay, bool isValidFromTGE) external override {
         require(lockDuration > 0, "Invalid lock duration");
         require(releaseInterval > 0, "Invalid release interval");
         lockTypeCount++;
@@ -216,15 +286,17 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
             releaseDelay,
             isValidFromTGE
         );
+
+        emit AddLockType(lockTypeCount, lockDuration, releaseInterval, releaseDelay, isValidFromTGE);
     }
 
-    /** @dev Return locked amount. */
-    function lockedAmount() public view returns(uint256) {
+    /** @dev See {IVDA} */
+    function lockedAmount() external view override returns(uint256) {
         return getLockedAmount(_msgSender());
     }
 
     /** @dev Get locked amount */
-    function getLockedAmount(address to) internal view returns(uint256) {
+    function getLockedAmount(address to) private view returns(uint256) {
         UserLockInfo storage userInfo = userLockInfo[to];
         LockTypeInfo storage lockInfo = lockTypeInfo[userInfo.lockType];
         
@@ -242,14 +314,10 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
         return (userInfo.lockAmount - (releasePerInterval * intervalCount));
     }
 
-    /** @dev Add LockHolders. Mint locked amount.
-     * This function can be removed in later versions once all locktypes are released.
-     * @param to address of lock holder
-     * @param _lockType can be one of 1 ~ lockTypeCount. 0 means general user not lock-up holder.
-     * @param _lockAmount Initial locked-up amount
-     * @param _lockStart start time of lock-up. This is only for lock types that is not validated from TGE
+    /**
+     * @dev See {IVDA}
      */
-    function addLockHolder(address to, uint8 _lockType, uint256 _lockAmount, uint256 _lockStart) public onlyOwner validMint(_lockAmount) {
+    function addLockHolder(address to, uint8 _lockType, uint256 _lockAmount, uint256 _lockStart) external onlyOwner validMint(_lockAmount) override {
         require(_lockType > 0 && _lockType <= lockTypeCount, "Invalid lock type");
         require(_lockAmount > 0, "Invalid lock amount");
         if (lockTypeInfo[_lockType].isValidFromTGE) {
@@ -274,10 +342,10 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
         emit AddLockHolder(to, _lockType, _lockAmount);
     }
 
-    /** @dev Remove LockHolder. Burn locked amount. 
-     * This function can be removed in later versions once all locktypes are released.
+    /** 
+     * @dev see {IVDA}
      */
-    function removeLockHolder(address to) public onlyOwner {
+    function removeLockHolder(address to) external onlyOwner override {
         UserLockInfo storage userInfo = userLockInfo[to];
         require(userInfo.lockType > 0 && userInfo.lockType <= lockTypeCount, "Not a lock holder");
 
@@ -294,10 +362,72 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
         emit RemoveLockHolder(to);
     }
 
-    function decimals() public view virtual override returns (uint8) {
-        return DECIMAL;
+    /**
+     * @dev Update uniswapV2Router.
+     */
+    function updateUniswapV2Router(address newAddress) public onlyOwner {
+        require(newAddress != address(uniswapV2Router));
+        emit UpdateUniswapV2Router(newAddress, address(uniswapV2Router));
+        uniswapV2Router = IUniswapV2Router02(newAddress);
+    }
+
+    /**
+     * @dev enable/disable AutomatedMarkertMakerPair
+     */
+    function setAutomatedMarketMakerPair(address pair, bool value) public onlyOwner
+    {
+        require(pair != uniswapV2Pair);
+        _setAutomatedMarketMakerPair(pair, value);
+    }
+
+    /**
+     * @dev internal function to set automated market maker pair.
+     */
+    function _setAutomatedMarketMakerPair(address pair, bool value) private {
+        automatedMarketMakerPairs[pair] = value;
+
+        emit SetAutomatedMarketMakerPair(pair, value);
+    }
+
+    /**
+     * @dev update max amount per wallet percent.
+     */
+    function updateMaxAmountPerWalletRate(uint32 newRate) public onlyOwner {
+        require(newRate < AMOUNT_RATE_LIMIT, 'Invalid rate');
+
+        emit UpdateMaxAmountPerWalletRate(newRate, maxAmountPerWalletRate);
+
+        maxAmountPerWalletRate = newRate;
+        _updateMaxAmountPerWallet();
+    }
+
+    /**
+     * @dev Update max amount per wallet.
+     * called when rate updated or total supply updated.
+     */
+    function _updateMaxAmountPerWallet() private {
+        maxAmountPerWallet = MAX_SUPPLY * maxAmountPerWalletRate / (RATE_DENOMINATOR * 100);
+    }
+
+    /**
+     * @dev update max amount per sell percent.
+     */
+    function updateMaxAmountPerSellRate(uint32 newRate) public onlyOwner {
+        require(newRate < AMOUNT_RATE_LIMIT, 'Invalid rate');
+
+        emit UpdateMaxAmountPerSell(newRate, maxAmountPerSellRate);
+
+        maxAmountPerSellRate = newRate;
+        _updateMaxAmountPerSell();
+    }
+
+    /**
+     * @dev Update max amount per sell.
+     * called when rate updated or total supply updated.
+     */
+    function _updateMaxAmountPerSell() private {
+        maxAmountPerSell = MAX_SUPPLY * maxAmountPerSellRate / (RATE_DENOMINATOR * 100);
     }
 
 
-    
 }
