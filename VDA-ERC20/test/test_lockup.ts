@@ -174,6 +174,14 @@ describe("Lock-Up", async function () {
     })
 
     describe("Add LockHolder", async function () {
+        it("Rejected for zero address", async function () {
+            await expect(lockUp.addLockHolder(
+                '0x0000000000000000000000000000000000000000',
+                1,
+                100,
+                0
+            )).to.be.rejectedWith('Invalid zero address');            
+        })
 
         it("Rejected by invalid lock type.", async function () {
             // LockType rejected
@@ -424,6 +432,11 @@ describe("Lock-Up", async function () {
                 await lockUp.connect(testAccount).claim();
                 // Last release check
                 expect(await vda.balanceOf(testAccount.address)).to.be.eq(lockAmount);
+
+                // Claim once more to check whether release again after all payment released.
+                await lockUp.connect(testAccount).claim();
+                // Last release check
+                expect(await vda.balanceOf(testAccount.address)).to.be.eq(lockAmount);
             })
 
             it ("Claimed with batch release for investor - release without any delay", async function () {
@@ -442,6 +455,11 @@ describe("Lock-Up", async function () {
                 }
     
                 // Release last remaining locked-up amount
+                await lockUp.connect(testAccount).claim();
+                // Last release check
+                expect(await vda.balanceOf(testAccount.address)).to.be.eq(lockAmount);
+
+                // Claim once more to check whether release again after all payment released.
                 await lockUp.connect(testAccount).claim();
                 // Last release check
                 expect(await vda.balanceOf(testAccount.address)).to.be.eq(lockAmount);
@@ -468,25 +486,56 @@ describe("Lock-Up", async function () {
             const firstRelease = userInfo.lockStart.add(lockInfo.releaseInterval).add(lockInfo.releaseDelay);
             const intervalCount = lockInfo.lockDuration.div(lockInfo.releaseInterval).toNumber();
 
-            // Check locked amount before first release
+            // Check locked amount before lock start time
             expect(await lockUp.connect(testAccount).lockedAmount()).to.be.eq(lockAmount);
+            expect(await lockUp.connect(testAccount).claimableAmount()).to.be.eq(0);
 
-            // Set time to lock start time
+            // Check at lock start time
+            await setBlockTimeStamp(userInfo.lockStart.toNumber());
+            expect(await lockUp.connect(testAccount).lockedAmount()).to.be.eq(lockAmount);
+            expect(await lockUp.connect(testAccount).claimableAmount()).to.be.eq(0);
+
+            // Check after 30 days(first relase interval) from lock start time.
             await setBlockTimeStamp(userInfo.lockStart.add(lockInfo.releaseInterval).toNumber());
-
-            // Not released yet because of release delay
+            // Claimable amount is 0.
             expect(await lockUp.connect(testAccount).lockedAmount()).to.be.eq(lockAmount);
+            expect(await lockUp.connect(testAccount).claimableAmount()).to.be.eq(0);
 
-            // Set time to first Release
-            await setBlockTimeStamp(firstRelease.toNumber());
+            // Check after 11 months from lock start time
+            await setBlockTimeStamp(userInfo.lockStart.add(lockInfo.releaseInterval.mul(11)).toNumber());
+            expect(await lockUp.connect(testAccount).lockedAmount()).to.be.eq(lockAmount);
+            expect(await lockUp.connect(testAccount).claimableAmount()).to.be.eq(0);
 
-            expect(await vda.balanceOf(testAccount.address)).to.be.eq(0);
+            // Check after 365 days(release delay) from lock start time.
+            // Still zero because of release interval
+            await setBlockTimeStamp(userInfo.lockStart.add(lockInfo.releaseDelay).toNumber());
+            expect(await lockUp.connect(testAccount).lockedAmount()).to.be.eq(lockAmount);
+            expect(await lockUp.connect(testAccount).claimableAmount()).to.be.eq(0);
+
+            // Check at first release time. 
+            // After 365 days(release delay) + 30 days(release interval) from lock start time
+            await setBlockTimeStamp(userInfo.lockStart.add(lockInfo.releaseDelay).add(lockInfo.releaseInterval).toNumber());
+            expect(await lockUp.connect(testAccount).lockedAmount()).to.be.eq(lockAmount);
             expect(await lockUp.connect(testAccount).claimableAmount()).to.be.eq(releasePerInterval);
+            expect(await vda.balanceOf(testAccount.address)).to.be.eq(0);
 
-            // Release
+            // claim first relase
             await lockUp.connect(testAccount).claim();
-
+            expect(await lockUp.connect(testAccount).lockedAmount()).to.be.eq(lockAmount - releasePerInterval);
+            expect(await lockUp.connect(testAccount).claimableAmount()).to.be.eq(0);
             expect(await vda.balanceOf(testAccount.address)).to.be.eq(releasePerInterval);
+
+            // Check after another one month
+            await evmIncreaseTime(lockInfo.releaseInterval.toNumber());
+            expect(await lockUp.connect(testAccount).lockedAmount()).to.be.eq(lockAmount - releasePerInterval);
+            expect(await lockUp.connect(testAccount).claimableAmount()).to.be.eq(releasePerInterval);
+            expect(await vda.balanceOf(testAccount.address)).to.be.eq(releasePerInterval);
+
+            // claim second release
+            await lockUp.connect(testAccount).claim();
+            expect(await lockUp.connect(testAccount).lockedAmount()).to.be.eq(lockAmount - 2 * releasePerInterval);
+            expect(await lockUp.connect(testAccount).claimableAmount()).to.be.eq(0);
+            expect(await vda.balanceOf(testAccount.address)).to.be.eq(2 * releasePerInterval);
         }) 
     })
 
@@ -527,11 +576,9 @@ describe("Lock-Up", async function () {
             // Claim first relase
             await lockUp.connect(testAccount).claim();
 
-            // Check out balance & locked amount after 
+            // Check out balance & locked amount after first release
             expect(await vda.balanceOf(testAccount.address)).to.be.eq(releasePerInterval);
             expect(await lockUp.connect(testAccount).lockedAmount()).to.be.eq(lockAmount - releasePerInterval);            
         })
-
-
     })
 })

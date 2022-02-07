@@ -60,7 +60,7 @@ contract VDALock is OwnableUpgradeable, IVeridaTokenLock {
         // Team members
         _addLockType(
             4 * 365 days,
-            365 days,
+            30 days,
             365 days,
             false
         );
@@ -73,7 +73,7 @@ contract VDALock is OwnableUpgradeable, IVeridaTokenLock {
             true
         );
 
-        // Advisors
+        // Community
         _addLockType(
             5 * 365 days,
             30 days,
@@ -103,16 +103,15 @@ contract VDALock is OwnableUpgradeable, IVeridaTokenLock {
         emit AddLockType(lockTypeCount, lockDuration, releaseInterval, releaseDelay, isValidFromTGE);
     }
 
-    
-
     /**
      * @dev See {IVDA}
      */
     function addLockHolder(address to, uint8 _lockType, uint256 _lockAmount, uint256 _lockStart) external onlyOwner override {
-        uint256 tokenPublishTime = token.getTokenPublishTime();
-
+        require(to != address(0x0), 'Invalid zero address');
         require(_lockType > 0 && _lockType <= lockTypeCount, "Invalid lock type");
         require(_lockAmount > 0, "Invalid lock amount");
+
+        uint256 tokenPublishTime = token.getTokenPublishTime();
         if (lockTypeInfo[_lockType].isValidFromTGE) {
             require(block.timestamp < tokenPublishTime, "Token published");
         } else {
@@ -164,7 +163,6 @@ contract VDALock is OwnableUpgradeable, IVeridaTokenLock {
         UserLockInfo storage userInfo = userLockInfo[msg.sender];
         return userInfo.lockAmount - userInfo.released;
     }
-
 
     /**
      * @dev See {IVDA-Lock}
