@@ -42,20 +42,6 @@ import "./ITestUpgradeable.sol";
     /** @dev Token publish time */
     uint256 public tokenPublishTime;
 
-    /** @dev number of lock types registered */
-    uint8 public lockTypeCount;
-
-    /** 
-     * @dev LockTypeInfo of each LockType
-     * lockType => LockTypeInfo
-     */
-    mapping(uint8 => LockTypeInfo) public lockTypeInfo;
-
-    /**
-     * @dev LockInfo of user
-     */
-    mapping(address => UserLockInfo) public userLockInfo; 
-
     /**
      * Store addresses that a automatic market make pairs.
      * Any transfers to these addresses could be subject to a maximum transfer amount
@@ -93,9 +79,9 @@ import "./ITestUpgradeable.sol";
         __AccessControlEnumerable_init();
 
         _grantRole(DEFAULT_ADMIN_ROLE, owner());
-        grantRole(MINT_ROLE, owner());   
+        grantRole(MINT_ROLE, owner());
 
-        _initLockupType();
+        tokenPublishTime = 1672531200; //2023-1-1 0:0:0 UTC
 
         maxAmountPerSellRate = 1000; //1000 % RATE_DENOMINATOR = 0.1%
         maxAmountPerWalletRate = 20 * RATE_DENOMINATOR; // 20%
@@ -103,57 +89,6 @@ import "./ITestUpgradeable.sol";
         _updateMaxAmountPerSell();
 
         // _initSwap();
-
-    }
-
-    /**
-     * @dev Initialize lock-up types.
-     */
-    function _initLockupType() internal {
-        // tokenPublishTime = 1672531200; //2023-1-1 0:0:0 UTC
-        tokenPublishTime = 1672531200; //2023-1-1 0:0:0 UTC
-
-        lockTypeCount = 5;
-
-        // Investors
-        lockTypeInfo[1] = LockTypeInfo(
-            2 * 365 days,
-            30 days,
-            0,
-            true
-        );
-
-        // Founders, Mozzler grant
-        lockTypeInfo[2] = LockTypeInfo(
-            4 * 365 days,
-            30 days,
-            0,
-            true
-        );
-
-        // Team members
-        lockTypeInfo[3] = LockTypeInfo(
-            4 * 365 days,
-            365 days,
-            365 days,
-            false
-        );
-
-        // Advisors
-        lockTypeInfo[4] = LockTypeInfo(
-            2 * 365 days,
-            30 days,
-            0,
-            true
-        );
-
-        // Advisors
-        lockTypeInfo[5] = LockTypeInfo(
-            5 * 365 days,
-            30 days,
-            0,
-            true
-        );
     }
 
     /**
@@ -183,10 +118,14 @@ import "./ITestUpgradeable.sol";
         return DECIMAL;
     }
 
+    function getTokenPublishTime() external view override returns(uint256){
+        return tokenPublishTime;
+    }
+
     /**
      * @dev Mint `amount` tokens to `to`.
      */
-    function mint(address to, uint256 amount) public validMint(amount) {
+    function mint(address to, uint256 amount) external validMint(amount) override {
         require(hasRole(MINT_ROLE, _msgSender()), 'Not a minter');
         _mint(to, amount);
     }
@@ -194,7 +133,7 @@ import "./ITestUpgradeable.sol";
     /**
      * @dev Burn `amount` tokens from `to`.
      */
-    function burn(address from, uint256 amount) public {
+    function burn(address from, uint256 amount) external override {
         require(hasRole(MINT_ROLE, _msgSender()), 'Not a minter');
         _burn(from, amount);
     }
@@ -258,12 +197,8 @@ import "./ITestUpgradeable.sol";
         uint256 amount
     ) internal override {
 
-        // No need
-        require(amount <= (balanceOf(sender) - getLockedAmount(sender)), 
-            "Insufficient balance by lock");
-
         require((balanceOf(recipient) + amount) < maxAmountPerWallet, 
-            "Receiver amount exceeds limit");
+            "Receiver amount exceeds wallet limit");
 
         // isSelling
         if (automatedMarketMakerPairs[recipient]) {
@@ -272,96 +207,7 @@ import "./ITestUpgradeable.sol";
         
         super._transfer(sender, recipient, amount);
     }
-
-    /**
-     * @dev See {IVDA}
-     */
-    function addLockType(uint256 lockDuration, uint256 releaseInterval, uint256 releaseDelay, bool isValidFromTGE) external override {
-        require(lockDuration > 0, "Invalid lock duration");
-        require(releaseInterval > 0, "Invalid release interval");
-        lockTypeCount++;
-        lockTypeInfo[lockTypeCount] = LockTypeInfo(
-            lockDuration,
-            releaseInterval,
-            releaseDelay,
-            isValidFromTGE
-        );
-
-        emit AddLockType(lockTypeCount, lockDuration, releaseInterval, releaseDelay, isValidFromTGE);
-    }
-
-    /** @dev See {IVDA} */
-    function lockedAmount() external view override returns(uint256) {
-        return getLockedAmount(_msgSender());
-    }
-
-    /** @dev Get locked amount */
-    function getLockedAmount(address to) private view returns(uint256) {
-        UserLockInfo storage userInfo = userLockInfo[to];
-        LockTypeInfo storage lockInfo = lockTypeInfo[userInfo.lockType];
-        
-        if (userInfo.lockType == 0 || block.timestamp >= (userInfo.lockStart + lockInfo.lockDuration + lockInfo.releaseDelay)) {
-            return 0;
-        }
-        
-        if (block.timestamp < (userInfo.lockStart + lockInfo.releaseInterval + lockInfo.releaseDelay))
-            return userInfo.lockAmount;
-
     
-        uint256 releasePerInterval = userInfo.lockAmount * lockInfo.releaseInterval / lockInfo.lockDuration;
-        uint256 intervalCount = (block.timestamp - userInfo.lockStart - lockInfo.releaseDelay) / lockInfo.releaseInterval;
-
-        return (userInfo.lockAmount - (releasePerInterval * intervalCount));
-    }
-
-    /**
-     * @dev See {IVDA}
-     */
-    function addLockHolder(address to, uint8 _lockType, uint256 _lockAmount, uint256 _lockStart) external onlyOwner validMint(_lockAmount) override {
-        require(_lockType > 0 && _lockType <= lockTypeCount, "Invalid lock type");
-        require(_lockAmount > 0, "Invalid lock amount");
-        if (lockTypeInfo[_lockType].isValidFromTGE) {
-            require(block.timestamp < tokenPublishTime, "Token published");
-        } else {
-            require(_lockStart >= block.timestamp, "Invalid lock start time");
-        }
-
-        UserLockInfo storage userInfo = userLockInfo[to];
-        if (userInfo.lockType != 0) {
-            _burn(to, userInfo.lockAmount);
-        }
-
-        _mint(to, _lockAmount);
-
-        userInfo.lockType = _lockType;
-        userInfo.lockAmount = _lockAmount;
-        userInfo.lockStart = lockTypeInfo[_lockType].isValidFromTGE ? 
-            ( tokenPublishTime ) :
-            (_lockStart );
-
-        emit AddLockHolder(to, _lockType, _lockAmount);
-    }
-
-    /** 
-     * @dev see {IVDA}
-     */
-    function removeLockHolder(address to) external onlyOwner override {
-        UserLockInfo storage userInfo = userLockInfo[to];
-        require(userInfo.lockType > 0 && userInfo.lockType <= lockTypeCount, "Not a lock holder");
-
-        LockTypeInfo storage lockInfo = lockTypeInfo[userInfo.lockType];
-
-        if (lockInfo.isValidFromTGE) {
-            require(block.timestamp < tokenPublishTime, "Token published");
-            _burn(to, userLockInfo[to].lockAmount);
-        } else {
-            _burn(to, getLockedAmount(to));
-        }
-        delete userLockInfo[to];
-
-        emit RemoveLockHolder(to);
-    }
-
     /**
      * @dev Update uniswapV2Router.
      */
@@ -428,6 +274,4 @@ import "./ITestUpgradeable.sol";
     function _updateMaxAmountPerSell() private {
         maxAmountPerSell = MAX_SUPPLY * maxAmountPerSellRate / (RATE_DENOMINATOR * 100);
     }
-
-
 }
