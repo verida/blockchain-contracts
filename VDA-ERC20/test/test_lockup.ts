@@ -1,17 +1,18 @@
-import chai from "chai"
+/* eslint-disable camelcase */
+/* eslint-disable no-unused-vars */
+/* eslint-disable node/no-extraneous-import */
+/* eslint-disable node/no-missing-import */
+/* eslint-disable prettier/prettier */
+import chai, { expect } from "chai"
 import chaiAsPromised from "chai-as-promised"
 import { solidity } from 'ethereum-waffle'
-import { expect } from "chai"
-import { ethers } from "hardhat"
+import hre, { ethers , upgrades } from "hardhat"
 
-import { upgrades } from "hardhat"
 import { VeridaToken } from "../typechain/VeridaToken"
-import { VeridaTokenV2 } from "../typechain/VeridaTokenV2"
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers"
 import { BigNumber } from "@ethersproject/bignumber"
 
-import hre from "hardhat"
-import { ERC20Upgradeable, IERC20Upgradeable, ITestUpgradeable, VDALock } from "../typechain"
+import { VDALock } from "../typechain"
 
 chai.use(solidity)
 chai.use(chaiAsPromised)
@@ -170,7 +171,6 @@ describe("Lock-Up", async function () {
             await lockUp.addLockType(2 * t_year, 30 * t_day, 1 * t_year, false);
             expect(await lockUp.lockTypeCount()).to.be.eq(currentLockTypeCount+1);
         })
-
     })
 
     describe("Add LockHolder", async function () {
@@ -322,7 +322,7 @@ describe("Lock-Up", async function () {
 
             const teamMember = accountList[teamLockType];
 
-            //re-register team-member
+            // re-register team-member
             await lockUp.addLockHolder(
                 teamMember.address, 
                 teamLockType,
@@ -338,7 +338,7 @@ describe("Lock-Up", async function () {
             const userInfo = await lockUp.userLockInfo(teamMember.address);
             const lockInfo = await lockUp.lockTypeInfo(userInfo.lockType);
 
-            let firstRelease = userInfo.lockStart.add(lockInfo.releaseDelay).add(lockInfo.releaseInterval);
+            const firstRelease = userInfo.lockStart.add(lockInfo.releaseDelay).add(lockInfo.releaseInterval);
             
             // Set block timestamp as first release
             await setBlockTimeStamp(firstRelease.toNumber());
@@ -379,7 +379,7 @@ describe("Lock-Up", async function () {
 
         describe("Claim for investor - release without any delay", async function () {
             const lockAmount = 365 * 2 * 10;
-            const releasePerInterval = 30 * 10; //releaseInterval * lockAmount / lockDuration
+            const releasePerInterval = 30 * 10; // releaseInterval * lockAmount / lockDuration
 
             let userInfo: [number, BigNumber, BigNumber, BigNumber] & {
                 lockType: number;
@@ -481,7 +481,7 @@ describe("Lock-Up", async function () {
             const userInfo = await lockUp.userLockInfo(testAccount.address);
             const lockInfo = await lockUp.lockTypeInfo(userInfo.lockType);
 
-            const releasePerInterval = lockInfo.releaseInterval.mul(userInfo.lockAmount).div(lockInfo.lockDuration).toNumber(); //releaseInterval * lockAmount / lockDuration
+            const releasePerInterval = lockInfo.releaseInterval.mul(userInfo.lockAmount).div(lockInfo.lockDuration).toNumber(); // releaseInterval * lockAmount / lockDuration
 
             const firstRelease = userInfo.lockStart.add(lockInfo.releaseInterval).add(lockInfo.releaseDelay);
             const intervalCount = lockInfo.lockDuration.div(lockInfo.releaseInterval).toNumber();
@@ -552,7 +552,7 @@ describe("Lock-Up", async function () {
 
         it("get locked amount correctly after release", async function () {
             const lockAmount = 365 * 2 * 10;
-            const releasePerInterval = 30 * 10; //releaseInterval * lockAmount / lockDuration
+            const releasePerInterval = 30 * 10; // releaseInterval * lockAmount / lockDuration
             
             // Add holder
             await lockUp.addLockHolder(

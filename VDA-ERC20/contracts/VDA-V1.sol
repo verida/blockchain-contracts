@@ -11,13 +11,11 @@ import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Pair.sol";
 import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
 
 import "./IVDA.sol";
-import "./ITestUpgradeable.sol";
 
 // import "hardhat/console.sol";
 
-    contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable, 
-    IVeridaToken, AccessControlEnumerableUpgradeable, ITestUpgradeable {
-
+contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable, 
+    IVeridaToken, AccessControlEnumerableUpgradeable {
 
     string public constant TOKEN_NAME = "Verida";
     string public constant TOKEN_SYMBOL = "VDA";
@@ -37,6 +35,12 @@ import "./ITestUpgradeable.sol";
 
     uint256 private maxAmountPerWallet;
     uint256 private maxAmountPerSell;
+
+    bool public isMaxAmountPerWalletEnabled;
+    bool public isMaxAmountPerSellEnabled;
+
+    mapping(address => bool) public isExcludedFromSellAmountLimit;
+    mapping(address => bool) public isExcludedFromWalletAmountLimit;
     
 
     /** @dev Token publish time */
@@ -71,6 +75,13 @@ import "./ITestUpgradeable.sol";
 
     event UpdateMaxAmountPerSell(uint32 newRate, uint32 oldRate);
 
+    event ExcludeFromSellAmountLimit(address indexed account, bool excluded);
+
+    event ExcludeFromWalletAmountLimit(address indexed account, bool excluded);
+
+    event EnableMaxAmountPerWallet(bool isEnabled);
+
+    event EnableMaxAmountPerSell(bool isEnabled);
     
     function initialize() public initializer {
         __ERC20_init(TOKEN_NAME, TOKEN_SYMBOL);
@@ -83,10 +94,13 @@ import "./ITestUpgradeable.sol";
 
         tokenPublishTime = 1672531200; //2023-1-1 0:0:0 UTC
 
-        maxAmountPerSellRate = 1000; //1000 % RATE_DENOMINATOR = 0.1%
+        maxAmountPerSellRate = 100; //100 / RATE_DENOMINATOR = 0.1%
         maxAmountPerWalletRate = 20 * RATE_DENOMINATOR; // 20%
         _updateMaxAmountPerWallet();
         _updateMaxAmountPerSell();
+
+        isExcludedFromSellAmountLimit[owner()] = true;
+        isExcludedFromWalletAmountLimit[owner()] = true;
 
         // _initSwap();
     }
@@ -181,9 +195,9 @@ import "./ITestUpgradeable.sol";
     }
 
     /**
-     * @dev see {ITestUpgradeable}
+     * @dev return current version of Verida Token
      */
-    function getVersion() external pure override returns(string memory){
+    function getVersion() external pure returns(string memory){
         return "1.0";
     }
 
@@ -197,12 +211,17 @@ import "./ITestUpgradeable.sol";
         uint256 amount
     ) internal override {
 
-        require((balanceOf(recipient) + amount) < maxAmountPerWallet, 
-            "Receiver amount exceeds wallet limit");
+        if (isMaxAmountPerWalletEnabled && !isExcludedFromWalletAmountLimit[recipient]) {
+            require((balanceOf(recipient) + amount) <= maxAmountPerWallet, 
+                "Receiver amount limit");
+        }
 
         // isSelling
-        if (automatedMarketMakerPairs[recipient]) {
-            require(amount < maxAmountPerSell, 'Sell amount exceeds limit');
+        if (isMaxAmountPerSellEnabled 
+            && automatedMarketMakerPairs[recipient]
+            && !isExcludedFromSellAmountLimit[sender]) 
+        {
+            require(amount <= maxAmountPerSell, "Sell amount exceeds limit");
         }
         
         super._transfer(sender, recipient, amount);
@@ -239,7 +258,8 @@ import "./ITestUpgradeable.sol";
      * @dev update max amount per wallet percent.
      */
     function updateMaxAmountPerWalletRate(uint32 newRate) public onlyOwner {
-        require(newRate < AMOUNT_RATE_LIMIT, 'Invalid rate');
+        require(newRate <= AMOUNT_RATE_LIMIT, "Invalid rate");
+        require(newRate > 0, "Invalid rate");
 
         emit UpdateMaxAmountPerWalletRate(newRate, maxAmountPerWalletRate);
 
@@ -259,7 +279,8 @@ import "./ITestUpgradeable.sol";
      * @dev update max amount per sell percent.
      */
     function updateMaxAmountPerSellRate(uint32 newRate) public onlyOwner {
-        require(newRate < AMOUNT_RATE_LIMIT, 'Invalid rate');
+        require(newRate <= AMOUNT_RATE_LIMIT, "Invalid rate");
+        require(newRate > 0, "Invalid rate");
 
         emit UpdateMaxAmountPerSell(newRate, maxAmountPerSellRate);
 
@@ -273,5 +294,41 @@ import "./ITestUpgradeable.sol";
      */
     function _updateMaxAmountPerSell() private {
         maxAmountPerSell = MAX_SUPPLY * maxAmountPerSellRate / (RATE_DENOMINATOR * 100);
+    }
+
+    /**
+     * @dev exclude account from sell amount limit
+     */
+    function excludeFromSellAmountLimit(address account, bool excluded) public onlyOwner {
+        require(isExcludedFromSellAmountLimit[account] != excluded);
+        isExcludedFromSellAmountLimit[account] = excluded;
+        emit ExcludeFromSellAmountLimit(account, excluded);
+    }
+
+    /**
+     * @dev exclude account from wallet amount limit
+     */
+    function excludeFromWalletAmountLimit(address account, bool excluded) public onlyOwner {
+        require(isExcludedFromWalletAmountLimit[account] != excluded);
+        isExcludedFromWalletAmountLimit[account] = excluded;
+        emit ExcludeFromWalletAmountLimit(account, excluded);
+    }
+
+    /**
+     * @dev enable/disable MaxAmountPerSell
+     */
+    function enableMaxAmountPerSell(bool isEnabled) external {
+        require(isMaxAmountPerSellEnabled != isEnabled);
+        isMaxAmountPerSellEnabled = isEnabled;
+        emit EnableMaxAmountPerSell(isEnabled);        
+    }
+
+    /**
+     * @dev enable/disable MaxAmountPerWallet
+     */
+    function enableMaxAmountPerWallet(bool isEnabled) external {
+        require(isMaxAmountPerWalletEnabled != isEnabled);
+        isMaxAmountPerWalletEnabled = isEnabled;
+        emit EnableMaxAmountPerWallet(isEnabled);
     }
 }
