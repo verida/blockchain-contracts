@@ -5,14 +5,17 @@ import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 
-import "./IEmployeeLockUp.sol";
-import "./IVDA.sol";
+import "./IRecipientLockUp.sol";
+import "hardhat/console.sol";
 
-contract EmployeeLockUp is OwnableUpgradeable, IEmployeeLockUp {
+contract RecipientLockUp is OwnableUpgradeable, IRecipientLockUp {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
     /** @dev Lock token address */
-    IVeridaToken public token;
+    IERC20Upgradeable public token;
+    
+    /** @dev Total locked amount */
+    uint256 public totalLockedAmount;
 
     /** @dev number of lock types registered */
     uint8 public lockTypeCount;
@@ -24,14 +27,19 @@ contract EmployeeLockUp is OwnableUpgradeable, IEmployeeLockUp {
     mapping(uint8 => LockTypeInfo) public lockTypeInfo;
 
     /**
-     * @dev LockInfo of employee
+     * @dev LockInfo of Recipient
      */
-    mapping(address => EmployeeInfo) public employeeInfo;
+    mapping(address => RecipientInfo) public recipientInfo;
+
+    /**
+     * @dev Emitted when owner withdraw tokens.
+     */
+    event WtihdrawTokens(address to, uint256 amount);
 
     function initialize(address tokenAddress) public initializer {
         __Ownable_init();
 
-        token = IVeridaToken(tokenAddress);
+        token = IERC20Upgradeable(tokenAddress);
 
         _initLockupType();
     }
@@ -40,7 +48,7 @@ contract EmployeeLockUp is OwnableUpgradeable, IEmployeeLockUp {
      * @notice Initialize lock-up types.
      */
     function _initLockupType() internal {
-        // Default Employee info
+        // Default Recipient info
         _addLockType(
             4 * 365 days,
             30 days,
@@ -49,7 +57,7 @@ contract EmployeeLockUp is OwnableUpgradeable, IEmployeeLockUp {
     }
 
     /**
-     * @dev See {IEmployeeLockUp}
+     * @dev See {IRecipientLockUp}
      */
     function addLockType(uint256 lockDuration, uint256 releaseInterval, uint256 releaseDelay) external onlyOwner override {
         require(lockDuration > 0, "Invalid lock duration");
@@ -72,74 +80,99 @@ contract EmployeeLockUp is OwnableUpgradeable, IEmployeeLockUp {
     }
 
     /**
-     * @dev See {IEmployeeLockUp}
+     * @dev Withdraw unlocked tokens
+     * Only owner can call this
      */
-    function addEmployee(address to, uint256 _lockAmount, uint256 _lockStart) external onlyOwner override {
-        _addEmployeeWithLockType(to, _lockAmount, _lockStart, 1);
+    function withdrawUnlockedTokens() public onlyOwner {
+        withdrawUnlockedTokensTo(owner());
     }
 
     /**
-     * @dev See {IEmployeeLockUp}
+     * @dev Withdraw unlocked tokens to address.
+     * Only owner can call this
      */
-    function addEmployeeWithLockType(address to, uint256 _lockAmount, uint256 _lockStart, uint8 _lockType) external onlyOwner override {
-        _addEmployeeWithLockType(to, _lockAmount, _lockStart, _lockType);
+    function withdrawUnlockedTokensTo(address to) public onlyOwner {
+        uint256 unlockedAmount = token.balanceOf(address(this)) - totalLockedAmount;
+        require(unlockedAmount > 0, 'No tokens');
+
+        token.safeTransfer(to, unlockedAmount);
+
+        emit WtihdrawTokens(to, unlockedAmount);
     }
 
     /**
-     * @dev private function to add employee
+     * @dev See {IRecipientLockUp}
      */
-    function _addEmployeeWithLockType(address to, uint256 _lockAmount, uint256 _lockStart, uint8 _lockType) private {
+    function addRecipient(address to, uint256 _lockAmount, uint256 _lockStart) external onlyOwner override {
+        _addRecipientWithLockType(to, _lockAmount, _lockStart, 1);
+    }
+
+    /**
+     * @dev See {IRecipientLockUp}
+     */
+    function addRecipientWithLockType(address to, uint256 _lockAmount, uint256 _lockStart, uint8 _lockType) external onlyOwner override {
+        _addRecipientWithLockType(to, _lockAmount, _lockStart, _lockType);
+    }
+
+    /**
+     * @dev private function to add recipient
+     */
+    function _addRecipientWithLockType(address to, uint256 _lockAmount, uint256 _lockStart, uint8 _lockType) private {
         require(to != address(0x0), "Invalid zero address");
         require(_lockType > 0 && _lockType <= lockTypeCount, "Invalid lock type");
+
         require(_lockAmount > 0, "Invalid lock amount");
 
         require(_lockStart >= block.timestamp, "Invalid lock start time");
 
-        EmployeeInfo storage userInfo = employeeInfo[to];
+        RecipientInfo storage userInfo = recipientInfo[to];
         if (userInfo.lockType != 0) {
-            token.burn(address(this), userInfo.lockAmount);
+            totalLockedAmount -= userInfo.lockAmount;
         }
 
-        token.mint(address(this), _lockAmount);
+        uint256 tokenAmount = token.balanceOf(address(this));
+        require((totalLockedAmount + _lockAmount) <= tokenAmount, "Insufficient token amount");
+        totalLockedAmount += _lockAmount;
 
         userInfo.lockType = _lockType;
         userInfo.lockAmount = _lockAmount;
         userInfo.lockStart = _lockStart;
         userInfo.released = 0;
 
-        emit AddEmployee(to, _lockType, _lockAmount);
+        emit AddRecipient(to, _lockType, _lockAmount);
     }
 
     /** 
-     * @dev see {IEmployeeLockUp}
+     * @dev see {IRecipientLockUp}
      */
-    function removeEmployee(address to) external onlyOwner override {
-        EmployeeInfo storage userInfo = employeeInfo[to];
-        require(userInfo.lockType > 0 && userInfo.lockType <= lockTypeCount, "Not an employee");
+    function removeRecipient(address to) external onlyOwner override {
+        RecipientInfo storage userInfo = recipientInfo[to];
+        require(userInfo.lockType > 0 && userInfo.lockType <= lockTypeCount, "Not an recipient");
 
-        token.burn(address(this), employeeInfo[to].lockAmount - employeeInfo[to].released);
-        delete employeeInfo[to];
+        totalLockedAmount -= userInfo.lockAmount;
 
-        emit RemoveEmployee(to);
+        delete recipientInfo[to];
+
+        emit RemoveRecipient(to);
     }
 
     /**
-     * @dev See {IEmployeeLockUp}
+     * @dev See {IRecipientLockUp}
      */
     function lockedAmount() external view override returns(uint256) {
-        EmployeeInfo storage userInfo = employeeInfo[msg.sender];
+        RecipientInfo storage userInfo = recipientInfo[msg.sender];
         return userInfo.lockAmount - userInfo.released;
     }
 
     /**
-     * @dev See {IEmployeeLockUp}
+     * @dev See {IRecipientLockUp}
      */
     function claimableAmount() external view override returns(uint256) {
         return _claimableAmount(msg.sender);
     }
 
     function _claimableAmount(address to) private view returns(uint256) {
-        EmployeeInfo storage userInfo = employeeInfo[to];
+        RecipientInfo storage userInfo = recipientInfo[to];
         LockTypeInfo storage lockInfo = lockTypeInfo[userInfo.lockType];
 
         // Before first release
@@ -158,16 +191,18 @@ contract EmployeeLockUp is OwnableUpgradeable, IEmployeeLockUp {
     }
 
     /**
-     * @dev See {IEmployeeLockUp}
+     * @dev See {IRecipientLockUp}
      */
     function claim() external override {
         uint256 amount = _claimableAmount(msg.sender);
 
         if (amount > 0) {
-            EmployeeInfo storage userInfo = employeeInfo[msg.sender];
+            RecipientInfo storage userInfo = recipientInfo[msg.sender];
 
             userInfo.released += amount;
             IERC20Upgradeable((address(token))).safeTransfer(msg.sender, amount);
+
+            totalLockedAmount -= amount;
 
             emit Claim(msg.sender, amount);
         }

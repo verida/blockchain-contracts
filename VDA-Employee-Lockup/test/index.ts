@@ -8,14 +8,14 @@ import hre, { ethers , upgrades } from "hardhat"
 import { VeridaToken } from "../../VDA-ERC20/typechain/VeridaToken"
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers"
 import { BigNumber } from "@ethersproject/bignumber"
-import { EmployeeLockUp } from "../typechain"
+import { RecipientLockUp } from "../typechain"
 
 chai.use(solidity)
 chai.use(chaiAsPromised)
 
 let accountList : SignerWithAddress[];
 
-let numberOfEmployee = 5;
+let numberOfRecipient = 5;
 
 const t_day = 60 * 60 * 24;
 const t_year = 365 * t_day;
@@ -35,13 +35,13 @@ before(async function () {
   //     console.log("## ", accountList[i].address);
 
   if (accountList.length < 5)
-      numberOfEmployee = accountList.length;
+      numberOfRecipient = accountList.length;
 })
 
 
-describe("EmployeeLockUp Test", function () {
+describe("RecipientLockUp Test", function () {
   let vda: VeridaToken;
-  let lockUp : EmployeeLockUp;
+  let lockUp : RecipientLockUp;
 
   // Increase Node Time while testing
   const evmIncreaseTime = async(timeInSeconds : number) => {
@@ -72,11 +72,15 @@ describe("EmployeeLockUp Test", function () {
     await hre.network.provider.send("evm_mine");
   }
 
-  const addEmployees = async (lockAmount: number) => {
+  const addRecipients = async (lockAmount: number) => {
     const curBlockTime = await currentBlockTimeStamp();
-    // Add Employees
-    for (let i = 1; i <= numberOfEmployee; i++) {
-      await lockUp.addEmployee(
+
+    // Send vda tokens to lockup contract
+    vda.mint(lockUp.address, lockAmount * numberOfRecipient);
+
+    // Add Recipients
+    for (let i = 1; i <= numberOfRecipient; i++) {
+      await lockUp.addRecipient(
         accountList[i].address,
         lockAmount,
         curBlockTime + t_day
@@ -106,14 +110,14 @@ describe("EmployeeLockUp Test", function () {
 
     await vda.deployed();
 
-    const lockFactory = await ethers.getContractFactory('EmployeeLockUp');
+    const lockFactory = await ethers.getContractFactory('RecipientLockUp');
     lockUp = (await upgrades.deployProxy(
         lockFactory,
         [vda.address],
         {
             initializer: 'initialize'
         }
-    )) as EmployeeLockUp;
+    )) as RecipientLockUp;
 
     await lockUp.deployed();
 
@@ -121,7 +125,7 @@ describe("EmployeeLockUp Test", function () {
 
     // await currentBlockNumber();
   })
-
+ 
   describe ("Add Lock Type", async function() {
     it ("Rejected by 0 lock-up duration", async function() {
         await expect(lockUp.addLockType(0, 30 * t_day, 0)).to.be.rejectedWith('Invalid lock duration');
@@ -142,9 +146,9 @@ describe("EmployeeLockUp Test", function () {
     })
   })
 
-  describe("Add Employee", async function () {
+  describe("Add Recipient", async function () {
     it("Rejected for zero address", async function () {
-        await expect(lockUp.addEmployee(
+        await expect(lockUp.addRecipient(
             '0x0000000000000000000000000000000000000000',
             100,
             0
@@ -152,28 +156,27 @@ describe("EmployeeLockUp Test", function () {
     })
 
     it ("Rejected by 0 lock amount", async function() {
-        await expect(lockUp.addEmployee(
+        await expect(lockUp.addRecipient(
             testAccount.address,
             0,
             0
         )).to.be.rejectedWith("Invalid lock amount");
     })
     
-    it ("Rejected by total supply added lock amount overflowing max supply", async function () {
+    it ("Rejected by insufficient token amount inside contract", async function () {
       const currentTime = await currentBlockTimeStamp();
-      const maxSupply = await vda.MAX_SUPPLY();
-      await expect(lockUp.addEmployee(
+      await expect(lockUp.addRecipient(
           testAccount.address, 
-          maxSupply.add(1),
+          1,
           currentTime + t_day
-      )).to.be.rejectedWith("Max supply limit");
+      )).to.be.rejectedWith("Insufficient token amount");
     })
 
     it ("Rejected by lockStart time before current block time", async function(){
         const currentBlockTime = await currentBlockTimeStamp();
         const typeCount = await lockUp.lockTypeCount();
         for (let i = 1; i <= typeCount; i++) {
-          await expect(lockUp.addEmployee(
+          await expect(lockUp.addRecipient(
               testAccount.address,
               100,
               currentBlockTime - 100
@@ -181,20 +184,27 @@ describe("EmployeeLockUp Test", function () {
         }
     })
 
-    it("Add Employee correctly", async function () {
+    it("Add Recipient correctly", async function () {
         const typeCount = await getTypeCount();
         
         // Checke current amount of each user
         for (let i = 1; i <= typeCount; i++) {
-            const userInfo = await lockUp.employeeInfo(accountList[i].address);
+            const userInfo = await lockUp.recipientInfo(accountList[i].address);
             expect(userInfo.lockAmount).to.be.eq(0);
         }
 
-        // Add 3 employee with different lock amount
-        const currentTime = await currentBlockTimeStamp();
         const len = accountList.length > 3 ? 3 : accountList.length;
+        // Send tokens to lock up contract
+        let needAmount = 0;
         for (let i = 1; i <= len; i++) {
-          await lockUp.addEmployee(
+          needAmount += i * 100;
+        }
+        await vda.mint(lockUp.address, needAmount);
+
+        // Add 3 recipient with different lock amount
+        const currentTime = await currentBlockTimeStamp();
+        for (let i = 1; i <= len; i++) {
+          await lockUp.addRecipient(
             accountList[i].address,
             i * 100,
             currentTime + t_day
@@ -203,21 +213,21 @@ describe("EmployeeLockUp Test", function () {
         
         // Check amount changed
         for (let i = 1; i <= typeCount; i++) {
-            const userInfo = await lockUp.employeeInfo(accountList[i].address);
+            const userInfo = await lockUp.recipientInfo(accountList[i].address);
             expect(userInfo.lockAmount).to.be.eq(i * 100);
         }
     })
   })
 
-  describe("Add Employee with lock type", async function () {
+  describe("Add Recipient with lock type", async function () {
     it("Rejected by invalid lock type.", async function () {
         // LockType rejected
         const currentLockTypeCount = await lockUp.lockTypeCount();
-        await expect(lockUp.addEmployeeWithLockType(testAccount.address, 0, 100, 0)).to.be.rejectedWith("Invalid lock type");
-        await expect(lockUp.addEmployeeWithLockType(testAccount.address, currentLockTypeCount+1, 100, 0)).to.be.rejectedWith("Invalid lock type");
+        await expect(lockUp.addRecipientWithLockType(testAccount.address, 0, 100, 0)).to.be.rejectedWith("Invalid lock type");
+        await expect(lockUp.addRecipientWithLockType(testAccount.address, currentLockTypeCount+1, 100, 0)).to.be.rejectedWith("Invalid lock type");
     })
 
-    it("Add employee correctly with lock type", async function () {
+    it("Add recipient correctly with lock type", async function () {
       // Add new lock types
       await lockUp.addLockType(
         3 * t_year,
@@ -238,15 +248,18 @@ describe("EmployeeLockUp Test", function () {
 
       // Checke current locked amount of each user
       for (let i = 1; i <= typeCount; i++) {
-        const userInfo = await lockUp.employeeInfo(accountList[i].address);
+        const userInfo = await lockUp.recipientInfo(accountList[i].address);
         expect(userInfo.lockAmount).to.be.eq(0);
       }
 
-      // Add employee per lock up types
+      // Add recipient per lock up types
       const lockAmount = 100;
+      // Send tokens to lockup contract before adding any recipients
+      await vda.mint(lockUp.address, lockAmount * typeCount);
+
       const currentTime = await currentBlockTimeStamp();
       for (let i = 1; i <= typeCount; i++) {
-        await lockUp.addEmployeeWithLockType(
+        await lockUp.addRecipientWithLockType(
           accountList[i].address,
           lockAmount,
           currentTime + t_day,
@@ -256,40 +269,47 @@ describe("EmployeeLockUp Test", function () {
 
       // Check lock-amount changed
       for (let i = 1; i <= typeCount; i++) {
-        const userInfo = await lockUp.employeeInfo(accountList[i].address);
+        const userInfo = await lockUp.recipientInfo(accountList[i].address);
         expect(userInfo.lockAmount).to.be.eq(lockAmount);
       }
     })
   })
 
-  describe("Remove Employee", async function() {
+  describe("Remove Recipient", async function() {
     this.beforeEach(async function () {
         const lockAmount = 100;
-        await addEmployees(lockAmount);
+        await addRecipients(lockAmount);
     })
 
-    it("Rejected by invalid employee", async function () {
-        await expect(lockUp.removeEmployee(accountList[0].address)).to.be.rejectedWith("Not an employee");
+    it("Rejected by invalid recipient", async function () {
+        await expect(lockUp.removeRecipient(accountList[0].address)).to.be.rejectedWith("Not an recipient");
     }) 
 
-    it ("Employee removed correctly after first release", async function(){
+    it ("Recipient removed correctly after first release", async function(){
         const curBlockTime = await currentBlockTimeStamp();
 
         const lockAmount = 365 * 30;
 
+        // Send tokens to contract
+        await vda.mint(lockUp.address, lockAmount)
+
         const testAccount = accountList[1];
 
+        // console.log('Locked amount before re-register', await lockUp.totalLockedAmount());
+
         // re-register with test lock amount
-        await lockUp.addEmployee(
+        await lockUp.addRecipient(
             testAccount.address, 
             lockAmount,
             curBlockTime + t_day
         );
 
-        // Check out locaked amount
+        // console.log('Locked amount after re-register', await lockUp.totalLockedAmount());
+
+        // Check out locked amount
         expect(await lockUp.connect(testAccount).lockedAmount()).to.be.eq(lockAmount);
 
-        const userInfo = await lockUp.employeeInfo(testAccount.address);
+        const userInfo = await lockUp.recipientInfo(testAccount.address);
         const lockInfo = await lockUp.lockTypeInfo(userInfo.lockType);
 
         const firstRelease = userInfo.lockStart.add(lockInfo.releaseDelay).add(lockInfo.releaseInterval);
@@ -311,7 +331,7 @@ describe("EmployeeLockUp Test", function () {
         expect(await vda.balanceOf(testAccount.address)).to.not.eq(0);
 
         // Remove holder after first release.
-        await lockUp.removeEmployee(testAccount.address);
+        await lockUp.removeRecipient(testAccount.address);
 
         // Check out remaining locked amount
         expect(await lockUp.connect(testAccount).lockedAmount()).to.be.eq(0);
@@ -323,8 +343,8 @@ describe("EmployeeLockUp Test", function () {
 
   describe("Claim", async function () {
     it ("claimable amount is zero before first release", async function () {
-        await addEmployees(100);
-        for (let i = 1; i <= numberOfEmployee; i++) {
+        await addRecipients(100);
+        for (let i = 1; i <= numberOfRecipient; i++) {
             expect(await lockUp.connect(accountList[i]).claimableAmount()).to.be.eq(0);
         }
     })
@@ -334,13 +354,16 @@ describe("EmployeeLockUp Test", function () {
         
         const lockStart = await currentBlockTimeStamp();
 
-        await lockUp.addEmployee(
+        // Send token to lockUp contract
+        await vda.mint(lockUp.address, lockAmount);
+
+        await lockUp.addRecipient(
             testAccount.address,
             lockAmount,
             lockStart + t_day
         );
 
-        const userInfo = await lockUp.employeeInfo(testAccount.address);
+        const userInfo = await lockUp.recipientInfo(testAccount.address);
         const lockInfo = await lockUp.lockTypeInfo(userInfo.lockType);
 
         const releasePerInterval = lockInfo.releaseInterval.mul(userInfo.lockAmount).div(lockInfo.lockDuration).toNumber(); // releaseInterval * lockAmount / lockDuration
@@ -395,14 +418,14 @@ describe("EmployeeLockUp Test", function () {
         expect(await lockUp.connect(testAccount).lockedAmount()).to.be.eq(lockAmount - 2 * releasePerInterval);
         expect(await lockUp.connect(testAccount).claimableAmount()).to.be.eq(0);
         expect(await vda.balanceOf(testAccount.address)).to.be.eq(2 * releasePerInterval);
-    }) 
+    })
   })
 
   describe("lockedAmount", async function () {
     it("get locked amount correctly before any release", async function () {
-        await addEmployees(100);
+        await addRecipients(100);
 
-        for (let i = 1; i <= numberOfEmployee; i++) {
+        for (let i = 1; i <= numberOfRecipient; i++) {
             expect(await lockUp.connect(accountList[i]).lockedAmount()).to.be.eq(100);
         }
     })
@@ -411,9 +434,12 @@ describe("EmployeeLockUp Test", function () {
         const lockAmount = 4 * 365 * 10;
 
         const currentTime = await currentBlockTimeStamp();
+
+        // Send tokens to lockUp contract
+        await vda.mint(lockUp.address, lockAmount);
         
         // Add holder
-        await lockUp.addEmployee(
+        await lockUp.addRecipient(
             testAccount.address,
             lockAmount,
             currentTime + t_day
@@ -423,7 +449,7 @@ describe("EmployeeLockUp Test", function () {
         expect(await vda.balanceOf(testAccount.address)).to.be.eq(0);
         expect(await lockUp.connect(testAccount).lockedAmount()).to.be.eq(lockAmount);
 
-        const userInfo = await lockUp.employeeInfo(testAccount.address);
+        const userInfo = await lockUp.recipientInfo(testAccount.address);
         const lockInfo = await lockUp.lockTypeInfo(userInfo.lockType);
 
         const releasePerInterval = lockInfo.releaseInterval.mul(userInfo.lockAmount).div(lockInfo.lockDuration).toNumber(); // releaseInterval * lockAmount / lockDuration
@@ -441,7 +467,63 @@ describe("EmployeeLockUp Test", function () {
     })
   })
 
+  describe('Withdraw unlocked tokens', async function () {
+    const totalAmount = 100000;
+    const lockAmount = 1000;
 
+    this.beforeEach(async function () {
+      await vda.mint(lockUp.address, totalAmount);
 
-  
+      const currentTime = await currentBlockTimeStamp();
+      // Add holder
+      await lockUp.addRecipient(
+        testAccount.address,
+        lockAmount,
+        currentTime + t_day
+      );
+    })
+
+    it('Rejected because not a owner', async function () {
+      // check whether recipient added with lockAmount
+      expect(await lockUp.totalLockedAmount()).to.be.eq(lockAmount);
+
+      const non_owner = accountList[2];
+      
+      await expect(lockUp.connect(non_owner).withdrawUnlockedTokens()).to.be.rejectedWith('Ownable: caller is not the owner');
+    })
+
+    it('Withdraw to owner', async function () {
+      const owner = accountList[0];
+      // Check locked amount inside lockup contract
+      expect(await lockUp.totalLockedAmount()).to.be.eq(lockAmount);
+
+      // Check owner balance for vda token
+      expect(await vda.balanceOf(owner.address)).to.be.eq(0);
+
+      // Withdraw unlocked amount
+      await lockUp.withdrawUnlockedTokens();
+
+      // Checked withdrawn amount
+      expect(await vda.balanceOf(owner.address)).to.be.eq(totalAmount - lockAmount);
+    })
+
+    it('Withdraw to another address', async function () {
+      const testAccount = accountList[3];
+
+      // Check locked amount inside lockup contract
+      expect(await lockUp.totalLockedAmount()).to.be.eq(lockAmount);
+
+      // Check testAccount balance for vda token
+      expect(await vda.balanceOf(testAccount.address)).to.be.eq(0);
+
+      // Withdraw unlocked amount
+      // const result = await lockUp.withdrawUnlockedTokensTo(testAccount.address);
+      await expect(lockUp.withdrawUnlockedTokensTo(testAccount.address))
+        .to.emit(lockUp, 'WtihdrawTokens')
+        .withArgs(testAccount.address, totalAmount - lockAmount);
+
+      // Checked withdrawn amount
+      expect(await vda.balanceOf(testAccount.address)).to.be.eq(totalAmount - lockAmount);
+    })
+  })
 });
