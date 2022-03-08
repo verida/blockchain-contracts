@@ -1,46 +1,61 @@
-# Advanced Sample Hardhat Project
+# Purpose of this contract
+This is a lockUp contract for employees.
+Verida tokens (or any other ERC20Upgradable tokens) will be locked for individual employees with kinds of lock-up settings.
 
-This project demonstrates an advanced Hardhat use case, integrating other tools commonly used alongside Hardhat in the ecosystem.
+Lock-up settings contains following:
+  - lock start time
+  - lock-up duration
+  - release interval
+  - release delay
 
-The project comes with a sample contract, a test for that contract, a sample script that deploys that contract, and an example of a task implementation, which simply lists the available accounts. It also comes with a variety of other tools, preconfigured to work with the project code.
-
-Try running some of the following tasks:
-
-```shell
-npx hardhat accounts
-npx hardhat compile
-npx hardhat clean
-npx hardhat test
-npx hardhat node
-npx hardhat help
-REPORT_GAS=true npx hardhat test
-npx hardhat coverage
-npx hardhat run scripts/deploy.ts
-TS_NODE_FILES=true npx ts-node scripts/deploy.ts
-npx eslint '**/*.{js,ts}'
-npx eslint '**/*.{js,ts}' --fix
-npx prettier '**/*.{json,sol,md}' --check
-npx prettier '**/*.{json,sol,md}' --write
-npx solhint 'contracts/**/*.sol'
-npx solhint 'contracts/**/*.sol' --fix
+# Contract Features
+## Token Setup
+The lock-up token is set when deploying this contract. There is an input parameter for token address in the `initialize` function:
 ```
-
-# Etherscan verification
-
-To try out Etherscan verification, you first need to deploy a contract to an Ethereum network that's supported by Etherscan, such as Ropsten.
-
-In this project, copy the .env.example file to a file named .env, and then edit it to fill in the details. Enter your Etherscan API key, your Ropsten node URL (eg from Alchemy), and the private key of the account which will send the deployment transaction. With a valid .env file in place, first deploy your contract:
-
-```shell
-hardhat run --network ropsten scripts/sample-script.ts
+function initialize(address tokenAddress)
 ```
+`tokenAddress` is an address of the ERC20Upgradeable contract. Otherwise, the contract will not be deployed.
 
-Then, copy the deployment address and paste it in to replace `DEPLOYED_CONTRACT_ADDRESS` in this command:
+Before adding employees, there must be enough tokens in the contract.
+Anyone can transfer tokens to this contract using general token transferring methods. There are no functions to deposit tokens in this contract. 
 
-```shell
-npx hardhat verify --network ropsten DEPLOYED_CONTRACT_ADDRESS "Hello, Hardhat!"
+The owner can withdraw unlocked tokens at any time. There are 2 functions to withdraw unlocked tokens:
 ```
+function withdrawUnlockedTokens()
+function withdrawUnlockedTokensTo(address to)
+```
+The first function will withdraw tokens to the owner's address, while the second one withdrawing to the input address.
 
-# Performance optimizations
+## LockType
+LockType is a lock-up setting applied to individual employees. LockType includes lock duration, release interval, & release delay (3 properties of the above lock-up setting). Lock start time will be different per each employee and it will be set up on employee add (Will be explained in `Add/Remove Employee` section.
 
-For faster runs of your tests and scripts, consider skipping ts-node's type checking by setting the environment variable `TS_NODE_TRANSPILE_ONLY` to `1` in hardhat's environment. For more details see [the documentation](https://hardhat.org/guides/typescript.html#performance-optimizations).
+Initially there is only one LockType:
+  - lock-up duration: 365 days
+  - release interval: 30 days
+  - release delay: 365 days
+
+Only the owner of this contract can add additional LockTypes. And there is no function for removing LockTypes.
+Owner can add LockTypes using `addLockType(uint256 lockDuration, uint256 releaseInterval, uint256 releaseDelay)` function.
+
+## Add/Remove Employee
+Only the owner can add or remove employees.
+The owner can add an employee by one of the following 2 functions:
+```
+  addRecipient(address to, uint256 _lockAmount, uint256 _lockStart)
+  addRecipientWithLockType(address to, uint256 _lockAmount, uint256 _lockStart, uint8 _lockType)
+```
+Here `_lockType` points to the index of LockType. Index of LockType starts from 1.
+Once `_lockType` is not set, employee will be added with default LockType(index = 1).
+
+Adding will be failed in following cases:
+  - `_lockType` is invalid
+  - `_lockAmount` is 0.
+  - `_lockStart` is before thant current block time.
+  -  Insufficient tokens in the contract.
+
+The owner can remove any employee at any time by `removeRecipient(address to)`. Once an employee is removed, previously locked tokens for him will be released to the contract.
+
+## Employee
+An employee can check his locked amounts by `lockedAmount()` function.
+He can check out the claimable amount by `claimableAmount()` function.
+He can claim tokens by `claim()` function.

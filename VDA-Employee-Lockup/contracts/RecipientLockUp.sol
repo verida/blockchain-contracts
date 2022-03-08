@@ -149,7 +149,7 @@ contract RecipientLockUp is OwnableUpgradeable, IRecipientLockUp {
         RecipientInfo storage userInfo = recipientInfo[to];
         require(userInfo.lockType > 0 && userInfo.lockType <= lockTypeCount, "Not an recipient");
 
-        totalLockedAmount -= userInfo.lockAmount;
+        totalLockedAmount -= (userInfo.lockAmount - userInfo.released);
 
         delete recipientInfo[to];
 
