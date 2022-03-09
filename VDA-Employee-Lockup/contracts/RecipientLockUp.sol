@@ -34,7 +34,7 @@ contract RecipientLockUp is OwnableUpgradeable, IRecipientLockUp {
     /**
      * @dev Emitted when owner withdraw tokens.
      */
-    event WtihdrawTokens(address to, uint256 amount);
+    event WithdrawTokens(address to, uint256 amount);
 
     function initialize(address tokenAddress) public initializer {
         __Ownable_init();
@@ -97,7 +97,7 @@ contract RecipientLockUp is OwnableUpgradeable, IRecipientLockUp {
 
         token.safeTransfer(to, unlockedAmount);
 
-        emit WtihdrawTokens(to, unlockedAmount);
+        emit WithdrawTokens(to, unlockedAmount);
     }
 
     /**
