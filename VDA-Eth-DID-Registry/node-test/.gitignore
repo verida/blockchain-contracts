@@ -1,0 +1,5 @@
+#Build
+node_modules/
+
+#Key File
+.env.json
