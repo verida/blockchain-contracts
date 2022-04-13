@@ -1,3 +1,9 @@
+# node_modules 
 VDA-Employee-Lockup/node_modules/*
 VDA-ERC20/node_modules/*
 VDA-Eth-DID-Registry/node_modules/*
+
+VDA-ERC20/artifacts/*
+VDA-ERC20/cache/*
+VDA-ERC20/typechain/*
+VDA-ERC20/.openzeppelin/*
