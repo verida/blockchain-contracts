@@ -7,3 +7,8 @@ VDA-ERC20/artifacts/*
 VDA-ERC20/cache/*
 VDA-ERC20/typechain/*
 VDA-ERC20/.openzeppelin/*
+
+VDA-Employee-Lockup/artifacts/*
+VDA-Employee-Lockup/cache/*
+VDA-Employee-Lockup/typechain/*
+VDA-Employee-Lockup/.openzeppelin/*
