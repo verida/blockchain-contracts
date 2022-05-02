@@ -1,11 +1,3 @@
----
-title: "Ethereum DID Registry"
-index: 0
-category: "ethr-did-registry"
-type: "reference"
-source: "https://github.com/uport-project/ethr-did-registry/blob/develop/README.md"
----
-
 # Description
 This contract interacts with VDA-Ethr-DID JS libraries.
 VDA-Ethr-DID library was forked from `https://github.com/uport-project/ethr-did` and customized for bulk transactions.
@@ -52,4 +44,3 @@ node getlogs_bsc.js
 or
 ```
 node getlogs_polygon.js
-```
