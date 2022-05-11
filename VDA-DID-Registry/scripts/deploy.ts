@@ -46,3 +46,6 @@ main().catch((error) => {
 
 // 2022/5/2 Updated for Signature
 // BSCTest: 0x2862BC860f55D389bFBd1A37477651bc1642A20B
+
+// 2022/5/10 : Updated Contract name to VeridaDIDRegistry
+// BSCTest: 0xC1fE55A1aa03Ca498E335B70972Bf81416671bd7 
