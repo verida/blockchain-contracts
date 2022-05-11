@@ -80,7 +80,7 @@ const config: HardhatUserConfig = {
     currency: "USD",
   },
   etherscan: {
-    apiKey: polygonscan,
+    apiKey: bscscan,
   },
 };
 

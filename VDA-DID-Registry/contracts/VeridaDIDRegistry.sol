@@ -64,7 +64,7 @@ contract VeridaDIDRegistry {
     uint previousChange
   );
 
-  function identityOwner(address identity) public view returns(address) {
+  function identityOwner(address identity) external view returns(address) {
      address owner = owners[identity];
      if (owner != address(0x00)) {
        return owner;
@@ -72,7 +72,7 @@ contract VeridaDIDRegistry {
      return identity;
   }
 
-  function validDelegate(address identity, bytes32 delegateType, address delegate) public view returns(bool) {
+  function validDelegate(address identity, bytes32 delegateType, address delegate) external view returns(bool) {
     uint validity = delegates[identity][keccak256(abi.encode(delegateType))][delegate];
     return (validity > block.timestamp);  
   }
@@ -83,7 +83,7 @@ contract VeridaDIDRegistry {
     changed[identity] = block.number;
   }
 
-  function changeOwner(address identity, address newOwner, bytes calldata signature) public onlyVerifiedSignature(identity, signature) {
+  function changeOwner(address identity, address newOwner, bytes calldata signature) external onlyVerifiedSignature(identity, signature) {
     changeOwner(identity, newOwner);
   }
 
@@ -93,7 +93,7 @@ contract VeridaDIDRegistry {
     changed[identity] = block.number;
   }
 
-  function addDelegate(address identity, bytes32 delegateType, address delegate, uint validity, bytes calldata signature) public onlyVerifiedSignature(identity, signature) {
+  function addDelegate(address identity, bytes32 delegateType, address delegate, uint validity, bytes calldata signature) external onlyVerifiedSignature(identity, signature) {
     addDelegate(identity, delegateType, delegate, validity);
   }
 
@@ -103,7 +103,7 @@ contract VeridaDIDRegistry {
     changed[identity] = block.number;
   }
 
-  function revokeDelegate(address identity, bytes32 delegateType, address delegate, bytes calldata signature) public onlyVerifiedSignature(identity, signature) {
+  function revokeDelegate(address identity, bytes32 delegateType, address delegate, bytes calldata signature) external onlyVerifiedSignature(identity, signature) {
     revokeDelegate(identity, delegateType, delegate);
   }
 
@@ -112,7 +112,7 @@ contract VeridaDIDRegistry {
     changed[identity] = block.number;
   }
 
-  function setAttribute(address identity, bytes32 name, bytes memory value, uint validity, bytes calldata signature ) public onlyVerifiedSignature(identity, signature) {
+  function setAttribute(address identity, bytes32 name, bytes memory value, uint validity, bytes calldata signature ) external onlyVerifiedSignature(identity, signature) {
     setAttribute(identity, name, value, validity);
   }
 
@@ -121,7 +121,7 @@ contract VeridaDIDRegistry {
     changed[identity] = block.number;
   }
 
-  function revokeAttribute(address identity, bytes32 name, bytes memory value, bytes calldata signature ) public onlyVerifiedSignature(identity, signature) {
+  function revokeAttribute(address identity, bytes32 name, bytes memory value, bytes calldata signature ) external onlyVerifiedSignature(identity, signature) {
     revokeAttribute(identity, name, value);
   }
 

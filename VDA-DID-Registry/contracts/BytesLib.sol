@@ -1,5 +1,5 @@
-pragma solidity >=0.8.0 <0.9.0;
-
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.6;
 
 library BytesLib {
     // function concat(
@@ -428,6 +428,7 @@ library BytesLib {
         return success;
     }
 
+    /*
     function equalStorage(
         bytes storage _preBytes,
         bytes memory _postBytes
@@ -499,4 +500,5 @@ library BytesLib {
 
         return success;
     }
+    */
 }
