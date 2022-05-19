@@ -37,13 +37,13 @@ contract ServiceRegistry is Ownable {
     mapping (bytes32 => ServiceInfo) serviceInfos;
     // did => AccountInfo
     mapping (address => AccountInfo) accountInfos;
+    EnumerableSet.Bytes32Set serviceIdAry;
        
-    // EnumerableSet.Bytes32Set pendingRemovalIds;
-
 
     /// @dev Registered service info
     struct ServiceDetail {
         address identity;
+        string infraType;
         string serviceType;
         string endpointUri;
         string country;
@@ -57,7 +57,6 @@ contract ServiceRegistry is Ownable {
         uint256 creditAmount;
         uint256 expireTime;
         uint256 lastClaimTime;
-        // uint256 connectCounts;
         mapping (address => uint256) expireTimes;
         mapping (address => uint256) pricePerDays;
         EnumerableSet.AddressSet connectedAccounts;
@@ -76,8 +75,6 @@ contract ServiceRegistry is Ownable {
         uint256 maxAccounts;
         uint256 pricePerDayPerAccount;
     }
-
-    
 
     modifier onlyVerifiedSignature(address identity, bytes calldata signature) {
         // require signature is signed by identity
@@ -132,19 +129,30 @@ contract ServiceRegistry is Ownable {
         // string calldata proof,
         bytes calldata signature) public onlyVerifiedSignature(identity, signature)
     {
+        // Generate new serviceId from {DID} and {serviceType}
         bytes32 serviceId = keccak256(abi.encodePacked(identity, inputParam.serviceType));
+        // Check if service has already registered
         bool isRegistered = registeredIds[identity].contains(serviceId);
         require(!isRegistered, "Service has already registered!");
         registeredIds[identity].add(serviceId);
+        serviceIdAry.add(serviceId);
+        // Get account info by {DID}
         AccountInfo storage _account = accountInfos[identity];
+        // Get infraType; ex, typeLookup["VeridaDatabase"] = "database"
         string memory infraType = typeLookup[inputParam.serviceType];
+        // Verida Infrastructure Operator will need registerPrice tokens to register service.
+        // ex, vdaPerAccount["database"] = 300;
+        //     maxAccounts * vdaPerAccount["database"];
         uint256 registerPrice = inputParam.maxAccounts * vdaPerAccount[infraType];
+        // Check the Operator's credit amount
         require(_account.creditAmount >= registerPrice, "Not enough credit to register service");
-        // (bool success,) = payable(address(this)).call{value: registerPrice}("");
-        // require(success, "Sending VDA to contract failed");
+
+        
         _account.creditAmount = _account.creditAmount - registerPrice;
+        // Register new service
         ServiceInfo storage _service = serviceInfos[serviceId];
         _service.serviceDetail.identity = identity;
+        _service.serviceDetail.infraType = infraType;
         _service.serviceDetail.serviceType = inputParam.serviceType;
         _service.serviceDetail.endpointUri = inputParam.endpointUri;
         _service.serviceDetail.country = inputParam.country;
@@ -166,26 +174,28 @@ contract ServiceRegistry is Ownable {
         uint256 pricePerAccount,
         bytes calldata signature
     ) public payable onlyVerifiedSignature(identity, signature) {
+        // Get service from {serviceId}
         ServiceInfo storage _service = serviceInfos[serviceId];
+        // Check if service updating time limit
         require(block.timestamp > _service.expireTime, "Cannot update service due to limit to priceChangeDelayDays");
         uint256 connectedCount = getConnectedAccountCount(serviceId);
+        // Cannot set maxAccounts less than number of connected accounts
         require(maxAccounts > connectedCount, "Value can't be lower than the current number of connected accounts");
         string memory infraType = typeLookup[_service.serviceDetail.serviceType];
         AccountInfo storage _account = accountInfos[identity];
         if(_service.serviceDetail.maxAccounts > maxAccounts) {
+            // Decrease maxAccounts, so Operator will receive the rest tokens
             uint256 price = (_service.serviceDetail.maxAccounts - maxAccounts) * vdaPerAccount[infraType];
             _service.creditAmount = _service.creditAmount - price;
-            // (bool success, ) = msg.sender.call{value: price}("");
-            // require(success, "Cannot update service");
             _account.creditAmount = _account.creditAmount + price;
         } else if(_service.serviceDetail.maxAccounts < maxAccounts) {
+            // Increase maxAccounts, so Operator will pay more tokens
             uint256 price = (maxAccounts - _service.serviceDetail.maxAccounts) * vdaPerAccount[infraType];
             _service.creditAmount = _service.creditAmount + price;
-            // require(msg.value > price, "Cannot update service");
             _account.creditAmount = _account.creditAmount - price;
         }
+        // Update the service status
         _service.serviceDetail.maxAccounts = maxAccounts;
-        // _service.lastPricePerDayPerAccount = _service.pricePerDayPerAccount;
         _service.serviceDetail.pricePerDayPerAccount = pricePerAccount;
         _service.expireTime = block.timestamp + priceChangeDelayDays * 1 days;
         _service.status = ServiceStatus.PendingUpdate;
@@ -199,10 +209,10 @@ contract ServiceRegistry is Ownable {
         bytes32 serviceId,
         bytes calldata signature
     ) public onlyVerifiedSignature(identity, signature) {
-        // bool isPending = pendingRemovalIds.contains(serviceId);
         bool isPending = serviceInfos[serviceId].status == ServiceStatus.PendingRemoval;
+        // Check if service is already pending removal
         require(!isPending, "Service is pending removal");
-        // pendingRemovalIds.add(serviceId);
+        // Update service status only
         serviceInfos[serviceId].status = ServiceStatus.PendingRemoval;
         serviceInfos[serviceId].expireTime = block.timestamp + deregisterDelayDays * 1 days;
 
@@ -214,18 +224,22 @@ contract ServiceRegistry is Ownable {
         bytes32 serviceId,
         bytes calldata signature
     ) external onlyVerifiedSignature(identity, signature) {
+        // Remove service from the storage according the status
         ServiceInfo storage _service = serviceInfos[serviceId];
         require((serviceInfos[serviceId].status == ServiceStatus.PendingRemoval) && (block.timestamp > serviceInfos[serviceId].expireTime), "Not ready to remove");
         AccountInfo storage _account = accountInfos[identity];
         _account.creditAmount = _account.creditAmount + _service.creditAmount;
         delete serviceInfos[serviceId];
+        registeredIds[identity].remove(serviceId);
+        serviceIdAry.remove(serviceId);
     }
 
-    function addCredit(
+    function _addCredit(
         address identity,
         uint256 numCredit,
         address sender
     ) internal {
+        // Account will lockup tokens in the contract and increase his creditAmount
         uint256 balanceBefore = vdaToken.balanceOf(sender);
         require(balanceBefore >= numCredit, "Insufficient funds to add credit");
         vdaToken.transferFrom(sender, address(this), numCredit);
@@ -242,14 +256,15 @@ contract ServiceRegistry is Ownable {
         uint256 numCredit,
         bytes calldata signature
     ) public onlyVerifiedSignature(identity, signature) {
-        addCredit(identity, numCredit, msg.sender);
+        _addCredit(identity, numCredit, msg.sender);
     }
 
-    function removeCredit(
+    function _removeCredit(
         address identity,
         uint256 numCredit,
         address sender
     ) internal {
+        // Account will free up tokens from the contract and decrease the creditAmount
         AccountInfo storage _account = accountInfos[identity];
 
         require(numCredit > 0, "Value cannot be zero");
@@ -257,8 +272,6 @@ contract ServiceRegistry is Ownable {
         uint256 balanceBefore = vdaToken.balanceOf(address(this));
         require(balanceBefore >= numCredit, "Not enough token in the contract");
         vdaToken.transfer(sender, numCredit);
-        // (bool success, ) = msg.sender.call{value: numCredit}("");
-        // require(success, "Sending VDA failed");
         _account.creditAmount = _account.creditAmount - numCredit;
 
         emit RemoveCredit(identity, numCredit);
@@ -270,7 +283,7 @@ contract ServiceRegistry is Ownable {
         uint256 numCredit,
         bytes calldata signature
     ) public onlyVerifiedSignature(identity, signature) {
-        removeCredit(identity, numCredit, msg.sender);
+        _removeCredit(identity, numCredit, msg.sender);
     }
 
     /// @dev Account{identity} connect to the Service{serviceId}
@@ -280,18 +293,21 @@ contract ServiceRegistry is Ownable {
         bytes calldata signature
     ) public payable onlyVerifiedSignature(identity, signature) {
         ServiceInfo storage _service = serviceInfos[serviceId];
-        // bool isPendingRemoval = pendingRemovalIds.contains(serviceId);
         bool isPendingRemoval = _service.status == ServiceStatus.PendingRemoval;
+        // Check the service status
         require(!isPendingRemoval, "Service is pending removal");
         require(!_service.connectedAccounts.contains(identity), "Already connected");
         require(_service.serviceDetail.maxAccounts > _service.connectedAccounts.length(), "Service hits maximum number of connected accounts");
         uint256 price = _service.serviceDetail.pricePerDayPerAccount * minimumDaysCreditPerService;
         AccountInfo storage _account = accountInfos[identity];
         require(_account.creditAmount >= price, "Not enough VDA to connect service");
+        // Account have to pay specific tokens to connect to the service
+        // amount = pricePerDayPerAccount * minimumDaysCreditPerService
+        // prciePerDayPerAccount will be set by Operator when he register the service
+        // minimumDaysCreditPerService(30 days) is the config variable.
         _account.creditAmount = _account.creditAmount - price;
         _service.expireTimes[identity] = block.timestamp + minimumDaysCreditPerService * 1 days;
         _service.pricePerDays[identity] = _service.serviceDetail.pricePerDayPerAccount;
-        // _service.connectCounts = _service.connectCounts + 1;
         _service.creditAmount = _service.creditAmount + price;
         _service.connectedAccounts.add(identity);
 
@@ -304,31 +320,62 @@ contract ServiceRegistry is Ownable {
         bytes32 serviceId,
         bytes calldata signature
     ) public onlyVerifiedSignature(identity, signature) {
-        // bool isConnected = connectInfos[serviceId].contains(identity);
+        // Check if account is connected to the service
         bool isConnected = serviceInfos[serviceId].connectedAccounts.contains(identity);
         require(isConnected, "Account is not connected to service");
         ServiceInfo storage _service = serviceInfos[serviceId];
-        // removeCredit(identity, _service.pricePerDayPerAccount * minimumDaysCreditPerService, signature);
+        // Account will receive the remained tokens
         uint256 price = _service.pricePerDays[identity] * calcDays(block.timestamp, serviceInfos[serviceId].expireTimes[identity]);
-        // uint256 price = _service.serviceDetail.pricePerDayPerAccount * (minimumDaysCreditPerService - calcDays(serviceInfos[serviceId].connectTimes[identity], block.timestamp));
         accountInfos[identity].creditAmount = accountInfos[identity].creditAmount + price;
         _service.creditAmount = _service.creditAmount - price;
-        // connectInfos[serviceId].remove(identity);
         delete _service.expireTimes[identity];
         delete _service.pricePerDays[identity];
-        // _service.connectCounts = _service.connectCounts - 1;
         _service.connectedAccounts.remove(identity);
     }
 
+    /// @dev Discover the available services so accounts can select services
+    function discoverService(
+        string memory infraType,
+        string memory serviceType,
+        string memory country,
+        uint256 maxPricePerDay
+    ) external view returns(bytes32[] memory) {
+        bytes32[] memory serviceIds = new bytes32[](serviceIdAry.length());
+        uint cnt = 0;
+        for(uint i = 0;i<serviceIdAry.length();i++) {
+            bytes32 _id = serviceIdAry.at(i);
+            ServiceDetail memory _detail = serviceInfos[_id].serviceDetail;
+            if((compareStrings(_detail.infraType, infraType) || compareStrings(infraType, "")) &&
+               (compareStrings(_detail.serviceType, serviceType) || compareStrings(serviceType, "")) &&
+               (compareStrings(_detail.country, country) || compareStrings(country, "")) &&
+               _detail.pricePerDayPerAccount <= maxPricePerDay
+            ) {
+                serviceIds[cnt] = _id;
+                cnt = cnt + 1;
+            }
+        }
+        bytes32[] memory res = new bytes32[](cnt);
+        for(uint i = 0;i<cnt;i++)
+            res[i] = serviceIds[i];
+        return res;
+    }
+
+    function compareStrings(string memory a, string memory b) internal pure returns(bool) {
+        return (keccak256(abi.encodePacked(a)) == keccak256(abi.encodePacked(b)));
+    }
+
+    /// @dev Verida Infrastructure Operator will call this function every week.
     function claim(
         address identity,
         bytes32 serviceId,
         bytes calldata signature
     ) public onlyVerifiedSignature(identity, signature) {
         ServiceInfo storage _service = serviceInfos[serviceId];
+        // Check the 7 days limit to claim
         require(block.timestamp >= _service.lastClaimTime + 7 days, "Should claim after 7 days from the last claim");
         uint256 amount = 0;
         uint256 currentTime = block.timestamp;
+        // Calculate the claimable tokens from connected accounts
         for(uint i = 0;i<_service.connectedAccounts.length();i++){
             address _did = _service.connectedAccounts.at(i);
             uint256 conTime = _service.expireTimes[_did] - minimumDaysCreditPerService * 1 days;
@@ -342,6 +389,7 @@ contract ServiceRegistry is Ownable {
         }
         require(_service.creditAmount >= amount, "Cannot claim, not enough credit");
         _service.creditAmount = _service.creditAmount - amount;
+        // If Operator tries to claim after 14 days, the tokens will be stored in the contract and he cannot claim that tokens.
         if(currentTime <= _service.lastClaimTime + 14 days) {
             accountInfos[identity].creditAmount = accountInfos[identity].creditAmount + amount;
         } else {
@@ -378,6 +426,7 @@ contract ServiceRegistry is Ownable {
     /// @dev Get detail of the Service{serviceId}
     function getServiceDetail(bytes32 serviceId) public view returns(
         address identity,
+        string memory infraType,
         string memory serviceType,
         string memory endpointUri,
         string memory country,
@@ -386,6 +435,7 @@ contract ServiceRegistry is Ownable {
         uint256 startTime
     ) {
         identity = serviceInfos[serviceId].serviceDetail.identity;
+        infraType = serviceInfos[serviceId].serviceDetail.infraType;
         serviceType = serviceInfos[serviceId].serviceDetail.serviceType;
         endpointUri = serviceInfos[serviceId].serviceDetail.endpointUri;
         country = serviceInfos[serviceId].serviceDetail.country;
