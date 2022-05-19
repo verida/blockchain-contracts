@@ -284,6 +284,25 @@ describe("Service Registry", function () {
     })
   });
 
+  describe("Discover Service", async () => {
+    it("Discover services", async () => {
+      const res = await registryContract.discoverService("database", "VeridaDatabase", "India", 1000 );
+      for(let i = 0;i<res.length;i++) {
+        const _detail = await registryContract.getServiceDetail(res[i]);
+        expect(_detail.infraType).to.be.eq("database");
+        expect(_detail.serviceType).to.be.eq("VeridaDatabase");
+        expect(_detail.country).to.be.eq("India");
+      }
+      const res1 = await registryContract.discoverService("database", "VeridaDatabase", "", 1000 );
+      for(let i = 0;i<res1.length;i++) {
+        const _detail = await registryContract.getServiceDetail(res1[i]);
+        console.log("detail:", _detail);
+        expect(_detail.infraType).to.be.eq("database");
+        expect(_detail.serviceType).to.be.eq("VeridaDatabase");
+      }
+    })
+  })
+
   describe("Connect Service", async () => {
     it("Successfully VDA accounts connect to the service", async () => {
       // [0] = VeridaDatabase : max = 2, pricePerDay = 400
