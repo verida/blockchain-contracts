@@ -130,7 +130,7 @@ describe("Service Registry", function () {
         {
           serviceType:"VeridaDatabase",
           endpointUri:"https://rpc-mumbai.matic.today",
-          country: "Australia",
+          country: "AUS",
           maxAccounts: 2,
           pricePerDayPerAccount: 400
         },
@@ -150,7 +150,7 @@ describe("Service Registry", function () {
         {
           serviceType:"VeridaMessaging",
           endpointUri:"https://rpc-mumbai.matic.today",
-          country: "Canada",
+          country: "CAN",
           maxAccounts: 5,
           pricePerDayPerAccount: 500
         },
@@ -165,7 +165,7 @@ describe("Service Registry", function () {
         {
           serviceType:"VeridaNotification",
           endpointUri:"https://rpc-mumbai.matic.today",
-          country: "Canada",
+          country: "CAN",
           maxAccounts: 10,
           pricePerDayPerAccount: 200
         },
@@ -182,7 +182,7 @@ describe("Service Registry", function () {
         {
           serviceType:"VeridaDatabase",
           endpointUri:"https://rpc-mumbai.matic.today",
-          country: "India",
+          country: "IND",
           maxAccounts: 3,
           pricePerDayPerAccount: 350
         },
@@ -214,7 +214,7 @@ describe("Service Registry", function () {
         {
           serviceType:"VeridaMessaging",
           endpointUri:"https://rpc-mumbai.matic.today",
-          country: "Hong Kong",
+          country: "HK",
           maxAccounts: 15,
           pricePerDayPerAccount: 450
         },
@@ -229,7 +229,7 @@ describe("Service Registry", function () {
         {
           serviceType:"VeridaStorage",
           endpointUri:"https://rpc-mumbai.matic.today",
-          country: "India",
+          country: "IND",
           maxAccounts: 5,
           pricePerDayPerAccount: 120
         },
@@ -244,7 +244,7 @@ describe("Service Registry", function () {
         {
           serviceType:"VeridaMessage",
           endpointUri:"https://rpc-mumbai.matic.today",
-          country: "Singapore",
+          country: "SIN",
           maxAccounts: 10,
           pricePerDayPerAccount: 700
         },
@@ -258,7 +258,7 @@ describe("Service Registry", function () {
         {
           serviceType:"VeridaMessage",
           endpointUri:"https://rpc-mumbai.matic.today",
-          country: "Hong Kong",
+          country: "HK",
           maxAccounts: 10,
           pricePerDayPerAccount: 700
         },
@@ -275,7 +275,7 @@ describe("Service Registry", function () {
         {
           serviceType:"VeridaDatabase",
           endpointUri:"https://rpc-mumbai.matic.today",
-          country: "Singapore",
+          country: "SIN",
           maxAccounts: 30,
           pricePerDayPerAccount: 450
         },
@@ -284,16 +284,19 @@ describe("Service Registry", function () {
     })
   });
 
-  describe("Discover Service", async () => {
-    it("Discover services", async () => {
-      const res = await registryContract.discoverService("database", "VeridaDatabase", "India", 1000 );
+  describe("Discover Services", async () => {
+    it("Discover services with all params", async () => {
+      const res = await registryContract.discoverServices("database", "VeridaDatabase", "IND", 1000 );
       for(let i = 0;i<res.length;i++) {
         const _detail = await registryContract.getServiceDetail(res[i]);
         expect(_detail.infraType).to.be.eq("database");
         expect(_detail.serviceType).to.be.eq("VeridaDatabase");
-        expect(_detail.country).to.be.eq("India");
+        expect(_detail.country).to.be.eq("IND");
       }
-      const res1 = await registryContract.discoverService("database", "VeridaDatabase", "", 1000 );
+    })
+
+    it("Discover services without country", async () => {
+      const res1 = await registryContract.discoverServices("database", "VeridaDatabase", "", 1000 );
       for(let i = 0;i<res1.length;i++) {
         const _detail = await registryContract.getServiceDetail(res1[i]);
         console.log("detail:", _detail);
@@ -301,6 +304,27 @@ describe("Service Registry", function () {
         expect(_detail.serviceType).to.be.eq("VeridaDatabase");
       }
     })
+
+    it("Discover services without service type", async () => {
+      const res = await registryContract.discoverServices("database", "", "AUS", 1000 );
+      for(let i = 0;i<res.length;i++) {
+        const _detail = await registryContract.getServiceDetail(res[i]);
+        console.log("detail:", _detail);
+        expect(_detail.infraType).to.be.eq("database");
+        expect(_detail.country).to.be.eq("AUS");
+      }
+    })
+
+    it("Discover services without infra type", async () => {
+      const res = await registryContract.discoverServices("", "VeridaDatabase", "AUS", 1000 );
+      for(let i = 0;i<res.length;i++) {
+        const _detail = await registryContract.getServiceDetail(res[i]);
+        console.log("detail:", _detail);
+        expect(_detail.serviceType).to.be.eq("VeridaDatabase");
+        expect(_detail.country).to.be.eq("AUS");
+      }
+    })
+
   })
 
   describe("Connect Service", async () => {
