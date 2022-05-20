@@ -17,8 +17,10 @@ contract ServiceRegistry is Ownable {
 
     /// Config variables
     // infraType => price
+    // Price per account according to the infrastructure type
     mapping (string => uint256) vdaPerAccount;
     // serviceType => infraType
+    // Lookup between service type and infra type
     mapping (string => string) typeLookup;
 
     /// 30 days = 2,592,000 s
@@ -27,8 +29,11 @@ contract ServiceRegistry is Ownable {
     uint256 public priceChangeDelayDays = 30;
     
     // --------------- State Variables ---------------
+    // Verida Token
     IERC20 public vdaToken;
     
+    // If Operator didn't claim in time, he cannot claim anymore.
+    // Represent that amount
     uint256 restTokens;
 
     // did => serviceId[] : did = vda infra operator
@@ -76,6 +81,7 @@ contract ServiceRegistry is Ownable {
         uint256 pricePerDayPerAccount;
     }
 
+    /// @dev Check if signature is signed by identity
     modifier onlyVerifiedSignature(address identity, bytes calldata signature) {
         // require signature is signed by identity
         bytes memory rightSign = hex"67de2d20880a7d27b71cdcb38817ba95800ca82dff557cedd91b96aacb9062e80b9e0b8cb9614fd61ce364502349e9079c26abaa21890d7bc2f1f6c8ff77f6261c";
@@ -334,7 +340,7 @@ contract ServiceRegistry is Ownable {
     }
 
     /// @dev Discover the available services so accounts can select services
-    function discoverService(
+    function discoverServices(
         string memory infraType,
         string memory serviceType,
         string memory country,
@@ -348,7 +354,7 @@ contract ServiceRegistry is Ownable {
             if((compareStrings(_detail.infraType, infraType) || compareStrings(infraType, "")) &&
                (compareStrings(_detail.serviceType, serviceType) || compareStrings(serviceType, "")) &&
                (compareStrings(_detail.country, country) || compareStrings(country, "")) &&
-               _detail.pricePerDayPerAccount <= maxPricePerDay
+               ( maxPricePerDay == 0 || _detail.pricePerDayPerAccount <= maxPricePerDay)
             ) {
                 serviceIds[cnt] = _id;
                 cnt = cnt + 1;
