@@ -63,6 +63,7 @@ describe("Service Registry", function () {
     registryContract = await registryFactory.deploy(tokenContract.address) as ServiceRegistry;
     await registryContract.deployed();
 
+    // Minting tokens to test generated accounts.
     for(let i = 0;i<accountList.length;i++) {
       await tokenContract.mintTokens(accountList[i].address, 25000);
     }
@@ -77,6 +78,7 @@ describe("Service Registry", function () {
     vdaAccount4 = accountList[7];
     vdaAccount5 = accountList[8];
 
+    // Provide spending approval from address accounts to serviceRegistry contract
     for(let i = 0;i<accountList.length;i++) {
       await tokenContract.connect(accountList[i]).approve(registryContract.address, 1000000);
     }
