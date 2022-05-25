@@ -13,11 +13,13 @@ async function main() {
   // manually to make sure everything is compiled
   // await hre.run('compile');
 
-  const tokenFactory = await ethers.getContractFactory("MockVDA");
-  const tokenContract = await tokenFactory.deploy();
-  await tokenContract.deployed();
+  const tokenAddr = "0x0000000000000000000000000000000000000000"
+  // const tokenContract = await ethers.getContractAt("VDAToken", tokenAddr);
+  // const tokenFactory = await ethers.getContractFactory("MockVDA");
+  // const tokenContract = await tokenFactory.deploy();
+  // await tokenContract.deployed();
 
-  const tokenAddr = tokenContract.address;
+  // const tokenAddr = tokenContract.address;
 
   // We get the contract to deploy
   const registryFactory = await ethers.getContractFactory("ServiceRegistry");

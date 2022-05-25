@@ -15,12 +15,16 @@ contract ServiceRegistry is Ownable {
     using BytesLib for bytes;
     using SafeERC20 for IERC20;
 
-    /// Config variables
-    // infraType => price
-    // Price per account according to the infrastructure type
+    /**
+     * Config variables
+     * infraType => price
+     * Price per account according to the infrastructure type
+     */
     mapping (string => uint256) vdaPerAccount;
-    // serviceType => infraType
-    // Lookup between service type and infra type
+    /**
+     * serviceType => infraType
+     * Lookup between service type and infra type
+     */ 
     mapping (string => string) typeLookup;
 
     /// 30 days = 2,592,000 s
@@ -32,20 +36,34 @@ contract ServiceRegistry is Ownable {
     // Verida Token
     IERC20 public vdaToken;
     
-    // If Operator didn't claim in time, he cannot claim anymore.
-    // Represent that amount
+    /**
+     * If Operator didn't claim in time, he cannot claim anymore.
+     * Represent that amount
+     */
     uint256 restTokens;
 
-    // did => serviceId[] : did = vda infra operator
+    /**
+     * did => serviceId[] : did = vda infra operator
+     */
     mapping (address => EnumerableSet.Bytes32Set) registeredIds;
-    // serviceId => ServiceInfo
+
+    /**
+     * serviceId => ServiceInfo
+     */
     mapping (bytes32 => ServiceInfo) serviceInfos;
-    // did => AccountInfo
+
+    /**
+     * did => AccountInfo
+     */
     mapping (address => AccountInfo) accountInfos;
+
     EnumerableSet.Bytes32Set serviceIdAry;
        
 
-    /// @dev Registered service info
+    /**
+     * @dev Registered service detail
+     * Operator will register services and accounts will use these services
+     */
     struct ServiceDetail {
         address identity;
         string infraType;
@@ -57,6 +75,12 @@ contract ServiceRegistry is Ownable {
         uint256 startTime;
     }
 
+    /**
+     * @dev Register service info
+     * Operator will register services
+     * Represent the Registered service.
+     * Operator can register only one service by type
+     */
     struct ServiceInfo {
         ServiceDetail serviceDetail;
         uint256 creditAmount;
@@ -83,6 +107,7 @@ contract ServiceRegistry is Ownable {
 
     /// @dev Check if signature is signed by identity
     modifier onlyVerifiedSignature(address identity, bytes calldata signature) {
+        require(identity != address(0), "Identity address cannot be zero");
         // require signature is signed by identity
         bytes memory rightSign = hex"67de2d20880a7d27b71cdcb38817ba95800ca82dff557cedd91b96aacb9062e80b9e0b8cb9614fd61ce364502349e9079c26abaa21890d7bc2f1f6c8ff77f6261c";
         require(signature.equal(rightSign), "bad_actor");
@@ -122,13 +147,19 @@ contract ServiceRegistry is Ownable {
     }
 
     // Function to receive Ether. msg.data must be empty
-    receive() external payable {}
+    // receive() external payable {}
 
     // Fallback function is called when msg.data is not empty
-    fallback() external payable {}
+    // fallback() external payable {}
 
 
-    /// @dev Operator{identity} register new service
+    /**
+     * @dev Operator{identity} register new service
+     * 
+     * @param identity Represent the DID
+     * @param inputParam Registering Service Input Params
+     * @param signature Used to check if DID is signed by correct signature
+     */
     function registerService(
         address identity,
         RegisterServiceInputParams calldata inputParam,
@@ -172,14 +203,22 @@ contract ServiceRegistry is Ownable {
         emit RegisterService(serviceId, identity, serviceInfos[serviceId].serviceDetail.serviceType, serviceInfos[serviceId].serviceDetail.endpointUri, serviceInfos[serviceId].serviceDetail.country, serviceInfos[serviceId].serviceDetail.maxAccounts, serviceInfos[serviceId].serviceDetail.pricePerDayPerAccount);
     }
 
-    /// @dev Operator{identity} update the Service{serviceId}
+    /** 
+     * @dev Operator{identity} update the Service{serviceId}
+     * 
+     * @param identity Represent the DID
+     * @param serviceId ServiceId for update
+     * @param maxAccounts Maximum number of accounts that can connect to the service
+     * @param pricePerAccount price that account should pay per day
+     * @param signature Used to check if DID is signed by correct signature
+     */
     function updateService(
         address identity,
         bytes32 serviceId,
         uint256 maxAccounts,
         uint256 pricePerAccount,
         bytes calldata signature
-    ) public payable onlyVerifiedSignature(identity, signature) {
+    ) public onlyVerifiedSignature(identity, signature) {
         // Get service from {serviceId}
         ServiceInfo storage _service = serviceInfos[serviceId];
         // Check if service updating time limit
@@ -209,7 +248,14 @@ contract ServiceRegistry is Ownable {
         emit UpdateService(serviceId, identity, maxAccounts, pricePerAccount, block.timestamp, block.timestamp + priceChangeDelayDays * 1 days);
     }
 
-    /// @dev Operator{identity} deregister the Service{serviceId}
+    /**
+     * @dev Operator{identity} deregister the Service{serviceId}
+     * Only update the status of the service
+     * 
+     * @param identity Represent the DID
+     * @param serviceId ServiceId for deregister
+     * @param signature Used to check if DID is signed by correct signature
+     */
     function deregisterService(
         address identity,
         bytes32 serviceId,
@@ -225,6 +271,13 @@ contract ServiceRegistry is Ownable {
         emit DeregisterService(serviceId, identity, block.timestamp, block.timestamp + deregisterDelayDays * 1 days);
     }
 
+    /**
+     * @dev Operator will remove service from the list
+     * 
+     * @param identity Represent the DID
+     * @param serviceId ServiceId that will be removed
+     * @param signature Used to check if DID is signed by correct signature
+     */
     function removeService(
         address identity,
         bytes32 serviceId,
@@ -240,6 +293,13 @@ contract ServiceRegistry is Ownable {
         serviceIdAry.remove(serviceId);
     }
 
+    /**
+     * @dev Add credit to the contract
+     *
+     * @param identity Represent the DID
+     * @param numCredit Credit amount that will be added
+     * @param sender Sender who transfers the token to the contract
+     */
     function _addCredit(
         address identity,
         uint256 numCredit,
@@ -248,7 +308,8 @@ contract ServiceRegistry is Ownable {
         // Account will lockup tokens in the contract and increase his creditAmount
         uint256 balanceBefore = vdaToken.balanceOf(sender);
         require(balanceBefore >= numCredit, "Insufficient funds to add credit");
-        vdaToken.transferFrom(sender, address(this), numCredit);
+        bool success = vdaToken.transferFrom(sender, address(this), numCredit);
+        require(success, "Token transfer failed");
         AccountInfo storage _account = accountInfos[identity];
         _account.identity = identity;
         _account.creditAmount = _account.creditAmount + numCredit;
@@ -256,7 +317,13 @@ contract ServiceRegistry is Ownable {
         emit AddCredit(identity, numCredit);
     }
 
-    /// @dev Account{identity} add credit to his account
+    /**
+     * @dev Account{identity} add credit to his account
+     *
+     * @param identity Represent the DID
+     * @param numCredit Credit amount that will be added
+     * @param signature Used to check if DID is signed by correct signature
+     */
     function addCredit(
         address identity,
         uint256 numCredit,
@@ -265,6 +332,14 @@ contract ServiceRegistry is Ownable {
         _addCredit(identity, numCredit, msg.sender);
     }
 
+
+    /**
+     * @dev Remove credit from the contract
+     *
+     * @param identity Represent the DID
+     * @param numCredit Credit amount that will be added
+     * @param sender Sender who receives the token from the contract
+     */
     function _removeCredit(
         address identity,
         uint256 numCredit,
@@ -277,13 +352,20 @@ contract ServiceRegistry is Ownable {
         require(_account.creditAmount >= numCredit, "Not enough credit to remove");
         uint256 balanceBefore = vdaToken.balanceOf(address(this));
         require(balanceBefore >= numCredit, "Not enough token in the contract");
-        vdaToken.transfer(sender, numCredit);
+        bool success = vdaToken.transfer(sender, numCredit);
+        require(success, "Token transfer failed");
         _account.creditAmount = _account.creditAmount - numCredit;
 
         emit RemoveCredit(identity, numCredit);
     }
 
-    /// @dev Account{identity} remove credit from the account
+    /**
+     * @dev Account{identity} remove credit from the account
+     *
+     * @param identity Represent the DID
+     * @param numCredit Credit amount that will be removed
+     * @param signature Used to check if DID is signed by correct signature
+     */
     function removeCredit(
         address identity,
         uint256 numCredit,
@@ -292,12 +374,18 @@ contract ServiceRegistry is Ownable {
         _removeCredit(identity, numCredit, msg.sender);
     }
 
-    /// @dev Account{identity} connect to the Service{serviceId}
+    /** 
+     * @dev Account{identity} connect to the Service{serviceId}
+     *
+     * @param identity Represent the DID
+     * @param serviceId Account will connect to this serviceId
+     * @param signature Used to check if DID is signed by correct signature
+     */
     function connectService(
         address identity,
         bytes32 serviceId,
         bytes calldata signature
-    ) public payable onlyVerifiedSignature(identity, signature) {
+    ) public onlyVerifiedSignature(identity, signature) {
         ServiceInfo storage _service = serviceInfos[serviceId];
         bool isPendingRemoval = _service.status == ServiceStatus.PendingRemoval;
         // Check the service status
@@ -320,7 +408,13 @@ contract ServiceRegistry is Ownable {
         emit ConnectService(identity, serviceId, block.timestamp);
     }
 
-    /// @dev Account{identity} disconnect from the Service{serviceId}
+    /**
+     * @dev Account{identity} disconnect from the Service{serviceId}
+     *
+     * @param identity Represent the DID
+     * @param serviceId Account will disconnect from the serviceId
+     * @param signature Used to check if DID is signed by correct signature
+     */
     function disconnectService(
         address identity,
         bytes32 serviceId,
@@ -339,7 +433,15 @@ contract ServiceRegistry is Ownable {
         _service.connectedAccounts.remove(identity);
     }
 
-    /// @dev Discover the available services so accounts can select services
+    /**
+     * @dev Discover the available services so accounts can select services
+     * 
+     * @param infraType Serach filter for Infrastructure type
+     * @param serviceType Serach filter for Service type
+     * @param country Serach filter for country
+     * @param maxPricePerDay Serach filter for maxPricePerDay
+     * @return serviceIds
+     */
     function discoverServices(
         string memory infraType,
         string memory serviceType,
@@ -370,7 +472,13 @@ contract ServiceRegistry is Ownable {
         return (keccak256(abi.encodePacked(a)) == keccak256(abi.encodePacked(b)));
     }
 
-    /// @dev Verida Infrastructure Operator will call this function every week.
+    /**
+     * @dev Verida Infrastructure Operator will call this function every week.
+     *
+     * @param identity Represent the DID
+     * @param serviceId Operator will claim tokens for this service
+     * @param signature Used to check if DID is signed by correct signature
+     */
     function claim(
         address identity,
         bytes32 serviceId,
@@ -412,12 +520,17 @@ contract ServiceRegistry is Ownable {
         _;
     }
 
-    /// @dev Get service IDs created by DID
+    /**
+     * @dev Get service IDs created by DID
+     *
+     * @param identity Represent the DID (Operator)
+     * @return serviceIds Created by {identity}
+     */
     function getRegisteredIds(address identity) external view returns(bytes32[] memory) {
         uint256 length = registeredIds[identity].length();
 
         if(length == 0){
-            bytes32[] memory emptyAry;
+            bytes32[] memory emptyAry = new bytes32[](0);
             return emptyAry;
         }
 
@@ -429,7 +542,12 @@ contract ServiceRegistry is Ownable {
         return serviceIds;
     }
     
-    /// @dev Get detail of the Service{serviceId}
+    /**
+     * @dev Get detail of the Service{serviceId}
+     *
+     * @param serviceId Service id
+     * @return identity Service detail by {serviceId}
+     */
     function getServiceDetail(bytes32 serviceId) public view returns(
         address identity,
         string memory infraType,
@@ -450,26 +568,46 @@ contract ServiceRegistry is Ownable {
         startTime = serviceInfos[serviceId].serviceDetail.startTime;
     }
 
-    /// @dev Get credit amount of Service{serviceId}
+    /**
+     * @dev Get credit amount of Service{serviceId}
+     *
+     * @param serviceId Service id
+     * @return credit Service credit amount
+     */
     function getServiceCredit(bytes32 serviceId) external view returns (uint256 credit) {
         credit = serviceInfos[serviceId].creditAmount;
     }
 
-    /// @dev Get status of Service{serviceId}
+    /**
+     * @dev Get status of Service{serviceId}
+     *
+     * @param serviceId Service id
+     * @return status Service status
+     */
     function getServiceStatus(bytes32 serviceId) external view returns (ServiceStatus status) {
         status = serviceInfos[serviceId].status;
     }
 
-    /// @dev Get number of connected accounts to the Service{serviceId}
+    /**
+     * @dev Get number of connected accounts to the Service{serviceId}
+     *
+     * @param serviceId Service id
+     * @return count Get number of connected accounts to the service
+     */
     function getConnectedAccountCount(bytes32 serviceId) public view returns(uint256 count) {
         count = serviceInfos[serviceId].connectedAccounts.length();
     }
 
-    /// @dev Get list of connected accounts to the Service{serviceId}
+    /**
+     * @dev Get list of connected accounts to the Service{serviceId}
+     *
+     * @param serviceId Service id
+     * @return accounts Get connected accounts list to the service
+     */
     function getConnectedAccounts(bytes32 serviceId) public view returns(address[] memory) {
         uint256 length = serviceInfos[serviceId].connectedAccounts.length();
         if(length == 0) {
-            address[] memory emptyAry;
+            address[] memory emptyAry = new address[](0);
             return emptyAry;
         }
         address[] memory accounts = new address[](length);
@@ -479,7 +617,12 @@ contract ServiceRegistry is Ownable {
         return accounts;
     }
 
-    /// @dev Get credit amount of Account{identity}
+    /**
+     * @dev Get credit amount of Account{identity}
+     *
+     * @param identity Represent the DID
+     * @return credit Get account credit
+     */
     function getAccountCredit(address identity) external view returns(uint256 credit) {
         credit = accountInfos[identity].creditAmount;
     }
@@ -513,7 +656,9 @@ contract ServiceRegistry is Ownable {
         priceChangeDelayDays = delay;
     }
 
-    /// @dev Calculate number of days between {startTime} and {endTime}
+    /**
+     * @dev Calculate number of days between {startTime} and {endTime}
+     */
     function calcDays(uint256 startTime, uint256 endTime) internal pure returns(uint256) {
         if(endTime <= startTime)
             return 0;
