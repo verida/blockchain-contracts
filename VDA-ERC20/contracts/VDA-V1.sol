@@ -83,7 +83,7 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
 
     event EnableMaxAmountPerSell(bool isEnabled);
     
-    function initialize() public initializer {
+    function initialize() external initializer {
         __ERC20_init(TOKEN_NAME, TOKEN_SYMBOL);
         __ERC20Pausable_init();
         __Ownable_init();
@@ -230,7 +230,7 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
     /**
      * @dev Update uniswapV2Router.
      */
-    function updateUniswapV2Router(address newAddress) public onlyOwner {
+    function updateUniswapV2Router(address newAddress) external onlyOwner {
         require(newAddress != address(uniswapV2Router));
         emit UpdateUniswapV2Router(newAddress, address(uniswapV2Router));
         uniswapV2Router = IUniswapV2Router02(newAddress);
@@ -239,7 +239,7 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
     /**
      * @dev enable/disable AutomatedMarkertMakerPair
      */
-    function setAutomatedMarketMakerPair(address pair, bool value) public onlyOwner
+    function setAutomatedMarketMakerPair(address pair, bool value) external onlyOwner
     {
         require(pair != uniswapV2Pair);
         _setAutomatedMarketMakerPair(pair, value);
@@ -257,7 +257,7 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
     /**
      * @dev update max amount per wallet percent.
      */
-    function updateMaxAmountPerWalletRate(uint32 newRate) public onlyOwner {
+    function updateMaxAmountPerWalletRate(uint32 newRate) external onlyOwner {
         require(newRate <= AMOUNT_RATE_LIMIT, "Invalid rate");
         require(newRate > 0, "Invalid rate");
 
@@ -278,7 +278,7 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
     /**
      * @dev update max amount per sell percent.
      */
-    function updateMaxAmountPerSellRate(uint32 newRate) public onlyOwner {
+    function updateMaxAmountPerSellRate(uint32 newRate) external onlyOwner {
         require(newRate <= AMOUNT_RATE_LIMIT, "Invalid rate");
         require(newRate > 0, "Invalid rate");
 
@@ -299,7 +299,7 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
     /**
      * @dev exclude account from sell amount limit
      */
-    function excludeFromSellAmountLimit(address account, bool excluded) public onlyOwner {
+    function excludeFromSellAmountLimit(address account, bool excluded) external onlyOwner {
         require(isExcludedFromSellAmountLimit[account] != excluded);
         isExcludedFromSellAmountLimit[account] = excluded;
         emit ExcludeFromSellAmountLimit(account, excluded);
@@ -308,7 +308,7 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
     /**
      * @dev exclude account from wallet amount limit
      */
-    function excludeFromWalletAmountLimit(address account, bool excluded) public onlyOwner {
+    function excludeFromWalletAmountLimit(address account, bool excluded) external onlyOwner {
         require(isExcludedFromWalletAmountLimit[account] != excluded);
         isExcludedFromWalletAmountLimit[account] = excluded;
         emit ExcludeFromWalletAmountLimit(account, excluded);
