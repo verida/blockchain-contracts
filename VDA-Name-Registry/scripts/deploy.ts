@@ -24,3 +24,5 @@ main().catch((error) => {
 // Deployed Address
 // BSC TestNet
 // 0xD13E95913649c78c2d99591533a85a5ecf815e34
+// 2022/5/6 12:54
+// 0x1e48398CB21E4C228De595859598cdE12D1A0435

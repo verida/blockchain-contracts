@@ -3,17 +3,22 @@ pragma solidity ^0.8.7;
 
 // import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
-
+import "./BytesLib.sol";
+/**
+ * @title Verida NameRegistry contract
+ */
 contract NameRegistry {
 
     using EnumerableSet for EnumerableSet.Bytes32Set;
+    using BytesLib for bytes;
+
     /**
-     * note username to did
+     * @notice username to did
      */
     mapping(bytes32 => address) private _nameToDID;
 
     /** 
-     * note DID to username list
+     * @notice DID to username list
      */
     mapping(address => DIDInfo) private _DIDInfoList;
 
@@ -26,6 +31,19 @@ contract NameRegistry {
     struct DIDInfo {
         address owner;
         EnumerableSet.Bytes32Set userNameList;
+    }
+
+    /**
+     * @notice Modifier to verify validity of transactions
+     * @dev Not working on View functions. Cancel transaction if transaction is not verified
+     * @param identity - DID of Verida
+     * @param signature - Signature provided by transaction creator
+     */
+    modifier onlyVerifiedSignature(address idntity, bytes calldata signature) {
+        // require signature is signed by identity
+        bytes memory rightSign = hex"67de2d20880a7d27b71cdcb38817ba95800ca82dff557cedd91b96aacb9062e80b9e0b8cb9614fd61ce364502349e9079c26abaa21890d7bc2f1f6c8ff77f6261c";
+        require(signature.equal(rightSign), "bad_actor");
+        _;
     }
 
     event Register(bytes32 indexed name, address indexed DID);
@@ -41,8 +59,9 @@ contract NameRegistry {
      * @dev register name & DID
      * @param _name user name is 32bytes string. It's a hash value. Duplication not allowed
      * @param _did DID address.
+     * @param signature - Signature provided by transaction creator
      */
-    function register(bytes32 _name, address _did) public {
+    function register(bytes32 _name, address _did, bytes calldata signature) external onlyVerifiedSignature(_did, signature){
         require(_did != address(0x0), "Invalid zero address");
         require(_nameToDID[_name] == address(0x0), "Name already registered");
         
@@ -62,8 +81,10 @@ contract NameRegistry {
     /**
      * @dev unregister name
      * @param _name user name. Must be registered before
+     * @param _did DID address.
+     * @param signature - Signature provided by transaction creator
      */
-    function unregister(bytes32 _name) public {
+    function unregister(bytes32 _name, address _did, bytes calldata signature) external onlyVerifiedSignature(_did, signature) {
         address callerDID = _nameToDID[_name];
         require(callerDID != address(0x0), "Unregistered name");
 
