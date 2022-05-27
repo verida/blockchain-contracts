@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.6;
 
+/**
+ * @title library for operations of bytes
+ */
 library BytesLib {
     // function concat(
     //     bytes memory _preBytes,
@@ -385,6 +388,12 @@ library BytesLib {
     //     return tempBytes32;
     // }
 
+    /**
+     * @notice compare 2 bytes
+     * @param _preBytes - bytes to compare
+     * @param _postBytes - bytes to compare
+     * @return bool - comparison result
+     */
     function equal(bytes memory _preBytes, bytes memory _postBytes) internal pure returns (bool) {
         bool success = true;
 

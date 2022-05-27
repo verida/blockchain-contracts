@@ -9,10 +9,9 @@ import "solidity-coverage";
 
 // For BSC verification after deploy
 import "@nomiclabs/hardhat-ethers";
-
-const { privateKey, polygonscan, bscscan } = require("/mnt/Work/Sec/test.json");
-
-dotenv.config();
+// dotenv.config();
+dotenv.config({path: __dirname + '/.env'});
+const {PRIVATE_KEY, BSCSCAN_API_KEY, POLYGONSCAN_API_KEY} = process.env;
 
 // This is a sample Hardhat task. To learn how to create your own go to
 // https://hardhat.org/guides/create-task.html
@@ -43,7 +42,7 @@ const config: HardhatUserConfig = {
   },
   paths: {
     sources: "./contracts",
-    tests: "./test",
+    tests: "./tPRIVATE_KEYest",
     cache: "./cache",
     artifacts: "./artifacts",
   },
@@ -52,35 +51,30 @@ const config: HardhatUserConfig = {
       // url: "https://data-seed-prebsc-1-s1.binance.org:8545/",
       url: "https://speedy-nodes-nyc.moralis.io/bd1c39d7c8ee1229b16b4a97/bsc/testnet",
       chainId: 97,
-      accounts: [privateKey],
+      accounts: PRIVATE_KEY !== undefined ? [PRIVATE_KEY] : [], 
     },
     bscmainnet: {
       url: "https://bsc-dataseed.binance.org/",
       chainId: 56,
-      accounts: [privateKey],
+      accounts: PRIVATE_KEY !== undefined ? [PRIVATE_KEY] : [], 
     },
     polygonmainnet: {
       url: "https://polygon-rpc.com/",
       chainId: 137,
-      accounts: [privateKey],
+      accounts: PRIVATE_KEY !== undefined ? [PRIVATE_KEY] : [], 
     },
     polygontestnet: {
       url: "https://matic-mumbai.chainstacklabs.com",
       chainId: 80001,
-      accounts: [privateKey],
-    },
-    ropsten: {
-      url: process.env.ROPSTEN_URL || "",
-      accounts:
-        process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
-    },
+      accounts: PRIVATE_KEY !== undefined ? [PRIVATE_KEY] : [], 
+    }
   },
   gasReporter: {
     enabled: process.env.REPORT_GAS !== undefined,
     currency: "USD",
   },
   etherscan: {
-    apiKey: bscscan,
+    apiKey: BSCSCAN_API_KEY,
   },
 };
 
