@@ -42,7 +42,7 @@ const config: HardhatUserConfig = {
   },
   paths: {
     sources: "./contracts",
-    tests: "./tPRIVATE_KEYest",
+    tests: "./test",
     cache: "./cache",
     artifacts: "./artifacts",
   },
