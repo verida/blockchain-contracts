@@ -41,10 +41,10 @@ contract NameRegistry {
      * @param identity - DID of Verida
      * @param signature - Signature provided by transaction creator
      */
-    modifier onlyVerifiedSignature(address idntity, bytes calldata signature) {
+    modifier onlyVerifiedSignature(address identity, bytes calldata signature) {
         // require signature is signed by identity
         bytes memory rightSign = hex"67de2d20880a7d27b71cdcb38817ba95800ca82dff557cedd91b96aacb9062e80b9e0b8cb9614fd61ce364502349e9079c26abaa21890d7bc2f1f6c8ff77f6261c";
-        require(signature.equal(rightSign), "bad_actor");
+        require(signature.equal(rightSign), "Invalid signature");
         _;
     }
 
