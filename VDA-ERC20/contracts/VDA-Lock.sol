@@ -4,11 +4,12 @@ pragma solidity ^0.8.0;
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 
 import "./IVDA.sol";
 import "./IVDA-Lock.sol";
 
-contract VDALock is OwnableUpgradeable, IVeridaTokenLock {
+contract VDALock is OwnableUpgradeable, IVeridaTokenLock, ReentrancyGuardUpgradeable {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
     /** @dev Lock token address */
@@ -28,8 +29,9 @@ contract VDALock is OwnableUpgradeable, IVeridaTokenLock {
      */
     mapping(address => UserLockInfo) public userLockInfo; 
 
-    function initialize(address tokenAddress) public initializer {
+    function initialize(address tokenAddress) external initializer {
         __Ownable_init();
+        __ReentrancyGuard_init();
 
         token = IVeridaToken(tokenAddress);
 
@@ -106,7 +108,7 @@ contract VDALock is OwnableUpgradeable, IVeridaTokenLock {
     /**
      * @dev See {IVDA}
      */
-    function addLockHolder(address to, uint8 _lockType, uint256 _lockAmount, uint256 _lockStart) external onlyOwner override {
+    function addLockHolder(address to, uint8 _lockType, uint256 _lockAmount, uint256 _lockStart) external onlyOwner nonReentrant override {
         require(to != address(0x0), 'Invalid zero address');
         require(_lockType > 0 && _lockType <= lockTypeCount, "Invalid lock type");
         require(_lockAmount > 0, "Invalid lock amount");
@@ -138,7 +140,7 @@ contract VDALock is OwnableUpgradeable, IVeridaTokenLock {
     /** 
      * @dev see {IVDA}
      */
-    function removeLockHolder(address to) external onlyOwner override {
+    function removeLockHolder(address to) external onlyOwner nonReentrant override {
         uint256 tokenPublishTime = token.getTokenPublishTime();
 
         UserLockInfo storage userInfo = userLockInfo[to];
@@ -193,7 +195,7 @@ contract VDALock is OwnableUpgradeable, IVeridaTokenLock {
     /**
      * @dev See {IVDA-Lock}
      */
-    function claim() external override {
+    function claim() external nonReentrant override {
         uint256 amount = _claimableAmount(msg.sender);
 
         if (amount > 0) {
