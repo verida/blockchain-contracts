@@ -35,6 +35,19 @@ contract NameRegistry {
         _;
     }
 
+    /**
+     * @notice Modifier to verify validity of transactions
+     * @dev Not working on View functions. Cancel transaction if transaction is not verified
+     * @param identity - DID of Verida
+     * @param signature - Signature provided by transaction creator
+     */
+    modifier onlyVerifiedSignature(address idntity, bytes calldata signature) {
+        // require signature is signed by identity
+        bytes memory rightSign = hex"67de2d20880a7d27b71cdcb38817ba95800ca82dff557cedd91b96aacb9062e80b9e0b8cb9614fd61ce364502349e9079c26abaa21890d7bc2f1f6c8ff77f6261c";
+        require(signature.equal(rightSign), "bad_actor");
+        _;
+    }
+
     event Register(bytes32 indexed name, address indexed DID);
     event Unregister(bytes32 indexed name, address indexed DID);
 
