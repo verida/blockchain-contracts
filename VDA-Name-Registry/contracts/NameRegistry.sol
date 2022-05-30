@@ -40,51 +40,51 @@ contract NameRegistry {
 
     /**
      * @dev register name & DID
-     * @param _name user name is 32bytes string. It's a hash value. Duplication not allowed
-     * @param _did DID address.
+     * @param name user name is 32bytes string. It's a hash value. Duplication not allowed
+     * @param did DID address.
      * @param signature - Signature provided by transaction creator
      */
-    function register(bytes32 _name, address _did, bytes calldata signature) external onlyVerifiedSignature(_did, signature){
-        require(_did != address(0x0), "Invalid zero address");
-        require(_nameToDID[_name] == address(0x0), "Name already registered");
+    function register(bytes32 name, address did, bytes calldata signature) external onlyVerifiedSignature(did, signature){
+        require(did != address(0x0), "Invalid zero address");
+        require(_nameToDID[name] == address(0x0), "Name already registered");
         
-        EnumerableSet.Bytes32Set storage didUserNameList = _DIDInfoList[_did];
+        EnumerableSet.Bytes32Set storage didUserNameList = _DIDInfoList[did];
         
-        _nameToDID[_name] = _did;
-        didUserNameList.add(_name);
+        _nameToDID[name] = did;
+        didUserNameList.add(name);
 
-        emit Register(_name, _did);
+        emit Register(name, did);
     }
 
     /**
      * @dev unregister name
-     * @param _name user name. Must be registered before
-     * @param _did DID address.
+     * @param name user name. Must be registered before
+     * @param did DID address.
      * @param signature - Signature provided by transaction creator
      */
-    function unregister(bytes32 _name, address _did, bytes calldata signature) external onlyVerifiedSignature(_did, signature) {
-        require(_did != address(0x0), "Invalid zero address");
+    function unregister(bytes32 name, address did, bytes calldata signature) external onlyVerifiedSignature(did, signature) {
+        require(did != address(0x0), "Invalid zero address");
 
-        address callerDID = _nameToDID[_name];
+        address callerDID = _nameToDID[name];
         require(callerDID != address(0x0), "Unregistered name");
 
-        require(callerDID == _did, "Invalid DID");
+        require(callerDID == did, "Invalid DID");
 
         EnumerableSet.Bytes32Set storage didUserNameList = _DIDInfoList[callerDID];
 
-        delete _nameToDID[_name];
-        didUserNameList.remove(_name);
+        delete _nameToDID[name];
+        didUserNameList.remove(name);
 
-        emit Unregister(_name, callerDID);
+        emit Unregister(name, callerDID);
     }
 
     /**
      * @dev Find did for name
-     * @param _name user name. Must be registered
+     * @param name user name. Must be registered
      * @return DID address of user
      */
-    function findDid(bytes32 _name) external view returns(address) {
-        address callerDID = _nameToDID[_name];
+    function findDid(bytes32 name) external view returns(address) {
+        address callerDID = _nameToDID[name];
         require(callerDID != address(0x0), "Unregistered name");
 
         return callerDID;
@@ -92,12 +92,12 @@ contract NameRegistry {
 
     /**
      * @dev Find name of DID
-     * @param _did Must be registered before.
+     * @param did Must be registered before.
      * @param signature - Signature provided by transaction creator
      * @return name
      */
-    function getUserNameList(address _did, bytes calldata signature) external view onlyVerifiedSignature(_did, signature) returns(bytes32[] memory) {
-        EnumerableSet.Bytes32Set storage didUserNameList = _DIDInfoList[_did];
+    function getUserNameList(address did, bytes calldata signature) external view onlyVerifiedSignature(did, signature) returns(bytes32[] memory) {
+        EnumerableSet.Bytes32Set storage didUserNameList = _DIDInfoList[did];
 
         uint256 length = didUserNameList.length();
         require(length > 0, "No registered DID");
