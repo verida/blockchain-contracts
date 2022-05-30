@@ -20,16 +20,16 @@ import Web3 from 'web3'
 
 import { createRequire } from "module"; // Bring in the ability to create the 'require' method
 const require = createRequire(import.meta.url); // construct the require method
-const ControllerContract = require('../artifacts/contracts/EthereumDIDRegistry.sol/EthereumDIDRegistry.json')
+const ControllerContract = require('../artifacts/contracts/VeridaDIDRegistry.sol/VeridaDIDRegistry.json')
 
 
 // BSC
-const address = "0x713A5Db664297195061b9558f40e88434cb79C77";
-const web3 = new Web3('https://speedy-nodes-nyc.moralis.io/bd1c39d7c8ee1229b16b4a97/bsc/testnet');
+// const address = "0x713A5Db664297195061b9558f40e88434cb79C77";
+// const web3 = new Web3('https://speedy-nodes-nyc.moralis.io/bd1c39d7c8ee1229b16b4a97/bsc/testnet');
 
 // Polygon main net
-// const address = '0xAe8c7BBA52Dfc2346dCa38840389495D38eE7C7c'
-// const web3 = new Web3('https://polygon-rpc.com/')
+const address = '0xAe8c7BBA52Dfc2346dCa38840389495D38eE7C7c'
+const web3 = new Web3('https://polygon-rpc.com/')
 // const web3 = new Web3('https://polygon-mainnet.g.alchemy.com/v2/JT3kfJ7hivnlA2dtPNpw3ahJCjhW26EV');
 
 const { privateKey } = require('./.evn.json')

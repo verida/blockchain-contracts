@@ -3,7 +3,7 @@
 //
 // When running the script with `npx hardhat run <script>` you'll find the Hardhat
 // Runtime Environment's members available in the global scope.
-import { ethers } from 'hardhat'
+import { ethers } from "hardhat";
 
 async function main() {
   // Hardhat always runs the compile task when running scripts with its command
@@ -14,20 +14,22 @@ async function main() {
   // await hre.run('compile');
 
   // We get the contract to deploy
-  const RegistryContract = await ethers.getContractFactory('EthereumDIDRegistry')
-  const contractInstance = await RegistryContract.deploy()
+  const RegistryContract = await ethers.getContractFactory(
+    "VeridaDIDRegistry"
+  );
+  const contractInstance = await RegistryContract.deploy();
 
-  await contractInstance.deployed()
+  await contractInstance.deployed();
 
-  console.log('RegistryContract deployed to:', contractInstance.address)
+  console.log("RegistryContract deployed to:", contractInstance.address);
 }
 
 // We recommend this pattern to be able to use async/await everywhere
 // and properly handle errors.
 main().catch((error) => {
-  console.error(error)
-  process.exitCode = 1
-})
+  console.error(error);
+  process.exitCode = 1;
+});
 
 // Polygon testnet
 // https://mumbai.polygonscan.com/address/0x704895251182592fE8AF39839d3b293d8a184f01#code
@@ -41,3 +43,9 @@ main().catch((error) => {
 
 // Final : bulkAdd & bulkRevoke
 // 0x5Ed257A2BD6FABDD6CF9EceeCCE6c0Aa97d407a4
+
+// 2022/5/2 Updated for Signature
+// BSCTest: 0x2862BC860f55D389bFBd1A37477651bc1642A20B
+
+// 2022/5/10 : Updated Contract name to VeridaDIDRegistry
+// BSCTest: 0xC1fE55A1aa03Ca498E335B70972Bf81416671bd7 

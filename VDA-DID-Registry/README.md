@@ -44,3 +44,4 @@ node getlogs_bsc.js
 or
 ```
 node getlogs_polygon.js
+```
