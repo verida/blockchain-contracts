@@ -213,7 +213,7 @@ describe("NameRegistry", function () {
       ).to.be.rejectedWith("Ownable: caller is not the owner");
     });
 
-    it("Add sufix successfuly", async () => {
+    it("Add sufix successfully", async () => {
       // Register names failed before adding suffix
       await expect(
         contract.register(testNames[4], testDIDs[0], testSignature)
