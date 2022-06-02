@@ -23,11 +23,18 @@ describe("NameRegistry", function () {
   let accountList: SignerWithAddress[];
 
   const testNames = [
-    formatBytes32String("John"),
-    formatBytes32String("Smith Elba"),
-    formatBytes32String("Bill Clin"),
-    formatBytes32String("Jerry Smith"),
+    formatBytes32String("John.verida"),
+    formatBytes32String("Smith Elba.verida"),
+    formatBytes32String("Bill Clin.verida"),
+    formatBytes32String("Jerry Smith.verida"),
+
+    formatBytes32String("Jerry Smith.test"),
+    formatBytes32String("Billy.test"),
   ];
+
+  const newSuffix = formatBytes32String("test");
+  
+  // 0x7665726964610000000000000000000000000000000000000000000000000000
 
   const testDIDs = [
     "0x181aB2d2F0143cd2046253c56379f7eDb1E9C133",
@@ -58,6 +65,12 @@ describe("NameRegistry", function () {
       await expect(
         contract.register(testNames[0], zeroAddress, testSignature)
       ).to.be.rejectedWith("Invalid zero address");
+    });
+
+    it("Failed : Unregistered suffix", async () => {
+      await expect(
+        contract.register(testNames[4], testDIDs[0], testSignature)
+      ).to.be.rejectedWith("Unregistered suffix");
     });
 
     it("Register one username successfully", async () => {
@@ -191,5 +204,27 @@ describe("NameRegistry", function () {
         contract.getUserNameList(testDIDs[0], testSignature)
       ).to.be.rejectedWith("No registered DID");
     });
+  });
+
+  describe("Add suffix", async () => {
+    it("Failed : Not a owner", async () => {
+      await expect(
+        contract.connect(accountList[1]).addSufix(newSuffix)
+      ).to.be.rejectedWith("Ownable: caller is not the owner");
+    });
+
+    it("Add sufix successfuly", async () => {
+      // Register names failed before adding suffix
+      await expect(
+        contract.register(testNames[4], testDIDs[0], testSignature)
+      ).to.be.rejectedWith("Unregistered suffix");
+
+      // Register new suffix
+      await contract.addSufix(newSuffix);
+
+      // Register naems success after adding suffix
+      await contract.register(testNames[4], testDIDs[0], testSignature);
+      await contract.unregister(testNames[4], testDIDs[0], testSignature);
+    })
   });
 });

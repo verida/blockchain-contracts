@@ -3,11 +3,12 @@ pragma solidity ^0.8.7;
 
 // import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 import "./BytesLib.sol";
 /**
  * @title Verida NameRegistry contract
  */
-contract NameRegistry {
+contract NameRegistry is Ownable{
 
     using EnumerableSet for EnumerableSet.Bytes32Set;
     using BytesLib for bytes;
@@ -16,6 +17,11 @@ contract NameRegistry {
      * @notice username to did
      */
     mapping(bytes32 => address) private _nameToDID;
+
+    /**
+     * @notice Allowed suffix list
+     */
+    EnumerableSet.Bytes32Set private suffixList;
 
     /** 
      * @notice DID to username list
@@ -35,8 +41,18 @@ contract NameRegistry {
         _;
     }
 
+    modifier onlyValidSuffix(bytes32 name) {
+        bytes32 suffix = getSuffix(name);
+        require(suffixList.contains(suffix), "Unregistered suffix");
+        _;
+    }
+
     event Register(bytes32 indexed name, address indexed DID);
     event Unregister(bytes32 indexed name, address indexed DID);
+
+    constructor() {
+        suffixList.add(strToBytes32("verida"));
+    }
 
     /**
      * @dev register name & DID
@@ -44,7 +60,7 @@ contract NameRegistry {
      * @param did DID address.
      * @param signature - Signature provided by transaction creator
      */
-    function register(bytes32 name, address did, bytes calldata signature) external onlyVerifiedSignature(did, signature){
+    function register(bytes32 name, address did, bytes calldata signature) external onlyVerifiedSignature(did, signature) onlyValidSuffix(name){
         require(did != address(0x0), "Invalid zero address");
         require(_nameToDID[name] == address(0x0), "Name already registered");
         
@@ -109,6 +125,82 @@ contract NameRegistry {
         }
 
         return userNameList;
+    }
+
+    /**
+     * @notice Add suffix for names
+     * @dev Only the owner can add. 
+     * Will be rejected if suffix already registered
+     * @param suffix - Suffix to be added
+     */
+
+    function addSufix(bytes32 suffix) public onlyOwner {
+        // bytes32 suffixConverted = strToBytes32(suffix);
+        require(!suffixList.contains(suffix), "Already registered");
+
+        suffixList.add(suffix);
+    }
+
+    /**
+     * @notice Get Suffix from name
+     * @dev Rejected if not found suffix
+     * @param name - Input name
+     * @return suffix - return suffix in bytes32
+     */
+    function getSuffix(bytes32 name) private pure returns(bytes32 suffix) {
+        uint8 startIndex = 32;
+        uint8 endIndex = 32;
+        uint8 index = 31;
+        while (index >= 0 && startIndex > 31) {
+            if (endIndex > 31 && name[index] != 0x0) {
+                endIndex = index;
+            }
+
+            // Find a "."
+            if (name[index] == 0x2E) {
+                startIndex = index + 1;
+            }
+
+            index--;
+        }
+        require(startIndex < 32, "No Suffix");
+
+        bytes memory suffixBytes = new bytes(endIndex - startIndex + 1);
+
+        for (index = startIndex; index <= endIndex; index++) {
+            suffixBytes[index - startIndex] = name[index];
+        }
+
+
+        assembly {
+            suffix := mload(add(suffixBytes, 32))
+        }
+    }
+
+    /**
+     * @notice Convert String to Bytes32
+     * @param source - Input string
+     * @return result - Converted Bytes32
+     */
+    function strToBytes32(string memory source) private pure returns(bytes32 result) {
+        bytes memory tempEmptyStringTest = bytes(source);
+        if (tempEmptyStringTest.length == 0) {
+            return 0x0;
+        }
+
+        assembly {
+            result := mload(add(source, 32))
+        }
+    }
+
+    /**
+     * @notice Convert Bytes32 to String
+     * @param did - Input value
+     * @return string
+     */
+    function bytes32ToString(bytes32 did) private pure returns(string memory) {
+        string memory converted = string(abi.encodePacked(did));
+        return converted;
     }
 
 }
