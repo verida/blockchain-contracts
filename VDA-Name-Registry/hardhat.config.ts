@@ -8,7 +8,9 @@ import "hardhat-gas-reporter";
 import "solidity-coverage";
 
 // For BSC verification after deploy
-import "@nomiclabs/hardhat-ethers"
+import "@nomiclabs/hardhat-ethers";
+// For upgradeable - deploy
+import "@openzeppelin/hardhat-upgrades";
 
 const { privateKey, polygonscan, bscscan } = require('/mnt/Work/Sec/test.json')
 

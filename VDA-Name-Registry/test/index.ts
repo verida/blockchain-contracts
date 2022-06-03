@@ -1,7 +1,7 @@
 import chai, { expect } from "chai";
 import chaiAsPromised from "chai-as-promised";
 import { solidity } from "ethereum-waffle";
-import hre, { ethers } from "hardhat";
+import hre, { ethers, upgrades } from "hardhat";
 
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { BigNumber } from "@ethersproject/bignumber";
@@ -23,17 +23,17 @@ describe("NameRegistry", function () {
   let accountList: SignerWithAddress[];
 
   const testNames = [
-    formatBytes32String("John.verida"),
-    formatBytes32String("Smith Elba.verida"),
-    formatBytes32String("Bill Clin.verida"),
-    formatBytes32String("Jerry Smith.verida"),
+    "John.verida",
+    "Smith Elba.verida",
+    "Bill Clin.verida",
+    "Jerry Smith.verida",
 
-    formatBytes32String("Jerry Smith.test"),
-    formatBytes32String("Billy.test"),
+    "Jerry Smith.test",
+    "Billy.test",
   ];
 
-  const newSuffix = formatBytes32String("test");
-  
+  const newSuffix = "test";
+
   // 0x7665726964610000000000000000000000000000000000000000000000000000
 
   const testDIDs = [
@@ -47,10 +47,19 @@ describe("NameRegistry", function () {
 
   this.beforeAll(async function () {
     await hre.network.provider.send("hardhat_reset");
+    await hre.network.provider.request({
+      method: "hardhat_reset",
+      params: [],
+    });
+
     accountList = await ethers.getSigners();
 
     const contractFactory = await ethers.getContractFactory("NameRegistry");
-    contract = await contractFactory.deploy();
+    // contract = await contractFactory.deploy();
+    contract = (await upgrades.deployProxy(contractFactory, {
+      initializer: "initialize",
+    })) as NameRegistry;
+
     console.log("NameRegistry deployed at ", contract.address);
   });
 
@@ -67,10 +76,10 @@ describe("NameRegistry", function () {
       ).to.be.rejectedWith("Invalid zero address");
     });
 
-    it("Failed : Unregistered suffix", async () => {
+    it("Failed : Invalid suffix", async () => {
       await expect(
         contract.register(testNames[4], testDIDs[0], testSignature)
-      ).to.be.rejectedWith("Unregistered suffix");
+      ).to.be.rejectedWith("Invalid suffix");
     });
 
     it("Register one username successfully", async () => {
@@ -134,26 +143,28 @@ describe("NameRegistry", function () {
   });
 
   describe("getUserNameList", async () => {
-    /*
     it("Failed: No registered DID", async () => {
       // This happens when user unregister all user names.
       await contract
         .connect(accountList[1])
-        .register(testNames[3], testDIDs[1]);
+        .register(testNames[3], testDIDs[1], testSignature);
 
-      await contract.connect(accountList[1]).unregister(testNames[3]);
+      await contract
+        .connect(accountList[1])
+        .unregister(testNames[3], testDIDs[1], testSignature);
 
       await expect(
-        contract.connect(accountList[1]).getUserNameList(testDIDs[1])
+        contract
+          .connect(accountList[1])
+          .getUserNameList(testDIDs[1], testSignature)
       ).to.be.rejectedWith("No registered DID");
     });
-    */
 
     it("Successfully get username list", async () => {
       const result = await contract.getUserNameList(testDIDs[0], testSignature);
       expect(result.length).to.be.eq(3);
 
-      // console.log("Returned usernames: ", result);
+      console.log("Returned usernames: ", result);
     });
   });
 
@@ -217,7 +228,7 @@ describe("NameRegistry", function () {
       // Register names failed before adding suffix
       await expect(
         contract.register(testNames[4], testDIDs[0], testSignature)
-      ).to.be.rejectedWith("Unregistered suffix");
+      ).to.be.rejectedWith("Invalid suffix");
 
       // Register new suffix
       await contract.addSufix(newSuffix);
@@ -225,6 +236,6 @@ describe("NameRegistry", function () {
       // Register naems success after adding suffix
       await contract.register(testNames[4], testDIDs[0], testSignature);
       await contract.unregister(testNames[4], testDIDs[0], testSignature);
-    })
+    });
   });
 });

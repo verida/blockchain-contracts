@@ -1,17 +1,23 @@
 //SPDX-License-Identifier: MIT
 pragma solidity ^0.8.7;
 
-// import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
+// import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
+// import "@openzeppelin/contracts/access/Ownable.sol";
+
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/structs/EnumerableSetUpgradeable.sol";
+
 import "./BytesLib.sol";
+import "./StringLib.sol";
+
 /**
  * @title Verida NameRegistry contract
  */
-contract NameRegistry is Ownable{
+contract NameRegistry is OwnableUpgradeable {
 
-    using EnumerableSet for EnumerableSet.Bytes32Set;
+    using EnumerableSetUpgradeable for EnumerableSetUpgradeable.Bytes32Set;
     using BytesLib for bytes;
+    using StringLib for string;
 
     /**
      * @notice username to did
@@ -21,12 +27,12 @@ contract NameRegistry is Ownable{
     /**
      * @notice Allowed suffix list
      */
-    EnumerableSet.Bytes32Set private suffixList;
+    EnumerableSetUpgradeable.Bytes32Set private suffixList;
 
     /** 
      * @notice DID to username list
      */
-    mapping(address => EnumerableSet.Bytes32Set) private _DIDInfoList;
+    mapping(address => EnumerableSetUpgradeable.Bytes32Set) private _DIDInfoList;
 
     /**
      * @notice Modifier to verify validity of transactions
@@ -41,18 +47,19 @@ contract NameRegistry is Ownable{
         _;
     }
 
-    modifier onlyValidSuffix(bytes32 name) {
-        bytes32 suffix = getSuffix(name);
-        require(suffixList.contains(suffix), "Unregistered suffix");
-        _;
-    }
+    event Register(string indexed name, address indexed DID);
+    event Unregister(string indexed name, address indexed DID);
+    event AddSuffix(string indexed suffix);
 
-    event Register(bytes32 indexed name, address indexed DID);
-    event Unregister(bytes32 indexed name, address indexed DID);
-
-    constructor() {
+    /**
+     * @notice Initialize
+     */
+    function initialize() public initializer {
+        __Ownable_init();
         suffixList.add(strToBytes32("verida"));
     }
+
+    
 
     /**
      * @dev register name & DID
@@ -60,14 +67,18 @@ contract NameRegistry is Ownable{
      * @param did DID address.
      * @param signature - Signature provided by transaction creator
      */
-    function register(bytes32 name, address did, bytes calldata signature) external onlyVerifiedSignature(did, signature) onlyValidSuffix(name){
+    function register(string memory name, address did, bytes calldata signature) external onlyVerifiedSignature(did, signature) {
         require(did != address(0x0), "Invalid zero address");
-        require(_nameToDID[name] == address(0x0), "Name already registered");
+        require(isValidSuffix(name), "Invalid suffix");
+
+        name = name.lower();
+        bytes32 nameBytes = strToBytes32(name);
+        require(_nameToDID[nameBytes] == address(0x0), "Name already registered");
         
-        EnumerableSet.Bytes32Set storage didUserNameList = _DIDInfoList[did];
+        EnumerableSetUpgradeable.Bytes32Set storage didUserNameList = _DIDInfoList[did];
         
-        _nameToDID[name] = did;
-        didUserNameList.add(name);
+        _nameToDID[nameBytes] = did;
+        didUserNameList.add(nameBytes);
 
         emit Register(name, did);
     }
@@ -78,18 +89,22 @@ contract NameRegistry is Ownable{
      * @param did DID address.
      * @param signature - Signature provided by transaction creator
      */
-    function unregister(bytes32 name, address did, bytes calldata signature) external onlyVerifiedSignature(did, signature) {
+    function unregister(string memory name, address did, bytes calldata signature) external onlyVerifiedSignature(did, signature) {
         require(did != address(0x0), "Invalid zero address");
+        require(isValidSuffix(name), "Invalid suffix");
 
-        address callerDID = _nameToDID[name];
+        name = name.lower();
+        bytes32 nameBytes = strToBytes32(name);
+
+        address callerDID = _nameToDID[nameBytes];
         require(callerDID != address(0x0), "Unregistered name");
 
         require(callerDID == did, "Invalid DID");
 
-        EnumerableSet.Bytes32Set storage didUserNameList = _DIDInfoList[callerDID];
+        EnumerableSetUpgradeable.Bytes32Set storage didUserNameList = _DIDInfoList[callerDID];
 
-        delete _nameToDID[name];
-        didUserNameList.remove(name);
+        delete _nameToDID[nameBytes];
+        didUserNameList.remove(nameBytes);
 
         emit Unregister(name, callerDID);
     }
@@ -99,8 +114,11 @@ contract NameRegistry is Ownable{
      * @param name user name. Must be registered
      * @return DID address of user
      */
-    function findDid(bytes32 name) external view returns(address) {
-        address callerDID = _nameToDID[name];
+    function findDid(string memory name) external view returns(address) {
+        name = name.lower();
+        bytes32 nameByte = strToBytes32(name);
+
+        address callerDID = _nameToDID[nameByte];
         require(callerDID != address(0x0), "Unregistered name");
 
         return callerDID;
@@ -112,16 +130,16 @@ contract NameRegistry is Ownable{
      * @param signature - Signature provided by transaction creator
      * @return name
      */
-    function getUserNameList(address did, bytes calldata signature) external view onlyVerifiedSignature(did, signature) returns(bytes32[] memory) {
-        EnumerableSet.Bytes32Set storage didUserNameList = _DIDInfoList[did];
+    function getUserNameList(address did, bytes calldata signature) external view onlyVerifiedSignature(did, signature) returns(string[] memory) {
+        EnumerableSetUpgradeable.Bytes32Set storage didUserNameList = _DIDInfoList[did];
 
         uint256 length = didUserNameList.length();
         require(length > 0, "No registered DID");
 
-        bytes32[] memory userNameList = new bytes32[](length);
+        string[] memory userNameList = new string[](length);
 
         for (uint i = 0; i < length; i++) {
-            userNameList[i] = didUserNameList.at(i);
+            userNameList[i] = bytes32ToString(didUserNameList.at(i));
         }
 
         return userNameList;
@@ -134,11 +152,27 @@ contract NameRegistry is Ownable{
      * @param suffix - Suffix to be added
      */
 
-    function addSufix(bytes32 suffix) public onlyOwner {
-        // bytes32 suffixConverted = strToBytes32(suffix);
-        require(!suffixList.contains(suffix), "Already registered");
+    function addSufix(string memory suffix) public onlyOwner {
+        suffix = suffix.lower();
 
-        suffixList.add(suffix);
+        bytes32 suffixBytes = strToBytes32(suffix);
+        require(!suffixList.contains(suffixBytes), "Already registered");
+
+        suffixList.add(suffixBytes);
+
+        emit AddSuffix(suffix);
+    }
+
+    /**
+     * @notice Check whether name has valid suffix
+     * @param name - name to check
+     * @return result
+     */
+    function isValidSuffix(string memory name) private returns(bool) {
+        name = name.lower();
+
+        bytes32 suffix = getSuffix(name);
+        return suffixList.contains(suffix);
     }
 
     /**
@@ -147,28 +181,30 @@ contract NameRegistry is Ownable{
      * @param name - Input name
      * @return suffix - return suffix in bytes32
      */
-    function getSuffix(bytes32 name) private pure returns(bytes32 suffix) {
-        uint8 startIndex = 32;
-        uint8 endIndex = 32;
-        uint8 index = 31;
-        while (index >= 0 && startIndex > 31) {
-            if (endIndex > 31 && name[index] != 0x0) {
-                endIndex = index;
-            }
+    function getSuffix(string memory name) private pure returns(bytes32 suffix) {
+        name = name.lower();
+        bytes memory nameBytes = bytes(name);
+        require(nameBytes.length > 0, "NoSuffix");
 
+        uint len = nameBytes.length;
+
+        uint startIndex = len;
+        uint endIndex = len - 1;
+        uint index = len - 1;
+        while (index >= 0 && startIndex >= len) {
             // Find a "."
-            if (name[index] == 0x2E) {
+            if (nameBytes[index] == 0x2E) {
                 startIndex = index + 1;
             }
 
             index--;
         }
-        require(startIndex < 32, "No Suffix");
+        require(startIndex < len, "No Suffix");
 
         bytes memory suffixBytes = new bytes(endIndex - startIndex + 1);
 
         for (index = startIndex; index <= endIndex; index++) {
-            suffixBytes[index - startIndex] = name[index];
+            suffixBytes[index - startIndex] = nameBytes[index];
         }
 
 
@@ -184,6 +220,8 @@ contract NameRegistry is Ownable{
      */
     function strToBytes32(string memory source) private pure returns(bytes32 result) {
         bytes memory tempEmptyStringTest = bytes(source);
+        require(tempEmptyStringTest.length <= 32, "Too long string");
+        
         if (tempEmptyStringTest.length == 0) {
             return 0x0;
         }
@@ -199,8 +237,21 @@ contract NameRegistry is Ownable{
      * @return string
      */
     function bytes32ToString(bytes32 did) private pure returns(string memory) {
-        string memory converted = string(abi.encodePacked(did));
-        return converted;
+        // string memory converted = string(abi.encodePacked(did));
+        // return converted;
+        if (did[0] == 0x0)
+            return "";
+
+        uint8 len = 31;
+        while(len >= 0 && did[len] == 0) {
+            len--;
+        }
+        
+        bytes memory bytesArray = new bytes(len+1);
+        for (uint8 i = 0; i <= len; i++) {
+            bytesArray[i] = did[i];
+        }
+        return string(bytesArray);
     }
 
 }
