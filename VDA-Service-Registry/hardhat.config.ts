@@ -9,7 +9,8 @@ import "solidity-coverage";
 
 import "@nomiclabs/hardhat-ethers";
 
-dotenv.config();
+dotenv.config({ path: __dirname + "/.env" });
+const { PRIVATE_KEY, BSCSCAN_API_KEY, POLYGONSCAN_API_KEY } = process.env;
 
 // This is a sample Hardhat task. To learn how to create your own go to
 // https://hardhat.org/guides/create-task.html
@@ -25,43 +26,55 @@ task("accounts", "Prints the list of accounts", async (taskArgs, hre) => {
 // Go to https://hardhat.org/config/ to learn more
 
 const config: HardhatUserConfig = {
-  solidity: "0.8.7",
+  solidity: {
+    compilers: [
+      {
+        version: "0.8.7",
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 1000,
+          },
+        },
+      },
+    ],
+  },
   networks: {
-    localhost: {
-      url: "http://127.0.0.1:8545",
-      accounts: 
-      { mnemonic: process.env.MNEMONIC}
+    bsctestnet: {
+      // url: "https://data-seed-prebsc-1-s1.binance.org:8545/",
+      url: "https://speedy-nodes-nyc.moralis.io/bd1c39d7c8ee1229b16b4a97/bsc/testnet",
+      chainId: 97,
+      accounts: PRIVATE_KEY !== undefined ? [PRIVATE_KEY] : [], 
     },
-    rinkeby: {
-      url: `https://rinkeby.infura.io/v3/${process.env.INFURA_API_KEY}`,
-      accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : []
+    bscmainnet: {
+      url: "https://bsc-dataseed.binance.org/",
+      chainId: 56,
+      accounts: PRIVATE_KEY !== undefined ? [PRIVATE_KEY] : [], 
     },
-    kovan: {
-      url: `https://kovan.infura.io/v3/${process.env.INFURA_API_KEY}`,
-      accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : []
+    polygonmainnet: {
+      url: "https://polygon-rpc.com/",
+      chainId: 137,
+      accounts: PRIVATE_KEY !== undefined ? [PRIVATE_KEY] : [], 
     },
-    poly_test: {
-      url: 'https://rpc-mumbai.matic.today',
-      accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : []
-    },
-    polygon: {
-      url: 'https://rpc-mainnet.matic.network',
-      accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : []
+    polygontestnet: {
+      url: "https://matic-mumbai.chainstacklabs.com",
+      chainId: 80001,
+      accounts: PRIVATE_KEY !== undefined ? [PRIVATE_KEY] : [], 
     },
   },
-  paths:{
-    cache: './build/cache',
-    artifacts: './build/artifacts'
+  paths: {
+    cache: "./build/cache",
+    artifacts: "./build/artifacts",
   },
-  typechain:{
-    outDir: './build/typechain'
+  typechain: {
+    outDir: "./build/typechain",
   },
   gasReporter: {
     enabled: process.env.REPORT_GAS !== undefined,
     currency: "USD",
   },
   etherscan: {
-    apiKey: process.env.ETHERSCAN_API_KEY,
+    apiKey: BSCSCAN_API_KEY,
   },
 };
 
