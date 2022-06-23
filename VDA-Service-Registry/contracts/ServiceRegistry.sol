@@ -136,7 +136,6 @@ contract ServiceRegistry is OwnableUpgradeable {
         _;
     }
 
-
     enum ServiceStatus {
         Active,
         Disabled,
@@ -678,8 +677,6 @@ contract ServiceRegistry is OwnableUpgradeable {
 
         emit RemoveService(serviceId, identity, block.timestamp);
     }
-
-
 
     /** 
      * @dev Account{identity} connect to the Service{serviceId}
