@@ -3,7 +3,7 @@
 //
 // When running the script with `npx hardhat run <script>` you'll find the Hardhat
 // Runtime Environment's members available in the global scope.
-import { ethers } from "hardhat";
+import { ethers, upgrades } from "hardhat";
 
 async function main() {
   // Hardhat always runs the compile task when running scripts with its command
@@ -14,14 +14,18 @@ async function main() {
   // await hre.run('compile');
 
   // We get the contract to deploy
-  const RegistryContract = await ethers.getContractFactory(
+  const contractFactory = await ethers.getContractFactory(
     "VeridaDIDRegistry"
   );
-  const contractInstance = await RegistryContract.deploy();
+  const contract = await upgrades.deployProxy(contractFactory, {
+    initializer: "initialize",
+    timeout: 0,
+    pollingInterval: 5000
+  })
 
-  await contractInstance.deployed();
+  await contract.deployed();
 
-  console.log("RegistryContract deployed to:", contractInstance.address);
+  console.log("RegistryContract deployed to:", contract.address);
 }
 
 // We recommend this pattern to be able to use async/await everywhere
@@ -49,3 +53,10 @@ main().catch((error) => {
 
 // 2022/5/10 : Updated Contract name to VeridaDIDRegistry
 // BSCTest: 0xC1fE55A1aa03Ca498E335B70972Bf81416671bd7 
+
+// 2022/8/3 : Upgraded to upgradeable contracts.
+// BSC
+//Proxy : 0xF77dCA117785deB78C906aEc10E2C597cc3F0B2E
+//Impl : 0xcA3401026AddC97B7f42f7F2aC1d2275B13849cb
+
+// Polygon

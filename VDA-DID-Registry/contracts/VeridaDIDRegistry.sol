@@ -3,9 +3,10 @@ pragma solidity ^0.8.6;
 
 // import "hardhat/console.sol";
 import "./BytesLib.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
 /** @title VeridaDIDRegistry */
-contract VeridaDIDRegistry {
+contract VeridaDIDRegistry is OwnableUpgradeable {
 
   using BytesLib for bytes;
 
@@ -70,6 +71,13 @@ contract VeridaDIDRegistry {
     uint validTo,
     uint previousChange
   );
+
+  /**
+   * @notice Initialize
+   */
+  function initialize() public initializer {
+    __Ownable_init();
+  }
 
   /**
    * @notice Return owner of DID

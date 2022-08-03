@@ -9,6 +9,10 @@ import "solidity-coverage";
 
 // For BSC verification after deploy
 import "@nomiclabs/hardhat-ethers";
+// For upgradeable - deploy
+import "@openzeppelin/hardhat-upgrades";
+import { ethers } from "hardhat";
+
 // dotenv.config();
 dotenv.config({path: __dirname + '/.env'});
 const {PRIVATE_KEY, BSCSCAN_API_KEY, POLYGONSCAN_API_KEY} = process.env;
@@ -48,8 +52,8 @@ const config: HardhatUserConfig = {
   },
   networks: {
     bsctestnet: {
-      // url: "https://data-seed-prebsc-1-s1.binance.org:8545/",
-      url: "https://speedy-nodes-nyc.moralis.io/bd1c39d7c8ee1229b16b4a97/bsc/testnet",
+      url: "https://data-seed-prebsc-1-s1.binance.org:8545/",
+      // url: "https://speedy-nodes-nyc.moralis.io/bd1c39d7c8ee1229b16b4a97/bsc/testnet",
       chainId: 97,
       accounts: PRIVATE_KEY !== undefined ? [PRIVATE_KEY] : [], 
     },
@@ -64,9 +68,12 @@ const config: HardhatUserConfig = {
       accounts: PRIVATE_KEY !== undefined ? [PRIVATE_KEY] : [], 
     },
     polygontestnet: {
-      url: "https://matic-mumbai.chainstacklabs.com",
+      // url: "https://matic-mumbai.chainstacklabs.com",
+      url: "https://speedy-nodes-nyc.moralis.io/20cea78632b2835b730fdcf4/polygon/mumbai",
       chainId: 80001,
       accounts: PRIVATE_KEY !== undefined ? [PRIVATE_KEY] : [], 
+      gasPrice: 30000000000,
+      timeout: 0
     }
   },
   gasReporter: {
@@ -74,8 +81,11 @@ const config: HardhatUserConfig = {
     currency: "USD",
   },
   etherscan: {
-    apiKey: BSCSCAN_API_KEY,
+    apiKey: POLYGONSCAN_API_KEY,
   },
+  mocha: {
+    timeout: 0,
+  }
 };
 
 export default config;
