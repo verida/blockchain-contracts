@@ -17,10 +17,19 @@ async function main() {
   const contractFactory = await ethers.getContractFactory(
     "VeridaDIDRegistry"
   );
+
+  /*
+  const deploymentData = contractFactory.interface.encodeDeploy()
+  const estimatedGas = await ethers.provider.estimateGas({data: deploymentData})
+  // contractFactory.getDeployTransaction()
+
+  const { gasPrice } = ethers.provider.getFeeData()
+  */
+
   const contract = await upgrades.deployProxy(contractFactory, {
     initializer: "initialize",
     timeout: 0,
-    pollingInterval: 5000
+    pollingInterval: 5000,
   })
 
   await contract.deployed();

@@ -67,14 +67,12 @@ const config: HardhatUserConfig = {
       url: "https://polygon-mainnet.g.alchemy.com/v2/JT3kfJ7hivnlA2dtPNpw3ahJCjhW26EV",
       chainId: 137,
       accounts: PRIVATE_KEY !== undefined ? [PRIVATE_KEY] : [],
-      gasPrice: 35000000000
     },
     polygontestnet: {
       // url: "https://matic-mumbai.chainstacklabs.com",
       url: "https://polygon-mumbai.g.alchemy.com/v2/PAsQgyEm6lFytuZqbJQfZHWrP-0MZmsK",
       chainId: 80001,
       accounts: PRIVATE_KEY !== undefined ? [PRIVATE_KEY] : [], 
-      gasPrice: 35000000000
     }
   },
   gasReporter: {
