@@ -1,14 +1,12 @@
 /* SPDX-License-Identifier: MIT */
 pragma solidity ^0.8.6;
 
-// import "hardhat/console.sol";
-import "./BytesLib.sol";
+import "hardhat/console.sol";
+import { VeridaDataVerificationLib } from "./VeridaDataVerificationLib.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
 /** @title VeridaDIDRegistry */
 contract VeridaDIDRegistry is OwnableUpgradeable {
-
-  using BytesLib for bytes;
 
   struct DelegateParam {
     bytes32 delegateType;
@@ -36,19 +34,6 @@ contract VeridaDIDRegistry is OwnableUpgradeable {
   mapping(address => mapping(bytes32 => mapping(address => uint))) public delegates;
   mapping(address => uint) public changed;
   mapping(address => uint) public nonce;
-
-  /**
-   * @notice Check validity of transaction
-   * @dev Only used for non-view functions
-   * @param identity - DID
-   * @param signature - transaction signature
-   */
-  modifier onlyVerifiedSignature(address identity, bytes calldata signature) {
-    // require signature is signed by identity
-    bytes memory rightSign = hex"67de2d20880a7d27b71cdcb38817ba95800ca82dff557cedd91b96aacb9062e80b9e0b8cb9614fd61ce364502349e9079c26abaa21890d7bc2f1f6c8ff77f6261c";
-    require(signature.equal(rightSign), "bad_actor");
-    _;
-  }
 
   event DIDOwnerChanged(
     address indexed identity,
@@ -84,7 +69,7 @@ contract VeridaDIDRegistry is OwnableUpgradeable {
    * @param identity - DID
    * @return - owner address of DID
    */
-  function identityOwner(address identity) external view returns(address) {
+  function identityOwner(address identity) public view returns(address) {
      address owner = owners[identity];
      if (owner != address(0x00)) {
        return owner;
@@ -122,7 +107,18 @@ contract VeridaDIDRegistry is OwnableUpgradeable {
    * @param newOwner - new owner address
    * @param signature - transaction signature
    */
-  function changeOwner(address identity, address newOwner, bytes calldata signature) external onlyVerifiedSignature(identity, signature) {
+  function changeOwner(address identity, address newOwner, bytes calldata signature) external {
+    {
+      bytes memory unsignedMsg = abi.encodePacked(
+        identity,
+        newOwner
+      );
+      // address signerAddres = VeridaDataVerificationLib.getSignerAddress(unsignedMsg, signature);
+      // console.log('******************');
+      // console.log(signerAddres);
+      // console.log('******************');
+      require(VeridaDataVerificationLib.validateSignature(unsignedMsg, signature, identityOwner(identity)), "Invalid Signature");
+    }
     changeOwner(identity, newOwner);
   }
 
@@ -149,7 +145,17 @@ contract VeridaDIDRegistry is OwnableUpgradeable {
    * @param validity - valid duration of delegate
    * @param signature - transaction signature
    */
-  function addDelegate(address identity, bytes32 delegateType, address delegate, uint validity, bytes calldata signature) external onlyVerifiedSignature(identity, signature) {
+  function addDelegate(address identity, bytes32 delegateType, address delegate, uint validity, bytes calldata signature) external {
+    {
+      bytes memory unsignedMsg = abi.encodePacked(
+        identity,
+        delegateType,
+        delegate,
+        validity
+      );
+      address owner = identityOwner(identity);
+      require(VeridaDataVerificationLib.validateSignature(unsignedMsg, signature, owner), "Invalid Signature");
+    }
     addDelegate(identity, delegateType, delegate, validity);
   }
 
@@ -174,7 +180,16 @@ contract VeridaDIDRegistry is OwnableUpgradeable {
    * @param delegate - delegate to check
    * @param signature - transaction signature
    */
-  function revokeDelegate(address identity, bytes32 delegateType, address delegate, bytes calldata signature) external onlyVerifiedSignature(identity, signature) {
+  function revokeDelegate(address identity, bytes32 delegateType, address delegate, bytes calldata signature) external {
+    {
+      bytes memory unsignedMsg = abi.encodePacked(
+        identity,
+        delegateType,
+        delegate
+      );
+      address owner = identityOwner(identity);
+      require(VeridaDataVerificationLib.validateSignature(unsignedMsg, signature, owner), "Invalid Signature");
+    }
     revokeDelegate(identity, delegateType, delegate);
   }
 
@@ -200,7 +215,17 @@ contract VeridaDIDRegistry is OwnableUpgradeable {
    * @param validity - valid duration of attribute
    * @param signature - transaction signature
    */
-  function setAttribute(address identity, bytes32 name, bytes memory value, uint validity, bytes calldata signature ) external onlyVerifiedSignature(identity, signature) {
+  function setAttribute(address identity, bytes32 name, bytes memory value, uint validity, bytes calldata signature ) external {
+    {
+      bytes memory unsignedMsg = abi.encodePacked(
+        identity,
+        name,
+        value,
+        validity
+      );
+      address owner = identityOwner(identity);
+      require(VeridaDataVerificationLib.validateSignature(unsignedMsg, signature, owner), "Invalid Signature");
+    }
     setAttribute(identity, name, value, validity);
   }
 
@@ -224,7 +249,16 @@ contract VeridaDIDRegistry is OwnableUpgradeable {
    * @param value - attribute value
    * @param signature - transaction signature
    */
-  function revokeAttribute(address identity, bytes32 name, bytes memory value, bytes calldata signature ) external onlyVerifiedSignature(identity, signature) {
+  function revokeAttribute(address identity, bytes32 name, bytes memory value, bytes calldata signature ) external {
+    {
+      bytes memory unsignedMsg = abi.encodePacked(
+        identity,
+        name,
+        value
+      );
+      address owner = identityOwner(identity);
+      require(VeridaDataVerificationLib.validateSignature(unsignedMsg, signature, owner), "Invalid Signature");
+    }
     revokeAttribute(identity, name, value);
   }
 
@@ -270,7 +304,28 @@ contract VeridaDIDRegistry is OwnableUpgradeable {
     DelegateParam[] calldata delegateParams,
     AttributeParam[] calldata attributeParams,
     bytes calldata signature
-  ) external onlyVerifiedSignature(identity, signature) {
+  ) external {
+    {
+      bytes memory unsignedMsg = abi.encodePacked(identity);
+      for (uint i = 0; i < delegateParams.length; i++) {
+        unsignedMsg = abi.encodePacked(
+          unsignedMsg,
+          delegateParams[i].delegateType,
+          delegateParams[i].delegate,
+          delegateParams[i].validity
+        );
+      }
+
+      for (uint i = 0; i < attributeParams.length; i++) {
+        unsignedMsg = abi.encodePacked(
+          unsignedMsg,
+          attributeParams[i].name,
+          attributeParams[i].value,
+          attributeParams[i].validity
+        );
+      }
+      require(VeridaDataVerificationLib.validateSignature(unsignedMsg, signature, identityOwner(identity)), "Invalid Signature");
+    }
     _bulkAdd(identity, delegateParams, attributeParams);
   }
 
@@ -308,7 +363,26 @@ contract VeridaDIDRegistry is OwnableUpgradeable {
     RevokeDelegateParam[] memory delegateParams,
     RevokeAttributeParam[] memory attributeParams,
     bytes calldata signature
-  ) external onlyVerifiedSignature(identity, signature) {
+  ) external {
+    {
+      bytes memory unsignedMsg = abi.encodePacked(identity);
+      for (uint i = 0; i < delegateParams.length; i++) {
+        unsignedMsg = abi.encodePacked(
+          unsignedMsg,
+          delegateParams[i].delegateType,
+          delegateParams[i].delegate
+        );
+      }
+
+      for (uint i = 0; i < attributeParams.length; i++) {
+        unsignedMsg = abi.encodePacked(
+          unsignedMsg,
+          attributeParams[i].name,
+          attributeParams[i].value
+        );
+      }
+      require(VeridaDataVerificationLib.validateSignature(unsignedMsg, signature, identityOwner(identity)), "Invalid Signature");
+    }
     _bulkRevoke(identity, delegateParams, attributeParams);
   }
 }
