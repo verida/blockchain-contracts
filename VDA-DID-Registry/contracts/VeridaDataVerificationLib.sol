@@ -16,7 +16,7 @@ library VeridaDataVerificationLib {
     bytes memory _unsignedData,
     bytes calldata _signature,
     address _signerAddress
-  ) public pure returns (bool) {
+  ) internal pure returns (bool) {
     address signerAddress = getSignerAddress(_unsignedData, _signature);
     return signerAddress == _signerAddress && signerAddress != address(0);
   }

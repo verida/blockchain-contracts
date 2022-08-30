@@ -73,6 +73,8 @@ const config: HardhatUserConfig = {
       url: "https://polygon-mumbai.g.alchemy.com/v2/PAsQgyEm6lFytuZqbJQfZHWrP-0MZmsK",
       chainId: 80001,
       accounts: PRIVATE_KEY !== undefined ? [PRIVATE_KEY] : [], 
+      gas: 2100000,
+      gasPrice: 8000000000
     }
   },
   gasReporter: {
@@ -80,7 +82,7 @@ const config: HardhatUserConfig = {
     currency: "USD",
   },
   etherscan: {
-    apiKey: POLYGONSCAN_API_KEY,
+    apiKey: BSCSCAN_API_KEY,
   },
   mocha: {
     timeout: 0,

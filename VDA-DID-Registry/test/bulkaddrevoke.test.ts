@@ -35,19 +35,32 @@ chai.use(chaiAsPromised);
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const { ethers } = require("hardhat");
 
-const createVeridaSign = (rawMsg : any, privateKey: String ) => {
+const identity = Wallet.createRandom()
+const badSigner = Wallet.createRandom()
+
+const did = identity.address
+
+let didReg: VeridaDIDRegistry;
+
+const createVeridaSign = async (rawMsg : any, privateKey: String ) => {
+  const nonce = (await didReg.getNonce(did)).toNumber()
+  rawMsg = ethers.utils.solidityPack(
+    ['bytes','uint256'],
+    [rawMsg, nonce]
+  )
+
+  const privateKeyArray = new Uint8Array(Buffer.from(privateKey.slice(2), 'hex'))
+  return EncryptionUtils.signData(rawMsg, privateKeyArray)
+}
+
+const createProofSign = async (rawMsg : any, privateKey: String ) => {
+  const nonce = (await didReg.getNonce(did)).toNumber()
   const privateKeyArray = new Uint8Array(Buffer.from(privateKey.slice(2), 'hex'))
   return EncryptionUtils.signData(rawMsg, privateKeyArray)
 }
 
 describe("ERC1056", () => {
-  let didReg: VeridaDIDRegistry;
-
-  const identity = Wallet.createRandom()
-  const badSigner = Wallet.createRandom()
-
-  const did = identity.address
-
+  
   // Test Datas
   const validity = 86400
 
@@ -62,6 +75,9 @@ describe("ERC1056", () => {
   
   before(async () => {
     await hre.network.provider.send("hardhat_reset");
+
+    /*
+    //// Deploy when library contains public functions
     // Deploy Library
     const verifyLibFactory = await ethers.getContractFactory("VeridaDataVerificationLib");
     const verifyLib = await verifyLibFactory.deploy();
@@ -73,6 +89,10 @@ describe("ERC1056", () => {
         VeridaDataVerificationLib: verifyLib.address
       }
     });
+    */
+
+    // Deploy Contract
+    const DIDRegistryFactory = await ethers.getContractFactory("VeridaDIDRegistry");
     didReg = await DIDRegistryFactory.deploy();
     await didReg.deployed();
     
@@ -84,6 +104,8 @@ describe("ERC1056", () => {
     let previousChange: number;
     let rawMsg: any;
 
+    const proofProvider = Wallet.createRandom()
+
     const delegateParams: {
       delegateType: BytesLike;
       delegate: string;
@@ -93,10 +115,18 @@ describe("ERC1056", () => {
       name: BytesLike;
       value: BytesLike;
       validity: BigNumberish;
+      proofId : string;
+      proof: string;
     }[] = [];
 
     before(async () => {
       // Create input param
+      const proofRawMsg = ethers.utils.solidityPack(
+        ['address', 'address'],
+        [did, proofProvider.address]
+      )
+      const proofSignature = await createProofSign(proofRawMsg, proofProvider.privateKey)
+
       for (let i = 0; i < delegates.length; i++) {
         delegateParams.push({
           delegateType: delegateTypes[i],
@@ -109,6 +139,8 @@ describe("ERC1056", () => {
           name: attrNames[i],
           value: attrVals[i],
           validity: 86400,
+          proofId: proofProvider.address,
+          proof: proofSignature
         });
       }
 
@@ -123,8 +155,8 @@ describe("ERC1056", () => {
 
       attributeParams.forEach(item => {
         rawMsg = ethers.utils.solidityPack(
-          ['bytes','bytes32','bytes','uint'],
-          [rawMsg, item.name, item.value, item.validity]
+          ['bytes','bytes32','bytes','uint','address','bytes'],
+          [rawMsg, item.name, item.value, item.validity,item.proofId,item.proof]
         )
       })
     });
@@ -133,7 +165,7 @@ describe("ERC1056", () => {
       before(async () => {
         previousChange = (await didReg.changed(did)).toNumber();
 
-        const veridaSignature = createVeridaSign(rawMsg, identity.privateKey)
+        const veridaSignature = await createVeridaSign(rawMsg, identity.privateKey)
 
         tx = await didReg.bulkAdd(
           did,
@@ -193,9 +225,9 @@ describe("ERC1056", () => {
       });
     });
 
-    describe("Bad Signature", async () => {
-      it("Should fail", async () => {
-        const veridaSignature = createVeridaSign(rawMsg, badSigner.privateKey)
+    describe("Should fail", async () => {
+      it("Invalid Signature", async () => {
+        const veridaSignature = await createVeridaSign(rawMsg, badSigner.privateKey)
         await expect(
           didReg.bulkAdd(
             did,
@@ -204,6 +236,58 @@ describe("ERC1056", () => {
             veridaSignature
           )
         ).to.be.rejectedWith(/Invalid Signature/);
+      });
+
+      it("Invalid Proof", async () => {
+        const attributeParams: {
+          name: BytesLike;
+          value: BytesLike;
+          validity: BigNumberish;
+          proofId : string;
+          proof: string;
+        }[] = [];
+
+        const proofRawMsg = ethers.utils.solidityPack(
+          ['address', 'address'],
+          [did, proofProvider.address]
+        )
+        const proofSignature = await createVeridaSign(proofRawMsg, badSigner.privateKey)
+
+        for (let i = 0; i < attrNames.length; i++) {
+          attributeParams.push({
+            name: attrNames[i],
+            value: attrVals[i],
+            validity: 86400,
+            proofId: proofProvider.address,
+            proof: proofSignature
+          });
+        }
+
+        // Create raw message for input param
+        rawMsg = ethers.utils.solidityPack(['address'], [did])
+        delegateParams.forEach(item => {
+          rawMsg = ethers.utils.solidityPack(
+            ['bytes','bytes32','address','uint'],
+            [rawMsg, item.delegateType, item.delegate, item.validity]
+          )
+        })
+
+        attributeParams.forEach(item => {
+          rawMsg = ethers.utils.solidityPack(
+            ['bytes','bytes32','bytes','uint','address','bytes'],
+            [rawMsg, item.name, item.value, item.validity,item.proofId,item.proof]
+          )
+        })
+
+        const veridaSignature = await createVeridaSign(rawMsg, identity.privateKey)
+        await expect(
+          didReg.bulkAdd(
+            did,
+            delegateParams,
+            attributeParams,
+            veridaSignature
+          )
+        ).to.be.rejectedWith(/Invalid Proof/);
       });
     });
   });
@@ -266,9 +350,9 @@ describe("ERC1056", () => {
       }
     });
 
-    describe("Bad Signature", async () => {
-      it("Should fail", async () => {
-        const veridaSignature = createVeridaSign(rawMsg, badSigner.privateKey)
+    describe("Should fail", async () => {
+      it("Invalid Signature", async () => {
+        const veridaSignature = await createVeridaSign(rawMsg, badSigner.privateKey)
         await expect(
           didReg.bulkRevoke(
             did,
@@ -284,7 +368,7 @@ describe("ERC1056", () => {
       before(async () => {
         previousChange = (await didReg.changed(did)).toNumber();
 
-        const veridaSignature = createVeridaSign(rawMsg, identity.privateKey)
+        const veridaSignature = await createVeridaSign(rawMsg, identity.privateKey)
 
         tx = await didReg.bulkRevoke(
           did,
