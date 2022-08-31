@@ -23,6 +23,10 @@ import { VeridaDIDRegistry } from "../typechain";
 
 import EncryptionUtils from '@verida/encryption-utils'
 
+import { attributeToHex, stringToBytes32 } from './const'
+// import { publicKeyToAddress } from 'ethereum-public-key-to-address'
+const publicKeyToAddress = require('ethereum-public-key-to-address')
+
 chai.use(chaiAsPromised);
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -33,7 +37,6 @@ import { Wallet } from 'ethers'
 let didReg: VeridaDIDRegistry;
 const identity = Wallet.createRandom()
 const badSigner = Wallet.createRandom()
-const proofProvider = Wallet.createRandom()
 
 const did = identity.address
 
@@ -355,15 +358,21 @@ describe("ERC1056", () => {
   });
 
   describe("Attribute test", () => {
-    const attrName = formatBytes32String("encryptionKey")
-    const attrValue = toUtf8Bytes("mykey")
+    const publicKey = '0x04d1f1722e37ce02ddd6300a4d93b857d82666f5faf05c6e3d792b776092c010ddeb75cb398ddf535c136534ea577d7103c8aa9f82ca2016e5317f932ee11fd195'
+    const context   = '0x040cbb4042f69bca44da395fe14e56041a62ca3249ae362def1c7a4f97a60419879588cca629817a1495b2d98615c849b1dfc1410c83c2375735061a0e13905ad0'
+    const key       = `did/pub/Secp256k1/sigAuth/hex`
+    const value     = `${publicKey}?context=${context}`
+
+    const attrName = stringToBytes32(key)
+    const attrValue = attributeToHex(key, value)
     const validity = 86400
+    const providerAddress = publicKeyToAddress(publicKey)
 
     describe("setAttribute()", async () => {
 
       const rawProof = ethers.utils.solidityPack(
         ['address', 'address'],
-        [did, proofProvider.address]
+        [did, providerAddress]
       )
       const proofSignature = await createProofSign(rawProof, identity.privateKey)
       
@@ -418,8 +427,8 @@ describe("ERC1056", () => {
           const event = (await tx.wait()).events?.[0] as DIDAttributeChangedEvent;
           expect(event.event).to.equal("DIDAttributeChanged");
           expect(event.args.identity).to.equal(did);
-          expect(parseBytes32String(event.args.name)).to.equal("encryptionKey");
-          expect(event.args.value).to.equal("0x6d796b6579"); // the hex encoding of the string "mykey"
+          expect(parseBytes32String(event.args.name)).to.equal(key);
+          expect(event.args.value).to.equal(attrValue); // the hex encoding of the string "mykey"
           expect(event.args.validTo.toNumber()).to.equal(block.timestamp + 86400);
           expect(event.args.previousChange.toNumber()).to.equal(previousChange);
         });
@@ -435,9 +444,7 @@ describe("ERC1056", () => {
 
       describe("Bad Signature", () => {
         it("should fail", async () => {
-
           const veridaSignature = await createVeridaSign(rawMsg, badSigner.privateKey)
-
           await expect(didReg.revokeAttribute(
               did,
               attrName,
@@ -453,9 +460,7 @@ describe("ERC1056", () => {
         let previousChange: number;
         before(async () => {
           previousChange = (await didReg.changed(did)).toNumber();
-
           const veridaSignature = await createVeridaSign(rawMsg, identity.privateKey)
-          
           tx = await didReg.revokeAttribute(
             did,
             attrName,
@@ -471,8 +476,8 @@ describe("ERC1056", () => {
           const event = (await tx.wait()).events?.[0] as DIDAttributeChangedEvent;
           expect(event.event).to.equal("DIDAttributeChanged");
           expect(event.args.identity).to.equal(did);
-          expect(parseBytes32String(event.args.name)).to.equal("encryptionKey");
-          expect(event.args.value).to.equal("0x6d796b6579"); // hex encoding of the string "mykey"
+          expect(parseBytes32String(event.args.name)).to.equal(key);
+          expect(event.args.value).to.equal(attrValue); // hex encoding of the string "mykey"
           expect(event.args.validTo.toNumber()).to.equal(0);
           expect(event.args.previousChange.toNumber()).to.equal(previousChange);
         });
