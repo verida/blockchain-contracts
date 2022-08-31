@@ -1,6 +1,6 @@
 {
   "name": "vda-did-registry",
-  "version": "0.0.4",
+  "version": "0.0.6",
   "description": "A repository storing keys and other data about Ethereum Decentralized Identifiers (DIDs)",
   "main": "artifacts/contracts/VeridaDIDRegistry.sol/VeridaDIDRegistry.json",
   "dependencies": {

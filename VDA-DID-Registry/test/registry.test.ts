@@ -51,7 +51,6 @@ const createVeridaSign = async (rawMsg : any, privateKey: string, docDID: string
 }
 
 const createProofSign = async (rawMsg : any, privateKey: String ) => {
-  const nonce = (await didReg.getNonce(did)).toNumber()
   const privateKeyArray = new Uint8Array(Buffer.from(privateKey.slice(2), 'hex'))
   return EncryptionUtils.signData(rawMsg, privateKeyArray)
 }
@@ -366,21 +365,12 @@ describe("ERC1056", () => {
         ['address', 'address'],
         [did, proofProvider.address]
       )
-
-      const proofSignature = await createProofSign(rawProof, proofProvider.privateKey)
+      const proofSignature = await createProofSign(rawProof, identity.privateKey)
       
       const rawMsg = ethers.utils.solidityPack(
-        ['address', 'bytes32', 'bytes', 'uint', 'address', 'bytes'],
-        [did, attrName, attrValue, validity, proofProvider.address, proofSignature]
+        ['address', 'bytes32', 'bytes', 'uint', 'bytes'],
+        [did, attrName, attrValue, validity, proofSignature]
       )
-
-      // before(async () => {
-      //   proofSignature = await createProofSign(rawProof, proofProvider.privateKey)
-      //   rawMsg = ethers.utils.solidityPack(
-      //     ['address', 'bytes32', 'bytes', 'uint', 'address', 'bytes'],
-      //     [did, attrName, attrValue, validity, proofProvider.address, proofSignature]
-      //   )
-      // })
 
       describe("Fail", () => {
         it("Invalid Signature by bad signer", async () => {
@@ -393,37 +383,11 @@ describe("ERC1056", () => {
                 attrName,
                 attrValue,
                 validity,
-                proofProvider.address,
                 proofSignature,
                 veridaSignature
               )
           ).to.be.rejectedWith(/Invalid Signature/);
         });
-
-        it("Invalid proof signature", async () => {
-
-          const proofSignature = await createProofSign(rawProof, badSigner.privateKey)
-      
-          const rawMsg = ethers.utils.solidityPack(
-            ['address', 'bytes32', 'bytes', 'uint', 'address', 'bytes'],
-            [did, attrName, attrValue, validity, proofProvider.address, proofSignature]
-          )  
-
-          const veridaSignature = await createVeridaSign(rawMsg, identity.privateKey)
-          
-          await expect(
-            didReg
-              .setAttribute(
-                did,
-                attrName,
-                attrValue,
-                validity,
-                proofProvider.address,
-                proofSignature,
-                veridaSignature,
-              )
-          ).to.be.rejectedWith(/Invalid Proof/);
-        })
       });
 
       describe("Success", () => {
@@ -435,14 +399,12 @@ describe("ERC1056", () => {
           previousChange = (await didReg.changed(did)).toNumber();
 
           const veridaSignature = await createVeridaSign(rawMsg, identity.privateKey)
-          const proofSignature = await createProofSign(rawProof, proofProvider.privateKey)
           
           tx = await didReg.setAttribute(
               did,
               attrName,
               attrValue,
               validity,
-              proofProvider.address,
               proofSignature,
               veridaSignature,
             );

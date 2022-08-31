@@ -1,21 +1,12 @@
 import chai, { expect } from "chai";
 import chaiAsPromised from "chai-as-promised";
 import { BigNumberish, ContractTransaction } from "ethers";
-import { Block, Log } from "@ethersproject/providers";
-import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
+import { Block } from "@ethersproject/providers";
 import {
-  arrayify,
   BytesLike,
-  concat,
   formatBytes32String,
-  hexConcat,
-  hexlify,
-  hexZeroPad,
-  keccak256,
   parseBytes32String,
-  SigningKey,
   toUtf8Bytes,
-  zeroPad,
 } from "ethers/lib/utils";
 
 import hre from "hardhat";
@@ -23,7 +14,6 @@ import hre from "hardhat";
 import {
   DIDAttributeChangedEvent,
   DIDDelegateChangedEvent,
-  DIDOwnerChangedEvent,
   VeridaDIDRegistry,
 } from "../typechain/VeridaDIDRegistry";
 
@@ -54,7 +44,6 @@ const createVeridaSign = async (rawMsg : any, privateKey: String ) => {
 }
 
 const createProofSign = async (rawMsg : any, privateKey: String ) => {
-  const nonce = (await didReg.getNonce(did)).toNumber()
   const privateKeyArray = new Uint8Array(Buffer.from(privateKey.slice(2), 'hex'))
   return EncryptionUtils.signData(rawMsg, privateKeyArray)
 }
@@ -115,7 +104,6 @@ describe("ERC1056", () => {
       name: BytesLike;
       value: BytesLike;
       validity: BigNumberish;
-      proofId : string;
       proof: string;
     }[] = [];
 
@@ -125,7 +113,7 @@ describe("ERC1056", () => {
         ['address', 'address'],
         [did, proofProvider.address]
       )
-      const proofSignature = await createProofSign(proofRawMsg, proofProvider.privateKey)
+      const proofSignature = await createProofSign(proofRawMsg, identity.privateKey)
 
       for (let i = 0; i < delegates.length; i++) {
         delegateParams.push({
@@ -139,7 +127,6 @@ describe("ERC1056", () => {
           name: attrNames[i],
           value: attrVals[i],
           validity: 86400,
-          proofId: proofProvider.address,
           proof: proofSignature
         });
       }
@@ -155,8 +142,8 @@ describe("ERC1056", () => {
 
       attributeParams.forEach(item => {
         rawMsg = ethers.utils.solidityPack(
-          ['bytes','bytes32','bytes','uint','address','bytes'],
-          [rawMsg, item.name, item.value, item.validity,item.proofId,item.proof]
+          ['bytes','bytes32','bytes','uint','bytes'],
+          [rawMsg, item.name, item.value, item.validity, item.proof]
         )
       })
     });
@@ -236,58 +223,6 @@ describe("ERC1056", () => {
             veridaSignature
           )
         ).to.be.rejectedWith(/Invalid Signature/);
-      });
-
-      it("Invalid Proof", async () => {
-        const attributeParams: {
-          name: BytesLike;
-          value: BytesLike;
-          validity: BigNumberish;
-          proofId : string;
-          proof: string;
-        }[] = [];
-
-        const proofRawMsg = ethers.utils.solidityPack(
-          ['address', 'address'],
-          [did, proofProvider.address]
-        )
-        const proofSignature = await createVeridaSign(proofRawMsg, badSigner.privateKey)
-
-        for (let i = 0; i < attrNames.length; i++) {
-          attributeParams.push({
-            name: attrNames[i],
-            value: attrVals[i],
-            validity: 86400,
-            proofId: proofProvider.address,
-            proof: proofSignature
-          });
-        }
-
-        // Create raw message for input param
-        rawMsg = ethers.utils.solidityPack(['address'], [did])
-        delegateParams.forEach(item => {
-          rawMsg = ethers.utils.solidityPack(
-            ['bytes','bytes32','address','uint'],
-            [rawMsg, item.delegateType, item.delegate, item.validity]
-          )
-        })
-
-        attributeParams.forEach(item => {
-          rawMsg = ethers.utils.solidityPack(
-            ['bytes','bytes32','bytes','uint','address','bytes'],
-            [rawMsg, item.name, item.value, item.validity,item.proofId,item.proof]
-          )
-        })
-
-        const veridaSignature = await createVeridaSign(rawMsg, identity.privateKey)
-        await expect(
-          didReg.bulkAdd(
-            did,
-            delegateParams,
-            attributeParams,
-            veridaSignature
-          )
-        ).to.be.rejectedWith(/Invalid Proof/);
       });
     });
   });

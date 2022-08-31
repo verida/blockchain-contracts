@@ -23,7 +23,6 @@ contract VeridaDIDRegistry is OwnableUpgradeable {
     bytes32 name;
     bytes value;
     uint validity;
-    address proofId;
     bytes proof;
   }
 
@@ -56,7 +55,6 @@ contract VeridaDIDRegistry is OwnableUpgradeable {
     bytes32 name,
     bytes value,
     uint validTo,
-    address proofId,
     bytes proof,
     uint previousChange
   );
@@ -127,10 +125,6 @@ contract VeridaDIDRegistry is OwnableUpgradeable {
         newOwner,
         nonce[identity]
       );
-      // address signerAddres = VeridaDataVerificationLib.getSignerAddress(unsignedMsg, signature);
-      // console.log('******************');
-      // console.log(signerAddres);
-      // console.log('******************');
       require(VeridaDataVerificationLib.validateSignature(unsignedMsg, signature, identityOwner(identity)), "Invalid Signature");
       nonce[identity]++;
     }
@@ -220,19 +214,9 @@ contract VeridaDIDRegistry is OwnableUpgradeable {
    * @param value - attribute value
    * @param validity - valid duration of attribute
    */
-  function _setAttribute(address identity, bytes32 name, bytes calldata value, uint validity, address proofId, bytes calldata proof) internal {
-    {
-      if (proofId != address(0x0) && proof.length != 0) {
-        bytes memory unsignedProofMsg = abi.encodePacked(
-          identity,
-          proofId
-        );
-        require(VeridaDataVerificationLib.validateSignature(unsignedProofMsg, proof, proofId), "Invalid Proof");
-      }
-    }
-
+  function _setAttribute(address identity, bytes32 name, bytes calldata value, uint validity, bytes calldata proof) internal {
     uint previousChange = changed[identity];
-    emit DIDAttributeChanged(identity, name, value, block.timestamp + validity, proofId, proof, previousChange);
+    emit DIDAttributeChanged(identity, name, value, block.timestamp + validity, proof, previousChange);
     changed[identity] = block.number;
   }
 
@@ -244,7 +228,6 @@ contract VeridaDIDRegistry is OwnableUpgradeable {
    * @param value - attribute value
    * @param validity - valid duration of attribute
    * @param signature - transaction signature
-   * @param proofId - ethereum address of context public key
    * @param proof - proof
    */
   function setAttribute(
@@ -252,7 +235,6 @@ contract VeridaDIDRegistry is OwnableUpgradeable {
     bytes32 name, 
     bytes calldata value, 
     uint validity,
-    address proofId,
     bytes calldata proof,
     bytes calldata signature
     ) external {
@@ -263,7 +245,6 @@ contract VeridaDIDRegistry is OwnableUpgradeable {
         name,
         value,
         validity,
-        proofId,
         proof,
         didNonce
       );
@@ -272,7 +253,7 @@ contract VeridaDIDRegistry is OwnableUpgradeable {
       nonce[identity]++;
     }
     
-    _setAttribute(identity, name, value, validity, proofId, proof);
+    _setAttribute(identity, name, value, validity, proof);
   }
 
   /**
@@ -283,7 +264,7 @@ contract VeridaDIDRegistry is OwnableUpgradeable {
    * @param value - attribute value
    */
   function _revokeAttribute(address identity, bytes32 name, bytes calldata value) internal {
-    emit DIDAttributeChanged(identity, name, value, 0, address(0x0), new bytes(0), changed[identity]);
+    emit DIDAttributeChanged(identity, name, value, 0, new bytes(0), changed[identity]);
     changed[identity] = block.number;
   }
 
@@ -336,7 +317,6 @@ contract VeridaDIDRegistry is OwnableUpgradeable {
         attributeParams[i].name,
         attributeParams[i].value,
         attributeParams[i].validity,
-        attributeParams[i].proofId,
         attributeParams[i].proof);
     }
   }
@@ -372,7 +352,6 @@ contract VeridaDIDRegistry is OwnableUpgradeable {
           attributeParams[i].name,
           attributeParams[i].value,
           attributeParams[i].validity,
-          attributeParams[i].proofId,
           attributeParams[i].proof
         );
       }
