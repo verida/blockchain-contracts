@@ -1,3 +1,9 @@
 #Ignore all files starting with "."
 .*
 !/.gitignore
+
+*/node_modules/* 
+*/*/node_modules/* 
+*/build/*
+*/artifacts/*
+*/cache/*

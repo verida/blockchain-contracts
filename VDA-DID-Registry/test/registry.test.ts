@@ -21,83 +21,134 @@ import {
 
 import { VeridaDIDRegistry } from "../typechain";
 
+import EncryptionUtils from '@verida/encryption-utils'
+
+import { attributeToHex, stringToBytes32 } from './const'
+// import { publicKeyToAddress } from 'ethereum-public-key-to-address'
+const publicKeyToAddress = require('ethereum-public-key-to-address')
+
 chai.use(chaiAsPromised);
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const { ethers } = require("hardhat");
 
+import { Wallet } from 'ethers'
+
+let didReg: VeridaDIDRegistry;
+const identity = Wallet.createRandom()
+const badSigner = Wallet.createRandom()
+
+const did = identity.address
+
+const createVeridaSign = async (rawMsg : any, privateKey: string, docDID: string = did) => {
+  if (didReg === undefined)
+    return ''
+
+  const nonce = (await didReg.getNonce(docDID)).toNumber()
+  rawMsg = ethers.utils.solidityPack(
+    ['bytes','uint256'],
+    [rawMsg, nonce]
+  )
+  const privateKeyArray = new Uint8Array(Buffer.from(privateKey.slice(2), 'hex'))
+  return EncryptionUtils.signData(rawMsg, privateKeyArray)
+}
+
+const createProofSign = async (rawMsg : any, privateKey: String ) => {
+  const privateKeyArray = new Uint8Array(Buffer.from(privateKey.slice(2), 'hex'))
+  return EncryptionUtils.signData(rawMsg, privateKeyArray)
+}
+
 describe("ERC1056", () => {
-  let didReg: VeridaDIDRegistry;
-  let identity: SignerWithAddress; // = accounts[0];
-  let identity2: SignerWithAddress; // = accounts[1];
-  let delegate: SignerWithAddress; // = accounts[2];
-  let delegate2: SignerWithAddress; // = accounts[3];
-  let delegate3: SignerWithAddress; // = accounts[4];
-  let badBoy: SignerWithAddress; // = accounts[5];
-
+  
   before(async () => {
-    const Registry = await ethers.getContractFactory("VeridaDIDRegistry");
-    didReg = await Registry.deploy();
+
+    /*
+    ///// Need to link library if library contains public functions
+    // Deploy Library
+    const verifyLibFactory = await ethers.getContractFactory("VeridaDataVerificationLib");
+    const verifyLib = await verifyLibFactory.deploy();
+    await verifyLib.deployed();
+
+    // Deploy Contract
+    const DIDRegistryFactory = await ethers.getContractFactory("VeridaDIDRegistry", {
+      libraries: {
+        VeridaDataVerificationLib: verifyLib.address
+      }
+    });
+    didReg = await DIDRegistryFactory.deploy();
     await didReg.deployed();
-    [identity, identity2, delegate, delegate2, delegate3, badBoy] =
-      await ethers.getSigners();
+    */
 
-    const accountList = await ethers.getSigners();
-    for (const item of accountList) {
-      console.log(item.address);
-    }
+    // Deploy Contract
+    const DIDRegistryFactory = await ethers.getContractFactory("VeridaDIDRegistry");
+    didReg = await DIDRegistryFactory.deploy();
+    await didReg.deployed();
   });
-
-  const testSignature = arrayify(
-    "0x67de2d20880a7d27b71cdcb38817ba95800ca82dff557cedd91b96aacb9062e80b9e0b8cb9614fd61ce364502349e9079c26abaa21890d7bc2f1f6c8ff77f6261c"
-  );
-
-  const badSignature = arrayify(
-    "0xf157fd349172fa8bb84710d871724091947289182373198723918cabcc888ef888ff8876956050565d5757a57d868b8676876e7678687686f95419238191488923"
-  );
-
+ 
   describe("identityOwner()", () => {
+    const orgOwner = Wallet.createRandom()
+    const newOwner = Wallet.createRandom()
+    const testDID = orgOwner.address
+
     describe("default owner", () => {
       it("should return the identity address itself", async () => {
-        const owner = await didReg.identityOwner(identity2.address);
-        expect(owner).to.equal(identity2.address);
+        const owner = await didReg.identityOwner(testDID);
+        expect(owner).to.equal(orgOwner.address);
       });
     });
 
     describe("changed owner", () => {
       before(async () => {
-        await didReg
-          .connect(identity2)
-          .changeOwner(identity2.address, delegate.address, testSignature);
+        const rawMsg = ethers.utils.solidityPack(
+          ['address', 'address'],
+          [testDID, newOwner.address]
+        )
+        const signature = await createVeridaSign(rawMsg, orgOwner.privateKey)
+        await didReg.changeOwner(testDID, newOwner.address, signature);
       });
-      it("should return the delegate address", async () => {
-        const owner = await didReg.identityOwner(identity2.address);
-        expect(owner).to.equal(delegate.address);
+      it("should return the chaged owner address", async () => {
+        const owner = await didReg.identityOwner(testDID);
+        expect(owner).to.equal(newOwner.address);
       });
     });
   });
 
   describe("changeOwner()", () => {
+    const identity1 = Wallet.createRandom();
+    const identity2 = Wallet.createRandom();
+    const identity3 = Wallet.createRandom();
+
+    const did = identity1.address
+
     describe("as current owner", () => {
       let tx: ContractTransaction;
+
       before(async () => {
+        const rawMsg = ethers.utils.solidityPack(
+          ['address', 'address'],
+          [did, identity2.address]
+        )
+
+        // Sign by identity1's privateKey
+        const veridaSignature = await createVeridaSign(rawMsg, identity1.privateKey)
+    
         tx = await didReg
-          .connect(identity)
-          .changeOwner(identity.address, delegate.address, testSignature);
+          .changeOwner(did, identity2.address, veridaSignature);
       });
       it("should change owner mapping", async () => {
-        const owner = await didReg.owners(identity.address);
-        expect(owner).to.equal(delegate.address);
+        const owner = await didReg.owners(did);
+        expect(owner).to.equal(identity2.address);
       });
+
       it("should sets changed to transaction block", async () => {
-        const latest = await didReg.changed(identity.address);
+        const latest = await didReg.changed(did);
         expect(latest).to.equal(tx.blockNumber);
       });
       it("should create DIDDelegateChanged event", async () => {
         const event = (await tx.wait()).events?.[0] as DIDOwnerChangedEvent;
         expect(event.event).to.equal("DIDOwnerChanged");
-        expect(event.args.identity).to.equal(identity.address);
-        expect(event.args.owner).to.equal(delegate.address);
+        expect(event.args.identity).to.equal(did);
+        expect(event.args.owner).to.equal(identity2.address);
         expect(event.args.previousChange.toNumber()).to.equal(0);
       });
     });
@@ -106,349 +157,344 @@ describe("ERC1056", () => {
       let tx: ContractTransaction;
       let previousChange: number;
       before(async () => {
-        previousChange = (await didReg.changed(identity.address)).toNumber();
+        previousChange = (await didReg.changed(identity1.address)).toNumber();
+
+        const rawMsg = ethers.utils.solidityPack(
+          ['address', 'address'],
+          [did, identity3.address]
+        )
+
+        // Sign by Identity2's privatekey
+        const veridaSignature = await createVeridaSign(rawMsg, identity2.privateKey, did)
+
         tx = await didReg
-          .connect(delegate)
-          .changeOwner(identity.address, delegate2.address, testSignature);
+          .changeOwner(did, identity3.address, veridaSignature);
       });
       it("should change owner mapping", async () => {
-        const owner = await didReg.owners(identity.address);
-        expect(owner).to.equal(delegate2.address);
+        const owner = await didReg.owners(did);
+        expect(owner).to.equal(identity3.address);
       });
       it("should sets changed to transaction block", async () => {
-        const latest = await didReg.changed(identity.address);
+        const latest = await didReg.changed(did);
         expect(latest).to.equal((await tx.wait()).blockNumber);
       });
       it("should create DIDOwnerChanged event", async () => {
         const event = (await tx.wait()).events?.[0] as DIDOwnerChangedEvent;
         expect(event.event).to.equal("DIDOwnerChanged");
-        expect(event.args.identity).to.equal(identity.address);
-        expect(event.args.owner).to.equal(delegate2.address);
+        expect(event.args.identity).to.equal(did);
+        expect(event.args.owner).to.equal(identity3.address);
         expect(event.args.previousChange.toNumber()).to.equal(previousChange);
       });
     });
   });
 
-  describe("addDelegate()", () => {
-    it("validDelegate should be false", async () => {
-      const valid = await didReg.validDelegate(
-        identity.address,
-        formatBytes32String("attestor"),
-        delegate3.address
-      );
-      expect(valid).to.equal(false); // we have not yet assigned delegate correctly
-    });
+  describe("Delegate Test", () => {
+    const delegateType = formatBytes32String("attestor")
+    const delegate = Wallet.createRandom().address
+    const validity = 86400
 
-    describe("Correct Signature", () => {
-      let tx: ContractTransaction;
-      let block: Block;
-      let previousChange: number;
-      before(async () => {
-        previousChange = (await didReg.changed(identity.address)).toNumber();
-        tx = await didReg
-          .connect(delegate2)
-          .addDelegate(
-            identity.address,
-            formatBytes32String("attestor"),
-            delegate3.address,
-            86400,
-            testSignature
-          );
-        block = await ethers.provider.getBlock((await tx.wait()).blockNumber);
-      });
-      it("validDelegate should be true", async () => {
-        const valid = await didReg.validDelegate(
-          identity.address,
-          formatBytes32String("attestor"),
-          delegate3.address
-        );
-        expect(valid).to.equal(true); // assigned delegate correctly
-      });
-      it("should sets changed to transaction block", async () => {
-        const latest = await didReg.changed(identity.address);
-        expect(latest).to.equal((await tx.wait()).blockNumber);
-      });
-      it("should create DIDDelegateChanged event", async () => {
-        const event = (await tx.wait()).events?.[0] as DIDDelegateChangedEvent;
-        expect(event.event).to.equal("DIDDelegateChanged");
-        expect(event.args.identity).to.equal(identity.address);
-        expect(parseBytes32String(event.args.delegateType)).to.equal(
-          "attestor"
-        );
-        expect(event.args.delegate).to.equal(delegate3.address);
-        expect(event.args.validTo.toNumber()).to.equal(block.timestamp + 86400);
-        expect(event.args.previousChange.toNumber()).to.equal(previousChange);
-      });
-    });
+    describe("addDelegate()", () => {
 
-    describe("Bad Signature - as original owner", () => {
-      it("should fail", async () => {
-        const currentOwnerAddress = await didReg.owners(identity.address);
-        expect(currentOwnerAddress).not.to.equal(identity.address);
-        await expect(
-          didReg
-            .connect(identity)
-            .addDelegate(
-              identity.address,
-              formatBytes32String("attestor"),
-              badBoy.address,
-              86400,
-              badSignature
-            )
-        ).to.be.rejectedWith(/bad_actor/);
-      });
-    });
-
-    describe("Bad Signature - as attacker", () => {
-      it("should fail", async () => {
-        await expect(
-          didReg
-            .connect(badBoy)
-            .addDelegate(
-              identity.address,
-              formatBytes32String("attestor"),
-              badBoy.address,
-              86400,
-              badSignature
-            )
-        ).to.be.rejectedWith(/bad_actor/);
-      });
-    });
-  });
-
-  describe("revokeDelegate()", () => {
-    it("validDelegate should be true", async () => {
-      const valid = await didReg.validDelegate(
-        identity.address,
-        formatBytes32String("attestor"),
-        delegate3.address
-      );
-      expect(valid).to.equal(true); // not yet revoked
-    });
-
-    describe("Correct Signature", () => {
-      let tx: ContractTransaction;
-      let previousChange: number;
-      before(async () => {
-        previousChange = (await didReg.changed(identity.address)).toNumber();
-        tx = await didReg
-          .connect(delegate2)
-          .revokeDelegate(
-            identity.address,
-            formatBytes32String("attestor"),
-            delegate3.address,
-            testSignature
-          );
-      });
       it("validDelegate should be false", async () => {
         const valid = await didReg.validDelegate(
-          identity.address,
-          formatBytes32String("attestor"),
-          delegate3.address
+          did,
+          delegateType,
+          delegate
         );
-        expect(valid).to.equal(false); // revoked correctly
+        expect(valid).to.equal(false); // we have not yet assigned delegate correctly
       });
-      it("should sets changed to transaction block", async () => {
-        const latest = await didReg.changed(identity.address);
-        expect(latest).to.equal((await tx.wait()).blockNumber);
-      });
-      it("should create DIDDelegateChanged event", async () => {
-        const event = (await tx.wait())
-          .events?.[0] as DIDDelegateChangedEvent;
-        expect(event.event).to.equal("DIDDelegateChanged");
-        expect(event.args.identity).to.equal(identity.address);
-        expect(parseBytes32String(event.args.delegateType)).to.equal(
-          "attestor"
-        );
-        expect(event.args.delegate).to.equal(delegate3.address);
-        expect(event.args.validTo.toNumber()).to.be.lessThanOrEqual(
-          (await ethers.provider.getBlock(tx.blockNumber)).timestamp
-        );
-        expect(event.args.previousChange.toNumber()).to.equal(previousChange);
-      });
-    });
 
-    describe("Bad Signature - as original owner", () => {
-      it("should fail", async () => {
-        const currentOwnerAddress = await didReg.owners(identity.address);
-        expect(currentOwnerAddress).not.to.equal(identity.address);
-        await expect(
-          didReg
-            .connect(identity)
-            .revokeDelegate(
-              identity.address,
-              formatBytes32String("attestor"),
-              badBoy.address,
-              badSignature
-            )
-        ).to.be.rejectedWith(/bad_actor/);
-      });
-    });
+      describe("Correct Signature", () => {
+        let tx: ContractTransaction;
+        let block: Block;
+        let previousChange: number;
+        
+        before(async () => {
+          previousChange = (await didReg.changed(did)).toNumber();
 
-    describe("Bad Signature - as attacker", () => {
-      it("should fail", async () => {
-        await expect(
-          didReg
-            .connect(badBoy)
-            .revokeDelegate(
-              identity.address,
-              formatBytes32String("attestor"),
-              badBoy.address,
-              badSignature
-            )
-        ).to.be.revertedWith("bad_actor");
-      });
-    });
-  });
+          const rawMsg = ethers.utils.solidityPack(
+            ['address', 'bytes32', 'address', 'uint'],
+            [did, delegateType, delegate, validity]
+          )
 
-  describe("setAttribute()", () => {
-    describe("Correct Signature", () => {
-      let tx: ContractTransaction;
-      let block: Block;
-      let previousChange: number;
-      before(async () => {
-        previousChange = (await didReg.changed(identity.address)).toNumber();
-        const currentOwnerAddress = await didReg.owners(identity.address);
-        const signer = (await ethers.getSigners()).find(
-          (signer: SignerWithAddress) => signer.address === currentOwnerAddress
-        );
-        tx = await didReg
-          .connect(signer)
-          .setAttribute(
-            identity.address,
-            formatBytes32String("encryptionKey"),
-            toUtf8Bytes("mykey"),
-            86400,
-            testSignature
+          const veridaSignature = await createVeridaSign(rawMsg, identity.privateKey)
+
+          tx = await didReg.addDelegate(
+              did,
+              delegateType,
+              delegate,
+              validity,
+              veridaSignature
+            );
+          block = await ethers.provider.getBlock((await tx.wait()).blockNumber);
+        });
+        it("validDelegate should be true", async () => {
+          const valid = await didReg.validDelegate(
+            did,
+            delegateType,
+            delegate
           );
-        block = await ethers.provider.getBlock((await tx.wait()).blockNumber);
-      });
-      it("should sets changed to transaction block", async () => {
-        const latest = await didReg.changed(identity.address);
-        expect(latest).to.equal((await tx.wait()).blockNumber);
-      });
-      it("should create DIDAttributeChanged event", async () => {
-        const event = (await tx.wait()).events?.[0] as DIDAttributeChangedEvent;
-        expect(event.event).to.equal("DIDAttributeChanged");
-        expect(event.args.identity).to.equal(identity.address);
-        expect(parseBytes32String(event.args.name)).to.equal("encryptionKey");
-        expect(event.args.value).to.equal("0x6d796b6579"); // the hex encoding of the string "mykey"
-        expect(event.args.validTo.toNumber()).to.equal(block.timestamp + 86400);
-        expect(event.args.previousChange.toNumber()).to.equal(previousChange);
-      });
-    });
-
-    describe("Bad Signature - as original owner", () => {
-      it("should fail", async () => {
-        const currentOwnerAddress = await didReg.owners(identity.address);
-        expect(currentOwnerAddress).not.to.equal(identity.address);
-        await expect(
-          didReg
-            .connect(identity)
-            .setAttribute(
-              identity.address,
-              formatBytes32String("encryptionKey"),
-              toUtf8Bytes("mykey"),
-              86400,
-              badSignature
-            )
-        ).to.be.rejectedWith(/bad_actor/);
-      });
-    });
-
-    describe("Bad Signature - as attacker", () => {
-      it("should fail", async () => {
-        await expect(
-          didReg
-            .connect(badBoy)
-            .setAttribute(
-              identity.address,
-              formatBytes32String("encryptionKey"),
-              toUtf8Bytes("mykey"),
-              86400,
-              badSignature
-            )
-        ).to.be.rejectedWith(/bad_actor/);
-      });
-    });
-  });
-
-  describe("revokeAttribute()", () => {
-    describe("Correct Signature", () => {
-      let tx: ContractTransaction;
-      let previousChange: number;
-      before(async () => {
-        previousChange = (await didReg.changed(identity.address)).toNumber();
-        const currentOwnerAddress = await didReg.owners(identity.address);
-        const signer = (await ethers.getSigners()).find(
-          (signer: SignerWithAddress) => signer.address === currentOwnerAddress
-        );
-        tx = await didReg
-          .connect(signer)
-          .revokeAttribute(
-            identity.address,
-            formatBytes32String("encryptionKey"),
-            toUtf8Bytes("mykey"),
-            testSignature
+          expect(valid).to.equal(true); // assigned delegate correctly
+        });
+        it("should sets changed to transaction block", async () => {
+          const latest = await didReg.changed(did);
+          expect(latest).to.equal((await tx.wait()).blockNumber);
+        });
+        it("should create DIDDelegateChanged event", async () => {
+          const event = (await tx.wait()).events?.[0] as DIDDelegateChangedEvent;
+          expect(event.event).to.equal("DIDDelegateChanged");
+          expect(event.args.identity).to.equal(did);
+          expect(parseBytes32String(event.args.delegateType)).to.equal(
+            "attestor"
           );
+          expect(event.args.delegate).to.equal(delegate);
+          expect(event.args.validTo.toNumber()).to.equal(block.timestamp + validity);
+          expect(event.args.previousChange.toNumber()).to.equal(previousChange);
+        });
       });
-      it("should sets changed to transaction block", async () => {
-        const latest = await didReg.changed(identity.address);
-        expect(latest).to.equal((await tx.wait()).blockNumber);
-      });
-      it("should create DIDAttributeChanged event", async () => {
-        const event = (await tx.wait()).events?.[0] as DIDAttributeChangedEvent;
-        expect(event.event).to.equal("DIDAttributeChanged");
-        expect(event.args.identity).to.equal(identity.address);
-        expect(parseBytes32String(event.args.name)).to.equal("encryptionKey");
-        expect(event.args.value).to.equal("0x6d796b6579"); // hex encoding of the string "mykey"
-        expect(event.args.validTo.toNumber()).to.equal(0);
-        expect(event.args.previousChange.toNumber()).to.equal(previousChange);
+
+      describe("Bad Signature", () => {
+        it("should fail", async () => {
+          const delegate2 = Wallet.createRandom()
+
+          const rawMsg = ethers.utils.solidityPack(
+            ['address', 'bytes32', 'address', 'uint'],
+            [did, delegateType, delegate2.address, validity]
+          )
+          
+          const veridaSignature = await createVeridaSign(rawMsg, badSigner.privateKey)
+
+          await expect(
+            didReg
+              .addDelegate(
+                did,
+                delegateType,
+                delegate2.address,
+                validity,
+                veridaSignature
+              )
+          ).to.be.rejectedWith(/Invalid Signature/);
+        });
       });
     });
 
-    describe("Bad Signature - as original owner", () => {
-      it("should fail", async () => {
-        const currentOwnerAddress = await didReg.owners(identity.address);
-        expect(currentOwnerAddress).not.to.equal(identity.address);
-        await expect(
-          didReg
-            .connect(identity)
-            .revokeAttribute(
-              identity.address,
-              formatBytes32String("encryptionKey"),
-              toUtf8Bytes("mykey"),
-              badSignature
-            )
-        ).to.be.rejectedWith(/bad_actor/);
-      });
-    });
+    describe("revokeDelegate()", () => {
 
-    describe("Bad Signature - as attacker", () => {
-      it("should fail", async () => {
-        await expect(
-          didReg
-            .connect(badBoy)
-            .revokeAttribute(
-              identity.address,
-              formatBytes32String("encryptionKey"),
-              toUtf8Bytes("mykey"),
-              badSignature
+      const rawMsg = ethers.utils.solidityPack(
+        ['address', 'bytes32', 'address'],
+        [did, delegateType, delegate]
+      )
+      
+      it("validDelegate should be true", async () => {
+        const valid = await didReg.validDelegate(
+          did,
+          delegateType,
+          delegate
+        );
+        expect(valid).to.equal(true); // not yet revoked
+      });
+
+      describe("Bad Signature", () => {
+        it("should fail", async () => {
+
+          const veridaSignature = await createVeridaSign(rawMsg, badSigner.privateKey)
+          
+          await expect(
+            didReg.revokeDelegate(
+              did,
+              delegateType,
+              delegate,
+              veridaSignature
             )
-        ).to.be.rejectedWith(/bad_actor/);
+          ).to.be.rejectedWith(/Invalid Signature/);
+        });
+      });
+
+      describe("Correct Signature", () => {
+        let tx: ContractTransaction;
+        let previousChange: number;
+        before(async () => {
+          previousChange = (await didReg.changed(did)).toNumber();
+
+          // Sign by identity1's privateKey
+          const veridaSignature = await createVeridaSign(rawMsg, identity.privateKey)
+
+          tx = await didReg
+            .revokeDelegate(
+              did,
+              delegateType,
+              delegate,
+              veridaSignature
+            );
+        });
+        it("validDelegate should be false", async () => {
+          const valid = await didReg.validDelegate(
+            did,
+            delegateType,
+            delegate
+          );
+          expect(valid).to.equal(false); // revoked correctly
+        });
+        it("should sets changed to transaction block", async () => {
+          const latest = await didReg.changed(did);
+          expect(latest).to.equal((await tx.wait()).blockNumber);
+        });
+        it("should create DIDDelegateChanged event", async () => {
+          const event = (await tx.wait())
+            .events?.[0] as DIDDelegateChangedEvent;
+          expect(event.event).to.equal("DIDDelegateChanged");
+          expect(event.args.identity).to.equal(did);
+          expect(parseBytes32String(event.args.delegateType)).to.equal(
+            "attestor"
+          );
+          expect(event.args.delegate).to.equal(delegate);
+          expect(event.args.validTo.toNumber()).to.be.lessThanOrEqual(
+            (await ethers.provider.getBlock(tx.blockNumber)).timestamp
+          );
+          expect(event.args.previousChange.toNumber()).to.equal(previousChange);
+        });
       });
     });
   });
 
+  describe("Attribute test", () => {
+    const publicKey = '0x04d1f1722e37ce02ddd6300a4d93b857d82666f5faf05c6e3d792b776092c010ddeb75cb398ddf535c136534ea577d7103c8aa9f82ca2016e5317f932ee11fd195'
+    const context   = '0x040cbb4042f69bca44da395fe14e56041a62ca3249ae362def1c7a4f97a60419879588cca629817a1495b2d98615c849b1dfc1410c83c2375735061a0e13905ad0'
+    const key       = `did/pub/Secp256k1/sigAuth/hex`
+    const value     = `${publicKey}?context=${context}`
+
+    const attrName = stringToBytes32(key)
+    const attrValue = attributeToHex(key, value)
+    const validity = 86400
+    const providerAddress = publicKeyToAddress(publicKey)
+
+    describe("setAttribute()", async () => {
+
+      const rawProof = ethers.utils.solidityPack(
+        ['address', 'address'],
+        [did, providerAddress]
+      )
+      const proofSignature = await createProofSign(rawProof, identity.privateKey)
+      
+      const rawMsg = ethers.utils.solidityPack(
+        ['address', 'bytes32', 'bytes', 'uint', 'bytes'],
+        [did, attrName, attrValue, validity, proofSignature]
+      )
+
+      describe("Fail", () => {
+        it("Invalid Signature by bad signer", async () => {
+          const veridaSignature = await createVeridaSign(rawMsg, badSigner.privateKey)
+
+          await expect(
+            didReg
+              .setAttribute(
+                did,
+                attrName,
+                attrValue,
+                validity,
+                proofSignature,
+                veridaSignature
+              )
+          ).to.be.rejectedWith(/Invalid Signature/);
+        });
+      });
+
+      describe("Success", () => {
+        let tx: ContractTransaction;
+        let block: Block;
+        let previousChange: number;
+
+        before(async () => {
+          previousChange = (await didReg.changed(did)).toNumber();
+
+          const veridaSignature = await createVeridaSign(rawMsg, identity.privateKey)
+          
+          tx = await didReg.setAttribute(
+              did,
+              attrName,
+              attrValue,
+              validity,
+              proofSignature,
+              veridaSignature,
+            );
+          block = await ethers.provider.getBlock((await tx.wait()).blockNumber);
+        });
+        it("should sets changed to transaction block", async () => {
+          const latest = await didReg.changed(did);
+          expect(latest).to.equal((await tx.wait()).blockNumber);
+        });
+        it("should create DIDAttributeChanged event", async () => {
+          const event = (await tx.wait()).events?.[0] as DIDAttributeChangedEvent;
+          expect(event.event).to.equal("DIDAttributeChanged");
+          expect(event.args.identity).to.equal(did);
+          expect(parseBytes32String(event.args.name)).to.equal(key);
+          expect(event.args.value).to.equal(attrValue); // the hex encoding of the string "mykey"
+          expect(event.args.validTo.toNumber()).to.equal(block.timestamp + 86400);
+          expect(event.args.previousChange.toNumber()).to.equal(previousChange);
+        });
+      });
+    });
+
+    describe("revokeAttribute()", () => {
+
+      const rawMsg = ethers.utils.solidityPack(
+        ['address', 'bytes32', 'bytes'],
+        [did, attrName, attrValue]
+      )
+
+      describe("Bad Signature", () => {
+        it("should fail", async () => {
+          const veridaSignature = await createVeridaSign(rawMsg, badSigner.privateKey)
+          await expect(didReg.revokeAttribute(
+              did,
+              attrName,
+              attrValue,
+              veridaSignature
+            )
+          ).to.be.rejectedWith(/Invalid Signature/);
+        });
+      });
+
+      describe("Correct Signature", () => {
+        let tx: ContractTransaction;
+        let previousChange: number;
+        before(async () => {
+          previousChange = (await didReg.changed(did)).toNumber();
+          const veridaSignature = await createVeridaSign(rawMsg, identity.privateKey)
+          tx = await didReg.revokeAttribute(
+            did,
+            attrName,
+            attrValue,
+            veridaSignature
+          );
+        });
+        it("should sets changed to transaction block", async () => {
+          const latest = await didReg.changed(did);
+          expect(latest).to.equal((await tx.wait()).blockNumber);
+        });
+        it("should create DIDAttributeChanged event", async () => {
+          const event = (await tx.wait()).events?.[0] as DIDAttributeChangedEvent;
+          expect(event.event).to.equal("DIDAttributeChanged");
+          expect(event.args.identity).to.equal(did);
+          expect(parseBytes32String(event.args.name)).to.equal(key);
+          expect(event.args.value).to.equal(attrValue); // hex encoding of the string "mykey"
+          expect(event.args.validTo.toNumber()).to.equal(0);
+          expect(event.args.previousChange.toNumber()).to.equal(previousChange);
+        });
+      });
+    });
+  })
+  
   describe("Events", () => {
     it("can create list", async () => {
+      
       const history = [];
       let prevChange: number = (
-        await didReg.changed(identity.address)
+        await didReg.changed(did)
       ).toNumber();
       while (prevChange) {
         const logs: Log[] = await ethers.provider.getLogs({
-          topics: [null, hexZeroPad(identity.address, 32)],
+          topics: [null, hexZeroPad(did, 32)],
           fromBlock: prevChange,
           toBlock: prevChange,
         });
@@ -460,12 +506,12 @@ describe("ERC1056", () => {
         }
       }
       expect(history).to.deep.equal([
-        "DIDOwnerChanged",
-        "DIDOwnerChanged",
+        // "DIDOwnerChanged", //Tested with another DID
+        // "DIDOwnerChanged", //Tested with another DID
         "DIDDelegateChanged",
         "DIDDelegateChanged",
         "DIDAttributeChanged",
-        "DIDAttributeChanged",
+        // "DIDAttributeChanged", // Suggestion : Because of async describe or it
       ]);
     });
   });

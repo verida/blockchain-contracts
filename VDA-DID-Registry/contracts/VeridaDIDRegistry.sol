@@ -1,13 +1,12 @@
 /* SPDX-License-Identifier: MIT */
 pragma solidity ^0.8.6;
 
-// import "hardhat/console.sol";
-import "./BytesLib.sol";
+import "hardhat/console.sol";
+import { VeridaDataVerificationLib } from "./VeridaDataVerificationLib.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
 /** @title VeridaDIDRegistry */
-contract VeridaDIDRegistry {
-
-  using BytesLib for bytes;
+contract VeridaDIDRegistry is OwnableUpgradeable {
 
   struct DelegateParam {
     bytes32 delegateType;
@@ -24,6 +23,7 @@ contract VeridaDIDRegistry {
     bytes32 name;
     bytes value;
     uint validity;
+    bytes proof;
   }
 
   struct RevokeAttributeParam{
@@ -32,22 +32,9 @@ contract VeridaDIDRegistry {
   }
 
   mapping(address => address) public owners;
-  mapping(address => mapping(bytes32 => mapping(address => uint))) public delegates;
+  mapping(address => mapping(bytes32 => mapping(address => uint))) private delegates;
   mapping(address => uint) public changed;
-  mapping(address => uint) public nonce;
-
-  /**
-   * @notice Check validity of transaction
-   * @dev Only used for non-view functions
-   * @param identity - DID
-   * @param signature - transaction signature
-   */
-  modifier onlyVerifiedSignature(address identity, bytes calldata signature) {
-    // require signature is signed by identity
-    bytes memory rightSign = hex"67de2d20880a7d27b71cdcb38817ba95800ca82dff557cedd91b96aacb9062e80b9e0b8cb9614fd61ce364502349e9079c26abaa21890d7bc2f1f6c8ff77f6261c";
-    require(signature.equal(rightSign), "bad_actor");
-    _;
-  }
+  mapping(address => uint) private nonce;
 
   event DIDOwnerChanged(
     address indexed identity,
@@ -68,15 +55,31 @@ contract VeridaDIDRegistry {
     bytes32 name,
     bytes value,
     uint validTo,
+    bytes proof,
     uint previousChange
   );
+
+  /**
+   * @notice Initialize
+   */
+  function initialize() public initializer {
+    __Ownable_init();
+  }
+
+  /**
+   * Get current nonce of DID
+   *@param did - DID registered here
+   */
+  function getNonce(address did) public view returns(uint) {
+    return nonce[did];
+  }
 
   /**
    * @notice Return owner of DID
    * @param identity - DID
    * @return - owner address of DID
    */
-  function identityOwner(address identity) external view returns(address) {
+  function identityOwner(address identity) public view returns(address) {
      address owner = owners[identity];
      if (owner != address(0x00)) {
        return owner;
@@ -95,13 +98,14 @@ contract VeridaDIDRegistry {
     uint validity = delegates[identity][keccak256(abi.encode(delegateType))][delegate];
     return (validity > block.timestamp);  
   }
+
   /**
    * @notice Change owner of DID
    * @dev Only called after checking the transaction signature
    * @param identity - DID
    * @param newOwner - new owner address
    */
-  function changeOwner(address identity, address newOwner) internal {
+  function _changeOwner(address identity, address newOwner) internal {
     owners[identity] = newOwner;
     emit DIDOwnerChanged(identity, newOwner, changed[identity]);
     changed[identity] = block.number;
@@ -114,8 +118,17 @@ contract VeridaDIDRegistry {
    * @param newOwner - new owner address
    * @param signature - transaction signature
    */
-  function changeOwner(address identity, address newOwner, bytes calldata signature) external onlyVerifiedSignature(identity, signature) {
-    changeOwner(identity, newOwner);
+  function changeOwner(address identity, address newOwner, bytes calldata signature) external {
+    {
+      bytes memory unsignedMsg = abi.encodePacked(
+        identity,
+        newOwner,
+        nonce[identity]
+      );
+      require(VeridaDataVerificationLib.validateSignature(unsignedMsg, signature, identityOwner(identity)), "Invalid Signature");
+      nonce[identity]++;
+    }
+    _changeOwner(identity, newOwner);
   }
 
   /**
@@ -126,7 +139,7 @@ contract VeridaDIDRegistry {
    * @param delegate - delegate to check
    * @param validity - valid duration of delegate
    */
-  function addDelegate(address identity, bytes32 delegateType, address delegate, uint validity) internal {
+  function _addDelegate(address identity, bytes32 delegateType, address delegate, uint validity) internal {
     delegates[identity][keccak256(abi.encode(delegateType))][delegate] = block.timestamp + validity;
     emit DIDDelegateChanged(identity, delegateType, delegate, block.timestamp + validity, changed[identity]);
     changed[identity] = block.number;
@@ -141,8 +154,20 @@ contract VeridaDIDRegistry {
    * @param validity - valid duration of delegate
    * @param signature - transaction signature
    */
-  function addDelegate(address identity, bytes32 delegateType, address delegate, uint validity, bytes calldata signature) external onlyVerifiedSignature(identity, signature) {
-    addDelegate(identity, delegateType, delegate, validity);
+  function addDelegate(address identity, bytes32 delegateType, address delegate, uint validity, bytes calldata signature) external {
+    {
+      bytes memory unsignedMsg = abi.encodePacked(
+        identity,
+        delegateType,
+        delegate,
+        validity,
+        nonce[identity]
+      );
+      address owner = identityOwner(identity);
+      require(VeridaDataVerificationLib.validateSignature(unsignedMsg, signature, owner), "Invalid Signature");
+      nonce[identity]++;
+    }
+    _addDelegate(identity, delegateType, delegate, validity);
   }
 
   /**
@@ -152,7 +177,7 @@ contract VeridaDIDRegistry {
    * @param delegateType - delegate type in bytes32 format
    * @param delegate - delegate to check
    */
-  function revokeDelegate(address identity, bytes32 delegateType, address delegate) internal {
+  function _revokeDelegate(address identity, bytes32 delegateType, address delegate) internal {
     delegates[identity][keccak256(abi.encode(delegateType))][delegate] = block.timestamp;
     emit DIDDelegateChanged(identity, delegateType, delegate, block.timestamp, changed[identity]);
     changed[identity] = block.number;
@@ -166,8 +191,19 @@ contract VeridaDIDRegistry {
    * @param delegate - delegate to check
    * @param signature - transaction signature
    */
-  function revokeDelegate(address identity, bytes32 delegateType, address delegate, bytes calldata signature) external onlyVerifiedSignature(identity, signature) {
-    revokeDelegate(identity, delegateType, delegate);
+  function revokeDelegate(address identity, bytes32 delegateType, address delegate, bytes calldata signature) external {
+    {
+      bytes memory unsignedMsg = abi.encodePacked(
+        identity,
+        delegateType,
+        delegate,
+        nonce[identity]
+      );
+      address owner = identityOwner(identity);
+      require(VeridaDataVerificationLib.validateSignature(unsignedMsg, signature, owner), "Invalid Signature");
+      nonce[identity]++;
+    }
+    _revokeDelegate(identity, delegateType, delegate);
   }
 
   /**
@@ -178,8 +214,9 @@ contract VeridaDIDRegistry {
    * @param value - attribute value
    * @param validity - valid duration of attribute
    */
-  function setAttribute(address identity, bytes32 name, bytes memory value, uint validity) internal {
-    emit DIDAttributeChanged(identity, name, value, block.timestamp + validity, changed[identity]);
+  function _setAttribute(address identity, bytes32 name, bytes calldata value, uint validity, bytes calldata proof) internal {
+    uint previousChange = changed[identity];
+    emit DIDAttributeChanged(identity, name, value, block.timestamp + validity, proof, previousChange);
     changed[identity] = block.number;
   }
 
@@ -191,9 +228,32 @@ contract VeridaDIDRegistry {
    * @param value - attribute value
    * @param validity - valid duration of attribute
    * @param signature - transaction signature
+   * @param proof - proof
    */
-  function setAttribute(address identity, bytes32 name, bytes memory value, uint validity, bytes calldata signature ) external onlyVerifiedSignature(identity, signature) {
-    setAttribute(identity, name, value, validity);
+  function setAttribute(
+    address identity, 
+    bytes32 name, 
+    bytes calldata value, 
+    uint validity,
+    bytes calldata proof,
+    bytes calldata signature
+    ) external {
+    {
+      uint didNonce = nonce[identity];
+      bytes memory unsignedMsg = abi.encodePacked(
+        identity,
+        name,
+        value,
+        validity,
+        proof,
+        didNonce
+      );
+      address owner = identityOwner(identity);
+      require(VeridaDataVerificationLib.validateSignature(unsignedMsg, signature, owner), "Invalid Signature");
+      nonce[identity]++;
+    }
+    
+    _setAttribute(identity, name, value, validity, proof);
   }
 
   /**
@@ -203,8 +263,8 @@ contract VeridaDIDRegistry {
    * @param name - attribute name in bytes32 format
    * @param value - attribute value
    */
-  function revokeAttribute(address identity, bytes32 name, bytes memory value) internal {
-    emit DIDAttributeChanged(identity, name, value, 0, changed[identity]);
+  function _revokeAttribute(address identity, bytes32 name, bytes calldata value) internal {
+    emit DIDAttributeChanged(identity, name, value, 0, new bytes(0), changed[identity]);
     changed[identity] = block.number;
   }
 
@@ -216,8 +276,19 @@ contract VeridaDIDRegistry {
    * @param value - attribute value
    * @param signature - transaction signature
    */
-  function revokeAttribute(address identity, bytes32 name, bytes memory value, bytes calldata signature ) external onlyVerifiedSignature(identity, signature) {
-    revokeAttribute(identity, name, value);
+  function revokeAttribute(address identity, bytes32 name, bytes calldata value, bytes calldata signature ) external {
+    {
+      bytes memory unsignedMsg = abi.encodePacked(
+        identity,
+        name,
+        value,
+        nonce[identity]
+      );
+      address owner = identityOwner(identity);
+      require(VeridaDataVerificationLib.validateSignature(unsignedMsg, signature, owner), "Invalid Signature");
+      nonce[identity]++;
+    }
+    _revokeAttribute(identity, name, value);
   }
 
   /**
@@ -233,7 +304,7 @@ contract VeridaDIDRegistry {
     AttributeParam[] calldata attributeParams
   ) internal {
     for (uint i = 0; i < delegateParams.length; i++) {
-      addDelegate(
+      _addDelegate(
         identity, 
         delegateParams[i].delegateType,
         delegateParams[i].delegate,
@@ -241,11 +312,12 @@ contract VeridaDIDRegistry {
     }
 
     for (uint i = 0; i < attributeParams.length; i++) {
-      setAttribute(
+      _setAttribute(
         identity, 
         attributeParams[i].name,
         attributeParams[i].value,
-        attributeParams[i].validity);
+        attributeParams[i].validity,
+        attributeParams[i].proof);
     }
   }
 
@@ -262,7 +334,31 @@ contract VeridaDIDRegistry {
     DelegateParam[] calldata delegateParams,
     AttributeParam[] calldata attributeParams,
     bytes calldata signature
-  ) external onlyVerifiedSignature(identity, signature) {
+  ) external {
+    {
+      bytes memory unsignedMsg = abi.encodePacked(identity);
+      for (uint i = 0; i < delegateParams.length; i++) {
+        unsignedMsg = abi.encodePacked(
+          unsignedMsg,
+          delegateParams[i].delegateType,
+          delegateParams[i].delegate,
+          delegateParams[i].validity
+        );
+      }
+
+      for (uint i = 0; i < attributeParams.length; i++) {
+        unsignedMsg = abi.encodePacked(
+          unsignedMsg,
+          attributeParams[i].name,
+          attributeParams[i].value,
+          attributeParams[i].validity,
+          attributeParams[i].proof
+        );
+      }
+      unsignedMsg = abi.encodePacked(unsignedMsg, nonce[identity]);
+      require(VeridaDataVerificationLib.validateSignature(unsignedMsg, signature, identityOwner(identity)), "Invalid Signature");
+      nonce[identity]++;
+    }
     _bulkAdd(identity, delegateParams, attributeParams);
   }
 
@@ -275,15 +371,15 @@ contract VeridaDIDRegistry {
    */
   function _bulkRevoke(
     address identity,
-    RevokeDelegateParam[] memory delegateParams,
-    RevokeAttributeParam[] memory attributeParams
+    RevokeDelegateParam[] calldata delegateParams,
+    RevokeAttributeParam[] calldata attributeParams
   ) internal {
     for (uint i = 0; i < delegateParams.length; i++) {
-      revokeDelegate(identity, delegateParams[i].delegateType, delegateParams[i].delegate);
+      _revokeDelegate(identity, delegateParams[i].delegateType, delegateParams[i].delegate);
     }
 
     for (uint i = 0; i < attributeParams.length; i++) {
-      revokeAttribute(identity, attributeParams[i].name, attributeParams[i].value);
+      _revokeAttribute(identity, attributeParams[i].name, attributeParams[i].value);
     }
   }
 
@@ -297,10 +393,31 @@ contract VeridaDIDRegistry {
    */
   function bulkRevoke(
     address identity,
-    RevokeDelegateParam[] memory delegateParams,
-    RevokeAttributeParam[] memory attributeParams,
+    RevokeDelegateParam[] calldata delegateParams,
+    RevokeAttributeParam[] calldata attributeParams,
     bytes calldata signature
-  ) external onlyVerifiedSignature(identity, signature) {
+  ) external {
+    {
+      bytes memory unsignedMsg = abi.encodePacked(identity);
+      for (uint i = 0; i < delegateParams.length; i++) {
+        unsignedMsg = abi.encodePacked(
+          unsignedMsg,
+          delegateParams[i].delegateType,
+          delegateParams[i].delegate
+        );
+      }
+
+      for (uint i = 0; i < attributeParams.length; i++) {
+        unsignedMsg = abi.encodePacked(
+          unsignedMsg,
+          attributeParams[i].name,
+          attributeParams[i].value
+        );
+      }
+      unsignedMsg = abi.encodePacked(unsignedMsg, nonce[identity]);
+      require(VeridaDataVerificationLib.validateSignature(unsignedMsg, signature, identityOwner(identity)), "Invalid Signature");
+      nonce[identity]++;
+    }
     _bulkRevoke(identity, delegateParams, attributeParams);
   }
 }
