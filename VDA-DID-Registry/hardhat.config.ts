@@ -70,7 +70,7 @@ const config: HardhatUserConfig = {
     },
     polygontestnet: {
       // url: "https://matic-mumbai.chainstacklabs.com",
-      url: "https://polygon-mumbai.g.alchemy.com/v2/PAsQgyEm6lFytuZqbJQfZHWrP-0MZmsK",
+      url: "http://44.234.36.28:8545/",
       chainId: 80001,
       accounts: PRIVATE_KEY !== undefined ? [PRIVATE_KEY] : [], 
       gas: 2100000,
@@ -82,7 +82,7 @@ const config: HardhatUserConfig = {
     currency: "USD",
   },
   etherscan: {
-    apiKey: BSCSCAN_API_KEY,
+    apiKey: POLYGONSCAN_API_KEY,
   },
   mocha: {
     timeout: 0,

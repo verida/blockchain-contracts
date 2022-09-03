@@ -24,15 +24,11 @@ import { VeridaDIDRegistry } from "../typechain";
 import EncryptionUtils from '@verida/encryption-utils'
 
 import { attributeToHex, stringToBytes32 } from './const'
-// import { publicKeyToAddress } from 'ethereum-public-key-to-address'
-const publicKeyToAddress = require('ethereum-public-key-to-address')
+
+import hre, { ethers , upgrades } from "hardhat"
+import { Wallet } from 'ethers'
 
 chai.use(chaiAsPromised);
-
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const { ethers } = require("hardhat");
-
-import { Wallet } from 'ethers'
 
 let didReg: VeridaDIDRegistry;
 const identity = Wallet.createRandom()
@@ -62,6 +58,15 @@ describe("ERC1056", () => {
   
   before(async () => {
 
+    await hre.network.provider.send("hardhat_reset");
+
+    await hre.network.provider.request(
+      {
+          method: "hardhat_reset",
+          params: []
+      }
+    );
+
     /*
     ///// Need to link library if library contains public functions
     // Deploy Library
@@ -81,7 +86,12 @@ describe("ERC1056", () => {
 
     // Deploy Contract
     const DIDRegistryFactory = await ethers.getContractFactory("VeridaDIDRegistry");
-    didReg = await DIDRegistryFactory.deploy();
+    didReg = (await upgrades.deployProxy(
+      DIDRegistryFactory,
+      {
+        initializer: 'initialize'
+      }
+    )) as VeridaDIDRegistry
     await didReg.deployed();
   });
  
@@ -103,7 +113,7 @@ describe("ERC1056", () => {
           ['address', 'address'],
           [testDID, newOwner.address]
         )
-        const signature = await createVeridaSign(rawMsg, orgOwner.privateKey)
+        const signature = await createVeridaSign(rawMsg, orgOwner.privateKey, testDID)
         await didReg.changeOwner(testDID, newOwner.address, signature);
       });
       it("should return the chaged owner address", async () => {
@@ -349,7 +359,7 @@ describe("ERC1056", () => {
           );
           expect(event.args.delegate).to.equal(delegate);
           expect(event.args.validTo.toNumber()).to.be.lessThanOrEqual(
-            (await ethers.provider.getBlock(tx.blockNumber)).timestamp
+            (await ethers.provider.getBlock(tx.blockNumber!)).timestamp
           );
           expect(event.args.previousChange.toNumber()).to.equal(previousChange);
         });
@@ -366,7 +376,7 @@ describe("ERC1056", () => {
     const attrName = stringToBytes32(key)
     const attrValue = attributeToHex(key, value)
     const validity = 86400
-    const providerAddress = publicKeyToAddress(publicKey)
+    const providerAddress = ethers.utils.computeAddress(publicKey)
 
     describe("setAttribute()", async () => {
 
