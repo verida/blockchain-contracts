@@ -6,6 +6,7 @@
 import { ethers, upgrades } from "hardhat";
 import hre from "hardhat";
 import Axios from 'axios'
+import { Initializable } from '../typechain/Initializable';
 
 const getMaticFee = async (isProd : boolean) => {
   let maxFeePerGas = ethers.BigNumber.from(40000000000) // fallback to 40 gwei
@@ -37,8 +38,7 @@ const getMaticFee = async (isProd : boolean) => {
 
 }
 
-async function main() {
-
+async function upgrade() {
 
   const [deployer] = await ethers.getSigners()
   console.log("Upgrading contracts with the account: ", deployer.address)
@@ -47,55 +47,45 @@ async function main() {
 
   let callOverrides = {}
   // if (hre.network.config.chainId === 0x89 || hre.network.config.chainId === 0x13881) {
-  //   callOverrides = await getMaticFee(hre.network.config.chainId === 0x89)
+    // callOverrides = await getMaticFee(hre.network.config.chainId === 0x89)
   // }
 
   console.log("Call Overrides: ", callOverrides)
 
-  /*
-  ///// Need to deploy separately if library contains public functions
-  // Deploy Library
-  const verifyLibFactory = await ethers.getContractFactory("VeridaDataVerificationLib");
-  const verifyLib = await verifyLibFactory.deploy(callOverrides);
-  console.log('Transaction: ', verifyLib.deployTransaction.hash);
-  await verifyLib.deployed();
 
-  console.log("Lib deployed to:", verifyLib.address);
 
-  // Deploy Contract
-  const contractFactory = await ethers.getContractFactory("VeridaDIDRegistry", {
-    libraries: {
-      VeridaDataVerificationLib: verifyLib.address
-    }
-  });
-  */
+  // CHange these values for the upgrade. 
+  const contractProxyDeployed = ""
+  const oldContract = "VeridaDIDRegistry"
+  const newContract = "VeridaDIDRegistryV1"
 
-  // Deploy Contract
-  const contractFactory = await ethers.getContractFactory("VeridaDIDRegistry");
 
-  /*
-  const deploymentData = contractFactory.interface.encodeDeploy()
-  const estimatedGas = await ethers.provider.estimateGas({data: deploymentData})
-  // contractFactory.getDeployTransaction()
+  const contractFactoryOLD = await ethers.getContractFactory(oldContract);
+  const contractFactoryOLDAttached = contractFactoryOLD.attach(contractProxyDeployed);
 
-  const { gasPrice } = ethers.provider.getFeeData()
-  */
+  // console.log(contractFactoryOLDAttached)
+  console.log("Owner of the old contract: ", await contractFactoryOLDAttached.callStatic.owner())
 
-  const contract = await upgrades.deployProxy(contractFactory, {
-    initializer: "initialize",
+  
+
+  const contractFactoryNew = await ethers.getContractFactory(newContract);
+
+  const contractUpgradeCall = await upgrades.upgradeProxy(contractProxyDeployed, contractFactoryNew, {
     timeout: 0,
     pollingInterval: 5000,
-    
   })
+  console.log("contractUpgradeCall > Deployed transaction: ")
+  console.log(contractUpgradeCall.deployTransaction)
 
-  await contract.deployed();
+  console.log(oldContract + " upgraded to " + newContract + " via transaction hash: " + contractUpgradeCall.deployTransaction.hash)
 
-  console.log("RegistryContract deployed to:", contract.address);
+  // const contractFactoryNewAttached = contractFactoryNew.attach(contractProxyDeployed);
+  console.log("Read version of upgraded contract : " + await contractUpgradeCall.getVersion())
 }
 
 // We recommend this pattern to be able to use async/await everywhere
 // and properly handle errors.
-main().catch((error) => {
+upgrade().catch((error) => {
   console.error(error);
   process.exitCode = 1;
 });

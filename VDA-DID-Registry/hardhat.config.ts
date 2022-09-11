@@ -75,6 +75,13 @@ const config: HardhatUserConfig = {
       accounts: PRIVATE_KEY !== undefined ? [PRIVATE_KEY] : [], 
       gas: 2100000,
       gasPrice: 8000000000
+    },
+     polygonTestentVeridaNode: {
+       url: "http://44.234.36.28:8545",
+      chainId: 80001,
+      accounts: PRIVATE_KEY !== undefined ? [PRIVATE_KEY] : [],
+      gas: 2100000,
+      gasPrice: 10000000000
     }
   },
   gasReporter: {
