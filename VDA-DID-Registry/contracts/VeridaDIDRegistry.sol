@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: MIT */
 pragma solidity ^0.8.6;
 
-import "hardhat/console.sol";
+// import "hardhat/console.sol";
 import { VeridaDataVerificationLib } from "./VeridaDataVerificationLib.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 

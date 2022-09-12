@@ -89,7 +89,7 @@ const config: HardhatUserConfig = {
     currency: "USD",
   },
   etherscan: {
-    apiKey: BSCSCAN_API_KEY,
+    apiKey: POLYGONSCAN_API_KEY,
   },
   mocha: {
     timeout: 0,
