@@ -22,12 +22,15 @@ describe("VeridaRewardToken", () => {
         const contractFactory = await ethers.getContractFactory("RewardToken")
         contract = (await upgrades.deployProxy(
             contractFactory,
-            [contractAddress],
+            [],
             {
                 initializer: '__RewardToken_init'
             }
         )) as RewardToken
         await contract.deployed()
+
+        const INIT_MINT = ethers.utils.parseEther("100000")
+        await contract.mint(contractAddress, INIT_MINT)
     })
 
     it ('Check balance of Contract', async () => {
@@ -38,7 +41,7 @@ describe("VeridaRewardToken", () => {
         console.log('Mint amount: ', bal)
     })
 
-    describe('Min test', () => {
+    describe('Mint test', () => {
         const testAccount = Wallet.createRandom();
         const mintAmount = ethers.utils.parseEther("3");
         it('Mint failed from non-owner address', async () => {

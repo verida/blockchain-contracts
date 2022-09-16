@@ -9,20 +9,17 @@ contract RewardToken is ERC20Upgradeable, OwnableUpgradeable {
     string public constant TOKEN_SYMBOL = "VDAR";
 
     uint8   public constant DECIMAL = 18;
-    uint256 public constant INIT_SUPPLY = 100_000 * (10 ** DECIMAL);
     uint256 public constant MAX_SUPPLY = 10_000_000 * (10 ** DECIMAL);
 
     event Mint(address to, uint amount);
     
-    function __RewardToken_init(address rewardContract) public initializer {
+    function __RewardToken_init() public initializer {
         __Ownable_init();
         __ERC20_init(TOKEN_NAME, TOKEN_SYMBOL);
-        __RewardToken_init_unchained(rewardContract);
+        __RewardToken_init_unchained();
     }
 
-    function __RewardToken_init_unchained(address rewardContract) internal {
-        _mint(rewardContract, INIT_SUPPLY);
-        emit Mint(rewardContract, INIT_SUPPLY);
+    function __RewardToken_init_unchained() internal {
     }
 
     function decimals() public view virtual override returns (uint8) {
