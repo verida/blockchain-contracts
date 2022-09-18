@@ -38,13 +38,13 @@ interface IVDARewardContract {
 
     /**
      * @dev Emitted when owner added an address to trustedAddressList
-     * @param did - Added DID address
+     * @param did - Added DID signing public key address
      */
     event AddTrustedAddress(address did);
 
     /**
      * @dev Emitted when owner removed an address from trustedAddressList
-     * @param did - Removed DID address
+     * @param did - Removed DID signing public key address
      */
     event RemoveTrustedAddress(address did);
     
@@ -87,7 +87,7 @@ interface IVDARewardContract {
     function updateClaimTypeReward(string calldata id, uint amount) external;
 
     /**
-     * @dev Add a trusted address. Only owner can add.
+     * @dev Add a trusted signing public key address. Only owner can add.
      * @param did - address of DID.
      */
     function addTrustedAddress(address did) external;

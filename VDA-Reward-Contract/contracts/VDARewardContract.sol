@@ -19,7 +19,7 @@ contract VDARewardContract is OwnableUpgradeable, IVDARewardContract {
     /** Mapping of claim ID => Verida account */
     mapping(bytes => bool) private claims;
 
-    /** Trusted address */
+    /** Trusted signing addresses (these are DID context public keys in address format) */
     EnumerableSetUpgradeable.AddressSet private trustedAddressList;
 
     modifier onlyExistingClaimType(string calldata id) {
