@@ -24,7 +24,7 @@ contract VDARewardContract is OwnableUpgradeable, IVDARewardContract {
 
     modifier onlyExistingClaimType(string calldata id) {
         ClaimType storage claimType = claimTypes[id];
-        require(claimType.reward > 0 && bytes(claimType.schema).length > 0, "Non existing CalimType");
+        require(claimType.reward > 0 && bytes(claimType.schema).length > 0, "ClaimType does not exist");
         _;
     }
 
@@ -54,7 +54,7 @@ contract VDARewardContract is OwnableUpgradeable, IVDARewardContract {
         require(rewardAmount > 0, "Invalid reward amount");
         require(bytes(schema).length > 0, "Invalid schema");
         ClaimType storage claimType = claimTypes[id];
-        require(claimType.reward == 0 && bytes(claimType.schema).length == 0, "Already existing ClaimType");
+        require(claimType.reward == 0 && bytes(claimType.schema).length == 0, "ClaimType already exists");
         claimType.reward = rewardAmount;
         claimType.schema = schema;
 
@@ -85,7 +85,7 @@ contract VDARewardContract is OwnableUpgradeable, IVDARewardContract {
      * @dev see {IVDARewardContract-addTrustedAddress}
      */
     function addTrustedAddress(address did) external onlyOwner {
-        require(!trustedAddressList.contains(did), "Already existing");
+        require(!trustedAddressList.contains(did), "Trusted address already exists");
         trustedAddressList.add(did);
 
         emit AddTrustedAddress(did);
@@ -95,7 +95,7 @@ contract VDARewardContract is OwnableUpgradeable, IVDARewardContract {
      * @dev see {IVDARewardContract-removeTrustedAddress}
      */
     function removeTrustedAddress(address did) external onlyOwner {
-        require(trustedAddressList.contains(did), "Not existing");
+        require(trustedAddressList.contains(did), "Trusted address doesn't exist");
         trustedAddressList.remove(did);
 
         emit RemoveTrustedAddress(did);
@@ -119,15 +119,15 @@ contract VDARewardContract is OwnableUpgradeable, IVDARewardContract {
             "|",
             claimType.schema
         );
-        require(!claims[proofMessage], "Already claimed");
+        require(!claims[proofMessage], "Unique claim already processed");
 
         address signer = VeridaDataVerificationLib.getSignerAddress(
             proofMessage,
             proof
         );
-        require(trustedAddressList.contains(signer), "Invalid signer");
+        require(trustedAddressList.contains(signer), "Proof signed by untrusted DID");
 
-        require(rewardToken.balanceOf(address(this)) >= claimType.reward, "Insufficient token in contract");
+        require(rewardToken.balanceOf(address(this)) >= claimType.reward, "Insufficient tokens");
 
         claims[proofMessage] = true;
         rewardToken.transfer(to, claimType.reward);
