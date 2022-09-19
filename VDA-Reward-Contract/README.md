@@ -24,3 +24,22 @@ Test by following command inside current project directory:
 ```
 npx hardhat test
 ```
+
+## Deploy
+
+Can deploy contract on the chains. At the moment, deploy script is supported polygon mainnet & polygon testnet.
+To add more chains, configure `hardhat.config` file in the project.
+
+Run following command in the terminal:
+```
+npx hardhat run scripts/deploy.ts --network <NETWORK_NAME>
+```
+Here <NETWORK_NAME> can be one of following:
+- polygonmainnet
+- polygontestnet
+
+Example: Deploy contract on polygon test net
+```
+npx hardhat run scripts/deploy.ts --network polygontestnet
+```
+**Warning** : Once VDARewardContract deployed, 10000 VDAR tokens would be minted to the deployed contract. To do so, private key should be the same for RewordToken deployment & RewardContract deployment. Meaning, we need to use the same `"PRIVATE_KEY=..."` field in the .env files.
