@@ -90,4 +90,32 @@ describe("VeridaRewardToken", () => {
             expect(await contract.balanceOf(testAccount[1].address)).to.equal(orgBalance.sub(chainedTrnasferAmount))
         })
     })
+
+    describe('Max supply update test', () => {
+        let currentMax
+        before(async () => {
+            currentMax = await contract.MAX_SUPPLY()
+        })
+
+        it('Failed for non-owner', async () => {
+            await expect(contract.connect(accountList[1]).updateMaxSupply(0)).to.be.rejectedWith("Ownable: caller is not the owner")
+        })
+
+        it('Failed for less amount than current supplied', async () => {
+             const currentSupply = await contract.totalSupply()
+
+             const lessAmount = currentSupply.sub(1)
+
+             await expect(contract.updateMaxSupply(lessAmount)).to.be.rejectedWith("New amount less than supplied")
+        })
+
+        it('Update successfully',async () => {
+            const currentSupply = await contract.totalSupply()
+
+            const newAmount = currentSupply.add(100)
+            await contract.updateMaxSupply(newAmount)
+
+            expect(await contract.MAX_SUPPLY()).to.be.equal(newAmount)           
+        })
+    })
 })

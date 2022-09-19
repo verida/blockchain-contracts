@@ -9,9 +9,12 @@ contract RewardToken is ERC20Upgradeable, OwnableUpgradeable {
     string public constant TOKEN_SYMBOL = "VDAR";
 
     uint8   public constant DECIMAL = 18;
-    uint256 public constant MAX_SUPPLY = 10_000_000 * (10 ** DECIMAL);
+
+    uint256 public MAX_SUPPLY;
 
     event Mint(address to, uint amount);
+
+    event MaxSupplyUpdate(uint orgValue, uint newValue);
     
     function __RewardToken_init() public initializer {
         __Ownable_init();
@@ -20,6 +23,7 @@ contract RewardToken is ERC20Upgradeable, OwnableUpgradeable {
     }
 
     function __RewardToken_init_unchained() internal {
+        MAX_SUPPLY = 10_000_000 * (10 ** DECIMAL);
     }
 
     function decimals() public view virtual override returns (uint8) {
@@ -31,4 +35,12 @@ contract RewardToken is ERC20Upgradeable, OwnableUpgradeable {
         _mint(to, amount);
         emit Mint(to, amount);
     }
+
+    function updateMaxSupply(uint256 newValue) external onlyOwner {
+        require(newValue > totalSupply(), "New amount less than supplied");
+        uint orgValue = MAX_SUPPLY;
+        MAX_SUPPLY = newValue;
+        emit MaxSupplyUpdate(orgValue, newValue);
+    }
+    
 }

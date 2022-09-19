@@ -6,9 +6,7 @@ async function main() {
     contractFactory,
     [],
     {
-      initializer: "",
-      timeout: 0,
-      pollingInterval: 5000,
+      initializer: "__RewardToken_init",
     })
   await contract.deployed()
   console.log("RewardToken deployed at : ", contract.address)
@@ -20,3 +18,6 @@ main().catch((error) => {
   console.error(error);
   process.exitCode = 1;
 });
+
+// 2022/9/19
+// Mumbai : 0xCb9e0Ae6b27AD593f8b17A47366c743649763523
