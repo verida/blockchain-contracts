@@ -22,8 +22,8 @@ contract VDARewardContract is OwnableUpgradeable, IVDARewardContract {
     /** Trusted address */
     EnumerableSetUpgradeable.AddressSet private trustedAddressList;
 
-    modifier onlyExistingClaimType(string calldata id) {
-        ClaimType storage claimType = claimTypes[id];
+    modifier onlyExistingClaimType(string calldata typeId) {
+        ClaimType storage claimType = claimTypes[typeId];
         require(claimType.reward > 0 && bytes(claimType.schema).length > 0, "Non existing CalimType");
         _;
     }
@@ -40,8 +40,8 @@ contract VDARewardContract is OwnableUpgradeable, IVDARewardContract {
     /**
      * @dev see {IVDARewardContract-getClaimType}
      */
-    function getClaimType(string calldata id) external view onlyExistingClaimType(id) returns(uint reward, string memory schema) {
-        ClaimType storage claimType = claimTypes[id];
+    function getClaimType(string calldata typeId) external view onlyExistingClaimType(typeId) returns(uint reward, string memory schema) {
+        ClaimType storage claimType = claimTypes[typeId];
         reward = claimType.reward;
         schema = claimType.schema;
     }
@@ -49,36 +49,36 @@ contract VDARewardContract is OwnableUpgradeable, IVDARewardContract {
     /**
      * @dev see {IVDARewardContract-addClaimType}
      */
-    function addClaimType(string calldata id, uint rewardAmount, string calldata schema) external onlyOwner {
-        require(bytes(id).length > 0, "Invalid id");
+    function addClaimType(string calldata typeId, uint rewardAmount, string calldata schema) external onlyOwner {
+        require(bytes(typeId).length > 0, "Invalid id");
         require(rewardAmount > 0, "Invalid reward amount");
         require(bytes(schema).length > 0, "Invalid schema");
-        ClaimType storage claimType = claimTypes[id];
+        ClaimType storage claimType = claimTypes[typeId];
         require(claimType.reward == 0 && bytes(claimType.schema).length == 0, "Already existing ClaimType");
         claimType.reward = rewardAmount;
         claimType.schema = schema;
 
-        emit AddClaimType(id, rewardAmount, schema);
+        emit AddClaimType(typeId, rewardAmount, schema);
     }
 
     /**
      * @dev see {IVDARewardContract-removeClaimType}
      */
-    function removeClaimType(string calldata id) external onlyOwner onlyExistingClaimType(id){
-        delete claimTypes[id];
+    function removeClaimType(string calldata typeId) external onlyOwner onlyExistingClaimType(typeId){
+        delete claimTypes[typeId];
 
-        emit RemoveClaimType(id);
+        emit RemoveClaimType(typeId);
     }
 
     /**
      * @dev see {IVDARewardContract-updateClaimTypeReward}
      */
-    function updateClaimTypeReward(string calldata id, uint amount) external onlyOwner onlyExistingClaimType(id){
+    function updateClaimTypeReward(string calldata typeId, uint amount) external onlyOwner onlyExistingClaimType(typeId){
         require(amount > 0, "Invalid reward amount");
-        ClaimType storage claimType = claimTypes[id];
+        ClaimType storage claimType = claimTypes[typeId];
         claimType.reward = amount;
 
-        emit UpdateClaimTypeReward(id, amount);
+        emit UpdateClaimTypeReward(typeId, amount);
     }
 
     /**
@@ -112,8 +112,8 @@ contract VDARewardContract is OwnableUpgradeable, IVDARewardContract {
     /**
      * @dev see {IVDARewardContract-claim}
      */
-    function claim(string calldata id, string calldata hash, bytes calldata proof, address to) external onlyExistingClaimType(id) {
-        ClaimType storage claimType = claimTypes[id];
+    function claim(string calldata typeId, string calldata hash, bytes calldata proof, address to) external onlyExistingClaimType(typeId) {
+        ClaimType storage claimType = claimTypes[typeId];
         bytes memory proofMessage = abi.encodePacked(
             hash,
             "|",
