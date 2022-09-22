@@ -7,6 +7,7 @@ pragma solidity ^0.8.7;
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/structs/EnumerableSetUpgradeable.sol";
 
+import "./VeridaDataVerificationLib.sol";
 import "./BytesLib.sol";
 import "./StringLib.sol";
 
@@ -34,18 +35,8 @@ contract NameRegistry is OwnableUpgradeable {
      */
     mapping(address => EnumerableSetUpgradeable.Bytes32Set) private _DIDInfoList;
 
-    /**
-     * @notice Modifier to verify validity of transactions
-     * @dev Not working on View functions. Cancel transaction if transaction is not verified
-     * @param identity - DID of Verida
-     * @param signature - Signature provided by transaction creator
-     */
-    modifier onlyVerifiedSignature(address identity, bytes calldata signature) {
-        // require signature is signed by identity
-        bytes memory rightSign = hex"67de2d20880a7d27b71cdcb38817ba95800ca82dff557cedd91b96aacb9062e80b9e0b8cb9614fd61ce364502349e9079c26abaa21890d7bc2f1f6c8ff77f6261c";
-        require(signature.equal(rightSign), "Invalid signature");
-        _;
-    }
+    /** @notice Nonce for dids */
+    mapping(address => uint) private nonce;
 
     event Register(string indexed name, address indexed DID);
     event Unregister(string indexed name, address indexed DID);
@@ -59,17 +50,31 @@ contract NameRegistry is OwnableUpgradeable {
         suffixList.add(strToBytes32("verida"));
     }
 
-    
+    /**
+     * Get current nonce of DID
+     *@param did - DID registered here
+     */
+    function getNonce(address did) public view returns(uint) {
+        return nonce[did];
+    }
 
     /**
      * @dev register name & DID
-     * @param name user name is 32bytes string. It's a hash value. Duplication not allowed
+     * @param name user name. Duplication not allowed
      * @param did DID address.
      * @param signature - Signature provided by transaction creator
      */
-    function register(string memory name, address did, bytes calldata signature) external onlyVerifiedSignature(did, signature) {
+    function register(string memory name, address did, bytes calldata signature) external {
         require(did != address(0x0), "Invalid zero address");
         require(isValidSuffix(name), "Invalid suffix");
+
+        {
+            bytes memory unsignedMsg = abi.encodePacked(
+                name,
+                did
+            );
+            require(VeridaDataVerificationLib.validateSignature(unsignedMsg, signature, did), "Invalid signature");
+        }
 
         name = name.lower();
         bytes32 nameBytes = strToBytes32(name);
