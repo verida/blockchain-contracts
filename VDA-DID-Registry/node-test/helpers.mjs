@@ -16,7 +16,7 @@ export function attributeToHex(key, value) {
 
   // Added for service name. Need to be updated for supporting UTF-8, later
   // if (matchKeyWithEncoding?.[1] === 'svc') {
-  //   console.log('ethr-did: attributeToHex : ', <string>value)
+  //   console.log('vda-did: attributeToHex : ', <string>value)
   //   return <string>value
   // }
 

@@ -12,9 +12,8 @@ import "@nomiclabs/hardhat-ethers";
 // For upgradeable - deploy
 import "@openzeppelin/hardhat-upgrades";
 
-const { privateKey, polygonscan, bscscan } = require("/mnt/Work/Sec/test.json");
-
 dotenv.config({ path: __dirname + "/.env" });
+const { PRIVATE_KEY, POLYGONSCAN_API_KEY } = process.env;
 
 // This is a sample Hardhat task. To learn how to create your own go to
 // https://hardhat.org/guides/create-task.html
@@ -31,29 +30,38 @@ task("accounts", "Prints the list of accounts", async (taskArgs, hre) => {
 
 const config: HardhatUserConfig = {
   solidity: {
-    version: "0.8.7",
+    compilers: [
+      {
+        version: "0.8.7",
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 1000,
+          },
+        },
+      },
+    ],
   },
   networks: {
     bsctestnet: {
-      // url: "https://data-seed-prebsc-1-s1.binance.org:8545/",
-      url: "https://speedy-nodes-nyc.moralis.io/bd1c39d7c8ee1229b16b4a97/bsc/testnet",
+      url: "https://data-seed-prebsc-1-s1.binance.org:8545/",
       chainId: 97,
-      accounts: [privateKey],
+      accounts: [PRIVATE_KEY!],
     },
     bscmainnet: {
       url: "https://bsc-dataseed.binance.org/",
       chainId: 56,
-      accounts: [privateKey],
+      accounts: [PRIVATE_KEY!],
     },
     polygonmainnet: {
       url: "https://polygon-rpc.com/",
       chainId: 137,
-      accounts: [privateKey],
+      accounts: [PRIVATE_KEY!],
     },
     polygontestnet: {
-      url: "https://rpc-mumbai.maticvigil.com/",
+      url: "http://44.234.36.28:8545",
       chainId: 80001,
-      accounts: [privateKey],
+      accounts: [PRIVATE_KEY!],
     },
   },
   gasReporter: {
@@ -61,7 +69,7 @@ const config: HardhatUserConfig = {
     currency: "USD",
   },
   etherscan: {
-    apiKey: bscscan,
+    apiKey: POLYGONSCAN_API_KEY,
   },
 };
 

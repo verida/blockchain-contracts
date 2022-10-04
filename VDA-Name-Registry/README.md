@@ -1,46 +1,66 @@
-# Advanced Sample Hardhat Project
+# Verida Name Registry
 
-This project demonstrates an advanced Hardhat use case, integrating other tools commonly used alongside Hardhat in the ecosystem.
+This contract manage unique Verida names/aliases that point to Verida DIDs.
 
-The project comes with a sample contract, a test for that contract, a sample script that deploys that contract, and an example of a task implementation, which simply lists the available accounts. It also comes with a variety of other tools, preconfigured to work with the project code.
+## Name & Suffixes
+General users can register and unregister names to and from this contract.
+Each name has a suffix followed by "." symbol.
 
-Try running some of the following tasks:
+**Example of a name** : "VeridaService.db"
 
-```shell
-npx hardhat accounts
+At the moment, this contract assumes that each name contains only one "." symbol. If there are multiple "." in the name, strings after the first "." symbol will be processed as a suffix. For example, if user send "service.odd.db" as a name parameter, "odd.db" will be processed as a suffix.
+
+Suffixes are added by the contract owenr - Verida.
+
+## User kinds of this contract
+There are 2 kinds of users for this contract.
+### __General users__
+General users can do the following:
+- Register a name
+- Unregister a registered name
+- Find a DID of a registered name
+- Get the registered name list of a DID
+
+### __Owner - Verida__
+Contract owner can do the following:
+- Add a suffix
+
+# Build & Test
+Open terminal (ubuntu) and navigate to the project directory.
+```
+cd <PROJECT_PATH>
+```
+Run following commands:
+## Build
+```
 npx hardhat compile
-npx hardhat clean
+```
+## Test
+```
 npx hardhat test
-npx hardhat node
-npx hardhat help
-REPORT_GAS=true npx hardhat test
-npx hardhat coverage
-npx hardhat run scripts/deploy.ts
-TS_NODE_FILES=true npx ts-node scripts/deploy.ts
-npx eslint '**/*.{js,ts}'
-npx eslint '**/*.{js,ts}' --fix
-npx prettier '**/*.{json,sol,md}' --check
-npx prettier '**/*.{json,sol,md}' --write
-npx solhint 'contracts/**/*.sol'
-npx solhint 'contracts/**/*.sol' --fix
 ```
-
-# Etherscan verification
-
-To try out Etherscan verification, you first need to deploy a contract to an Ethereum network that's supported by Etherscan, such as Ropsten.
-
-In this project, copy the .env.example file to a file named .env, and then edit it to fill in the details. Enter your Etherscan API key, your Ropsten node URL (eg from Alchemy), and the private key of the account which will send the deployment transaction. With a valid .env file in place, first deploy your contract:
-
-```shell
-hardhat run --network ropsten scripts/deploy.ts
+## Deploy
 ```
-
-Then, copy the deployment address and paste it in to replace `DEPLOYED_CONTRACT_ADDRESS` in this command:
-
-```shell
-npx hardhat verify --network ropsten DEPLOYED_CONTRACT_ADDRESS "Hello, Hardhat!"
+npx hardhat run scripts/deploy.ts --network <TARGET_NET>
 ```
+Here <TARGET_NET> is one of the networks configured in hardhat.config.ts file in the project directory.
+For example, if you're deploying contract to polygon testnet do the following:
+```
+npx hardhat run scripts/deploy.ts --network polygontestnet
+```
+Once deployed successfully, it prints the contract address in the terminal as following:
+```
+NameRegistry deployed to: 0x...
+```
+## Verify deployed contract
+```
+npx hardhat verify <CONTRACT_ADDRESS> --network <TARGET_NET>
+```
+Here, <CONTRACT_ADDRESS> is the contract address deployed in the above step.
+And <TARGET_NET> should be the same one in the "Deploy" step.
 
-# Performance optimizations
-
-For faster runs of your tests and scripts, consider skipping ts-node's type checking by setting the environment variable `TS_NODE_TRANSPILE_ONLY` to `1` in hardhat's environment. For more details see [the documentation](https://hardhat.org/guides/typescript.html#performance-optimizations).
+## Upgrade contract
+__Only the contract owner can upgrade the contract to the next version__
+```
+npx hardhat run scripts/upgrade.ts --network <TARGET_NET>
+```

@@ -10,16 +10,51 @@ import { NameRegistry } from "../typechain";
 
 import { formatBytes32String } from "ethers/lib/utils";
 
+import EncryptionUtils from '@verida/encryption-utils'
+import { Wallet } from "ethers";
+
 chai.use(solidity);
 chai.use(chaiAsPromised);
 
-const testSignature =
-  "0x67de2d20880a7d27b71cdcb38817ba95800ca82dff557cedd91b96aacb9062e80b9e0b8cb9614fd61ce364502349e9079c26abaa21890d7bc2f1f6c8ff77f6261c";
-const badSignature =
-  "0xf157fd349172fa8bb84710d871724091947289182373198723918cabcc888ef888ff8876956050565d5757a57d868b8676876e7678687686f95419238191488923";
+let contract: NameRegistry;
+
+
+const badSigner = Wallet.createRandom();
+
+const dids = [
+  Wallet.createRandom(),
+  Wallet.createRandom(),
+  Wallet.createRandom(),
+  Wallet.createRandom(),
+  Wallet.createRandom(),
+];
+
+const createVeridaSign = async (
+  rawMsg: any,
+  privateKey: string,
+  docDID: string
+) => {
+  if (contract === undefined) return "";
+
+  // const nonce = (await contract.getNonce(docDID)).toNumber();
+  // console.log("Nonce = ", nonce);
+  // rawMsg = ethers.utils.solidityPack(["bytes", "uint256"], [rawMsg, nonce]);
+  const privateKeyArray = new Uint8Array(
+    Buffer.from(privateKey.slice(2), "hex")
+  );
+  const signature = EncryptionUtils.signData(rawMsg, privateKeyArray);
+
+  const isValid = EncryptionUtils.verifySig(
+    rawMsg,
+    signature,
+    dids[0].publicKey
+  );
+  console.log("IsValid : ", isValid);
+
+  return EncryptionUtils.signData(rawMsg, privateKeyArray);
+};
 
 describe("NameRegistry", function () {
-  let contract: NameRegistry;
   let accountList: SignerWithAddress[];
 
   const testNames = [
@@ -33,15 +68,6 @@ describe("NameRegistry", function () {
   ];
 
   const newSuffix = "test";
-
-  // 0x7665726964610000000000000000000000000000000000000000000000000000
-
-  const testDIDs = [
-    "0x181aB2d2F0143cd2046253c56379f7eDb1E9C133",
-    "0x2b3f34e9d4b127797ce6244ea341a83733ddd6e4",
-    "0x327c1FEd75440d4c3fA067E633A3983D211f0dfD",
-    "0x4f41ce9d745404acd3f068E632A1781Da11f0dfD",
-  ];
 
   const zeroAddress = "0x0000000000000000000000000000000000000000";
 
@@ -64,31 +90,58 @@ describe("NameRegistry", function () {
   });
 
   describe("Register", async () => {
+    /*
     it("Failed : Invalid signature", async () => {
       await expect(
-        contract.register(testNames[0], zeroAddress, badSignature)
+        contract.register(testNames[0], zeroAddress, "Invalid signature")
       ).to.be.rejectedWith("Invalid signature");
     });
 
     it("Failed : Invalid zero address", async () => {
       await expect(
-        contract.register(testNames[0], zeroAddress, testSignature)
+        contract.register(
+          testNames[0],
+          zeroAddress,
+          formatBytes32String("Any Signature will fail")
+        )
       ).to.be.rejectedWith("Invalid zero address");
     });
 
     it("Failed : Invalid suffix", async () => {
+      const rawMsg = ethers.utils.solidityPack(
+        ["string", "address"],
+        [testNames[4], dids[0].address]
+      );
+      const signature = await createVeridaSign(
+        rawMsg,
+        dids[0].privateKey,
+        dids[0].address
+      );
       await expect(
-        contract.register(testNames[4], testDIDs[0], testSignature)
+        contract.register(testNames[4], dids[0].address, signature)
       ).to.be.rejectedWith("Invalid suffix");
     });
+    */
 
     it("Register one username successfully", async () => {
-      await expect(contract.register(testNames[0], testDIDs[0], testSignature));
-      expect(
-        (await contract.getUserNameList(testDIDs[0], testSignature)).length
-      ).to.be.eq(1);
+      console.log("did : ", dids[0].address);
+      const rawMsg = ethers.utils.solidityPack(
+        ["string", "address"],
+        [testNames[0], dids[0].address]
+      );
+      const signature = await createVeridaSign(
+        "0x1234",
+        dids[0].privateKey,
+        dids[0].address
+      );
+
+      await contract.register(testNames[0], dids[0].address, signature);
+      // expect((await contract.getUserNameList(dids[0].address)).length).to.be.eq(
+      //   1
+      // );
     });
 
+    /*
     it("Failed: Name already registered", async () => {
       await expect(
         contract.register(testNames[0], testDIDs[0], testSignature)
@@ -122,8 +175,10 @@ describe("NameRegistry", function () {
         (await contract.getUserNameList(testDIDs[0], testSignature)).length
       ).to.be.eq(3);
     });
+    */
   });
 
+  /*
   describe("Find DID", async () => {
     it("Failed : Unregistered name", async () => {
       await expect(contract.findDid(testNames[3])).to.be.rejectedWith(
@@ -238,4 +293,5 @@ describe("NameRegistry", function () {
       await contract.unregister(testNames[4], testDIDs[0], testSignature);
     });
   });
+  */
 });

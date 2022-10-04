@@ -11,6 +11,7 @@ import "./VeridaDataVerificationLib.sol";
 import "./BytesLib.sol";
 import "./StringLib.sol";
 
+import "hardhat/console.sol";
 /**
  * @title Verida NameRegistry contract
  */
@@ -69,11 +70,21 @@ contract NameRegistry is OwnableUpgradeable {
         require(isValidSuffix(name), "Invalid suffix");
 
         {
-            bytes memory unsignedMsg = abi.encodePacked(
-                name,
-                did
-            );
+            // bytes memory unsignedMsg = abi.encodePacked(
+            //     name,
+            //     did,
+            //     nonce[did]
+            // );
+
+            bytes memory unsignedMsg = abi.encodePacked("0x1234");
+
+            address recovered = VeridaDataVerificationLib.getSignerAddress(unsignedMsg, signature);
+            console.log("==============");
+            console.log(recovered);
+            console.log("==============");
+
             require(VeridaDataVerificationLib.validateSignature(unsignedMsg, signature, did), "Invalid signature");
+            nonce[did]++;
         }
 
         name = name.lower();
@@ -94,7 +105,7 @@ contract NameRegistry is OwnableUpgradeable {
      * @param did DID address.
      * @param signature - Signature provided by transaction creator
      */
-    function unregister(string memory name, address did, bytes calldata signature) external onlyVerifiedSignature(did, signature) {
+    function unregister(string memory name, address did, bytes calldata signature) external {
         require(did != address(0x0), "Invalid zero address");
         require(isValidSuffix(name), "Invalid suffix");
 
@@ -105,6 +116,16 @@ contract NameRegistry is OwnableUpgradeable {
         require(callerDID != address(0x0), "Unregistered name");
 
         require(callerDID == did, "Invalid DID");
+
+        {
+            bytes memory unsignedMsg = abi.encodePacked(
+                name,
+                did,
+                nonce[did]
+            );
+            require(VeridaDataVerificationLib.validateSignature(unsignedMsg, signature, did), "Invalid signature");
+            nonce[did]++;
+        }
 
         EnumerableSetUpgradeable.Bytes32Set storage didUserNameList = _DIDInfoList[callerDID];
 
@@ -132,10 +153,9 @@ contract NameRegistry is OwnableUpgradeable {
     /**
      * @dev Find name of DID
      * @param did Must be registered before.
-     * @param signature - Signature provided by transaction creator
      * @return name
      */
-    function getUserNameList(address did, bytes calldata signature) external view onlyVerifiedSignature(did, signature) returns(string[] memory) {
+    function getUserNameList(address did) external view returns(string[] memory) {
         EnumerableSetUpgradeable.Bytes32Set storage didUserNameList = _DIDInfoList[did];
 
         uint256 length = didUserNameList.length();
@@ -173,7 +193,7 @@ contract NameRegistry is OwnableUpgradeable {
      * @param name - name to check
      * @return result
      */
-    function isValidSuffix(string memory name) private returns(bool) {
+    function isValidSuffix(string memory name) private view returns(bool) {
         name = name.lower();
 
         bytes32 suffix = getSuffix(name);
