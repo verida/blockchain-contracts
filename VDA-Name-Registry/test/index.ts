@@ -36,21 +36,18 @@ const createVeridaSign = async (
 ) => {
   if (contract === undefined) return "";
 
-  // const nonce = (await contract.getNonce(docDID)).toNumber();
-  // console.log("Nonce = ", nonce);
-  // rawMsg = ethers.utils.solidityPack(["bytes", "uint256"], [rawMsg, nonce]);
+  const nonce = (await contract.getNonce(docDID)).toNumber();
+  rawMsg = ethers.utils.solidityPack(["bytes", "uint256"], [rawMsg, nonce]);
   const privateKeyArray = new Uint8Array(
     Buffer.from(privateKey.slice(2), "hex")
   );
-  const signature = EncryptionUtils.signData(rawMsg, privateKeyArray);
+  return EncryptionUtils.signData(rawMsg, privateKeyArray);
+};
 
-  const isValid = EncryptionUtils.verifySig(
-    rawMsg,
-    signature,
-    dids[0].publicKey
+const createProofSign = async (rawMsg: any, privateKey: String) => {
+  const privateKeyArray = new Uint8Array(
+    Buffer.from(privateKey.slice(2), "hex")
   );
-  console.log("IsValid : ", isValid);
-
   return EncryptionUtils.signData(rawMsg, privateKeyArray);
 };
 
@@ -130,12 +127,18 @@ describe("NameRegistry", function () {
         [testNames[0], dids[0].address]
       );
       const signature = await createVeridaSign(
-        "0x1234",
-        dids[0].privateKey,
+        rawMsg,
+        dids[1].privateKey,
         dids[0].address
       );
 
-      await contract.register(testNames[0], dids[0].address, signature);
+      const rawProof = ethers.utils.solidityPack(
+        ["address", "address"],
+        [dids[0].address, dids[1].address]
+      );
+      const proof = await createProofSign(rawProof, dids[0].privateKey);
+
+      await contract.register(testNames[0], dids[0].address, signature, proof);
       // expect((await contract.getUserNameList(dids[0].address)).length).to.be.eq(
       //   1
       // );

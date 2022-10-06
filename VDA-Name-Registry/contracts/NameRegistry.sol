@@ -1,13 +1,10 @@
 //SPDX-License-Identifier: MIT
 pragma solidity ^0.8.7;
 
-// import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
-// import "@openzeppelin/contracts/access/Ownable.sol";
-
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/structs/EnumerableSetUpgradeable.sol";
 
-import "./VeridaDataVerificationLib.sol";
+import "./VDAVerificationContract.sol";
 import "./BytesLib.sol";
 import "./StringLib.sol";
 
@@ -15,7 +12,7 @@ import "hardhat/console.sol";
 /**
  * @title Verida NameRegistry contract
  */
-contract NameRegistry is OwnableUpgradeable {
+contract NameRegistry is  VDAVerificationContract{
 
     using EnumerableSetUpgradeable for EnumerableSetUpgradeable.Bytes32Set;
     using BytesLib for bytes;
@@ -36,9 +33,6 @@ contract NameRegistry is OwnableUpgradeable {
      */
     mapping(address => EnumerableSetUpgradeable.Bytes32Set) private _DIDInfoList;
 
-    /** @notice Nonce for dids */
-    mapping(address => uint) private nonce;
-
     event Register(string indexed name, address indexed DID);
     event Unregister(string indexed name, address indexed DID);
     event AddSuffix(string indexed suffix);
@@ -47,16 +41,8 @@ contract NameRegistry is OwnableUpgradeable {
      * @notice Initialize
      */
     function initialize() public initializer {
-        __Ownable_init();
+        __VDAVerificationContract_init();
         suffixList.add(strToBytes32("verida"));
-    }
-
-    /**
-     * Get current nonce of DID
-     *@param did - DID registered here
-     */
-    function getNonce(address did) public view returns(uint) {
-        return nonce[did];
     }
 
     /**
@@ -64,27 +50,21 @@ contract NameRegistry is OwnableUpgradeable {
      * @param name user name. Duplication not allowed
      * @param did DID address.
      * @param signature - Signature provided by transaction creator
+     * @param proof - Proof of signer
      */
-    function register(string memory name, address did, bytes calldata signature) external {
+    function register(string memory name, address did, bytes calldata signature, bytes calldata proof) external {
         require(did != address(0x0), "Invalid zero address");
         require(isValidSuffix(name), "Invalid suffix");
 
         {
-            // bytes memory unsignedMsg = abi.encodePacked(
-            //     name,
-            //     did,
-            //     nonce[did]
-            // );
+            uint didNonce = getNonce(did);
+            bytes memory paramData = abi.encodePacked(
+                name,
+                did,
+                didNonce
+            );
 
-            bytes memory unsignedMsg = abi.encodePacked("0x1234");
-
-            address recovered = VeridaDataVerificationLib.getSignerAddress(unsignedMsg, signature);
-            console.log("==============");
-            console.log(recovered);
-            console.log("==============");
-
-            require(VeridaDataVerificationLib.validateSignature(unsignedMsg, signature, did), "Invalid signature");
-            nonce[did]++;
+            verifyRequest(did, paramData, signature, proof);
         }
 
         name = name.lower();
@@ -104,8 +84,9 @@ contract NameRegistry is OwnableUpgradeable {
      * @param name user name. Must be registered before
      * @param did DID address.
      * @param signature - Signature provided by transaction creator
+     * @param proof - Proof of signer
      */
-    function unregister(string memory name, address did, bytes calldata signature) external {
+    function unregister(string memory name, address did, bytes calldata signature, bytes calldata proof) external {
         require(did != address(0x0), "Invalid zero address");
         require(isValidSuffix(name), "Invalid suffix");
 
@@ -118,13 +99,14 @@ contract NameRegistry is OwnableUpgradeable {
         require(callerDID == did, "Invalid DID");
 
         {
-            bytes memory unsignedMsg = abi.encodePacked(
+            uint didNonce = getNonce(did);
+            bytes memory paramData = abi.encodePacked(
                 name,
                 did,
-                nonce[did]
+                didNonce
             );
-            require(VeridaDataVerificationLib.validateSignature(unsignedMsg, signature, did), "Invalid signature");
-            nonce[did]++;
+
+            verifyRequest(did, paramData, signature, proof);
         }
 
         EnumerableSetUpgradeable.Bytes32Set storage didUserNameList = _DIDInfoList[callerDID];
