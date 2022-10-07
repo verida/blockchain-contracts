@@ -47,19 +47,19 @@ contract NameRegistry is  VDAVerificationContract{
 
     /**
      * @dev register name & DID
-     * @param name user name. Duplication not allowed
+     * @param _name user name. Duplication not allowed
      * @param did DID address.
      * @param signature - Signature provided by transaction creator
      * @param proof - Proof of signer
      */
-    function register(string memory name, address did, bytes calldata signature, bytes calldata proof) external {
+    function register(string calldata _name, address did, bytes calldata signature, bytes calldata proof) external {
         require(did != address(0x0), "Invalid zero address");
-        require(isValidSuffix(name), "Invalid suffix");
+        require(isValidSuffix(_name), "Invalid suffix");
 
         {
             uint didNonce = getNonce(did);
             bytes memory paramData = abi.encodePacked(
-                name,
+                _name,
                 did,
                 didNonce
             );
@@ -67,7 +67,7 @@ contract NameRegistry is  VDAVerificationContract{
             verifyRequest(did, paramData, signature, proof);
         }
 
-        name = name.lower();
+        string memory name = _name.lower();
         bytes32 nameBytes = strToBytes32(name);
         require(_nameToDID[nameBytes] == address(0x0), "Name already registered");
         
@@ -76,45 +76,45 @@ contract NameRegistry is  VDAVerificationContract{
         _nameToDID[nameBytes] = did;
         didUserNameList.add(nameBytes);
 
-        emit Register(name, did);
+        emit Register(_name, did);
     }
 
     /**
      * @dev unregister name
-     * @param name user name. Must be registered before
+     * @param _name user name. Must be registered before
      * @param did DID address.
      * @param signature - Signature provided by transaction creator
      * @param proof - Proof of signer
      */
-    function unregister(string memory name, address did, bytes calldata signature, bytes calldata proof) external {
+    function unregister(string calldata _name, address did, bytes calldata signature, bytes calldata proof) external {
         require(did != address(0x0), "Invalid zero address");
-        require(isValidSuffix(name), "Invalid suffix");
-
-        name = name.lower();
-        bytes32 nameBytes = strToBytes32(name);
-
-        address callerDID = _nameToDID[nameBytes];
-        require(callerDID != address(0x0), "Unregistered name");
-
-        require(callerDID == did, "Invalid DID");
+        require(isValidSuffix(_name), "Invalid suffix");
 
         {
             uint didNonce = getNonce(did);
             bytes memory paramData = abi.encodePacked(
-                name,
+                _name,
                 did,
                 didNonce
             );
 
             verifyRequest(did, paramData, signature, proof);
         }
+        
+        string memory name = _name.lower();
+        bytes32 nameBytes = strToBytes32(name);
 
+        address callerDID = _nameToDID[nameBytes];
+        require(callerDID != address(0x0), "Unregistered name");
+
+        require(callerDID == did, "Invalid DID");
+        
         EnumerableSetUpgradeable.Bytes32Set storage didUserNameList = _DIDInfoList[callerDID];
 
         delete _nameToDID[nameBytes];
         didUserNameList.remove(nameBytes);
 
-        emit Unregister(name, callerDID);
+        emit Unregister(_name, callerDID);
     }
 
     /**
@@ -172,24 +172,22 @@ contract NameRegistry is  VDAVerificationContract{
 
     /**
      * @notice Check whether name has valid suffix
-     * @param name - name to check
+     * @param _name - name to check
      * @return result
      */
-    function isValidSuffix(string memory name) private view returns(bool) {
-        name = name.lower();
-
-        bytes32 suffix = getSuffix(name);
+    function isValidSuffix(string calldata _name) private view returns(bool) {
+        bytes32 suffix = getSuffix(_name);
         return suffixList.contains(suffix);
     }
 
     /**
      * @notice Get Suffix from name
      * @dev Rejected if not found suffix
-     * @param name - Input name
+     * @param _name - Input name
      * @return suffix - return suffix in bytes32
      */
-    function getSuffix(string memory name) private pure returns(bytes32 suffix) {
-        name = name.lower();
+    function getSuffix(string calldata _name) private pure returns(bytes32 suffix) {
+        string memory name = _name.lower();
         bytes memory nameBytes = bytes(name);
         require(nameBytes.length > 0, "NoSuffix");
 
@@ -208,12 +206,12 @@ contract NameRegistry is  VDAVerificationContract{
         }
         require(startIndex < len, "No Suffix");
 
-        bytes memory suffixBytes = new bytes(endIndex - startIndex + 1);
+        // bytes memory suffixBytes = new bytes(endIndex - startIndex + 1);
+        bytes memory suffixBytes = new bytes(32);
 
         for (index = startIndex; index <= endIndex; index++) {
             suffixBytes[index - startIndex] = nameBytes[index];
         }
-
 
         assembly {
             suffix := mload(add(suffixBytes, 32))
