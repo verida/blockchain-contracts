@@ -74,6 +74,8 @@ contract NameRegistry is  VDAVerificationContract{
         EnumerableSetUpgradeable.Bytes32Set storage didUserNameList = _DIDInfoList[did];
         
         _nameToDID[nameBytes] = did;
+        // To-do(Alex) : Check for upper & lower case strings
+        // nameBytes = strToBytes32(_name);
         didUserNameList.add(nameBytes);
 
         emit Register(_name, did);
@@ -112,6 +114,8 @@ contract NameRegistry is  VDAVerificationContract{
         EnumerableSetUpgradeable.Bytes32Set storage didUserNameList = _DIDInfoList[callerDID];
 
         delete _nameToDID[nameBytes];
+        // To-do(Alex) : Check for upper & lower case strings
+        // nameBytes = strToBytes32(_name);
         didUserNameList.remove(nameBytes);
 
         emit Unregister(_name, callerDID);

@@ -101,8 +101,6 @@ describe("NameRegistry", function () {
     contract = (await upgrades.deployProxy(contractFactory, {
       initializer: "initialize",
     })) as NameRegistry;
-
-    console.log("NameRegistry deployed at ", contract.address);
   });
 
   describe("Register", async () => {
