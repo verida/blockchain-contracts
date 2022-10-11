@@ -25,7 +25,9 @@ contract VDAVerificationContract is OwnableUpgradeable {
         address paramSigner = ECDSAUpgradeable.recover(paramsHash, signature);
 
         bytes memory proofString = abi.encodePacked(
+            "did:vda:",
             did,
+            "-",
             paramSigner
         );
         bytes32 proofHash = keccak256(proofString);

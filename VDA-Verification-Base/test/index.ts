@@ -83,8 +83,8 @@ describe("VDA Verification base", () => {
         const signature = await getTestDataSignature()
 
         const rawProof = ethers.utils.solidityPack(
-            ['address', 'address'],
-            [did.address, badSigner.address]
+            ['string', 'address', 'string', 'address'],
+            ['did:vda:', did.address, '-', badSigner.address]
         )
         const proof = await createProofSign(rawProof, did.privateKey)
         await expect(contract.testSign(did.address, name, value, signature, proof)).to.be.rejectedWith("Invalid proof")
@@ -94,13 +94,37 @@ describe("VDA Verification base", () => {
         const signature = await getTestDataSignature()
 
         const rawProof = ethers.utils.solidityPack(
-            ['address', 'address'],
-            [did.address, paramSigner.address]
+            ['string', 'address', 'string', 'address'],
+            ['did:vda:', did.address, '-', paramSigner.address]
         )
         const proof = await createProofSign(rawProof, did.privateKey)
 
         const orgNonce = await contract.getNonce(did.address)
         await contract.testSign(did.address, name, value, signature, proof)
         expect (await contract.getNonce(did.address)).to.be.equal(orgNonce.add(1))
+    })
+
+    it("Test raw String params", async () => {
+        const rawMsg = ethers.utils.solidityPack(
+            ['string'],
+            [`
+            {
+                type: "kycCredential",
+                uniqueId: "12345678"
+            }
+            `]
+        )
+        const signature = await createVeridaSign(rawMsg, paramSigner.privateKey, did.address)
+
+        const rawProof = ethers.utils.solidityPack(
+            ['string', 'address', 'string', 'address'],
+            ['did:vda:', did.address, '-', paramSigner.address]
+        )
+        const proof = await createProofSign(rawProof, did.privateKey)
+
+        const orgNonce = await contract.getNonce(did.address)
+        await contract.testRawStringData(did.address, rawMsg, signature, proof)
+        expect (await contract.getNonce(did.address)).to.be.equal(orgNonce.add(1))
+
     })
 })
