@@ -4,19 +4,24 @@ pragma solidity ^0.8.7;
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/structs/EnumerableSetUpgradeable.sol";
 
-import "./VDAVerificationContract.sol";
 import "./BytesLib.sol";
 import "./StringLib.sol";
+import "./VeridaDataVerificationLib.sol";
 
-import "hardhat/console.sol";
+// import "hardhat/console.sol";
 /**
  * @title Verida NameRegistry contract
  */
-contract NameRegistry is  VDAVerificationContract{
+contract NameRegistry is  OwnableUpgradeable {
 
     using EnumerableSetUpgradeable for EnumerableSetUpgradeable.Bytes32Set;
     using BytesLib for bytes;
     using StringLib for string;
+
+    /**
+     * @notice nonce for did
+     */
+    mapping(address => uint) internal nonce;
 
     /**
      * @notice username to did
@@ -41,8 +46,16 @@ contract NameRegistry is  VDAVerificationContract{
      * @notice Initialize
      */
     function initialize() public initializer {
-        __VDAVerificationContract_init();
+        __Ownable_init();
         suffixList.add(strToBytes32("verida"));
+    }
+
+    /**
+     * @dev return nonce of a did
+     * @param did DID address
+     */
+    function getNonce(address did) public view returns(uint) {
+        return nonce[did];
     }
 
     /**
@@ -50,9 +63,8 @@ contract NameRegistry is  VDAVerificationContract{
      * @param _name user name. Duplication not allowed
      * @param did DID address.
      * @param signature - Signature provided by transaction creator
-     * @param proof - Proof of signer
      */
-    function register(string calldata _name, address did, bytes calldata signature, bytes calldata proof) external {
+    function register(string calldata _name, address did, bytes calldata signature) external {
         require(did != address(0x0), "Invalid zero address");
         require(isValidSuffix(_name), "Invalid suffix");
 
@@ -64,7 +76,7 @@ contract NameRegistry is  VDAVerificationContract{
                 didNonce
             );
 
-            verifyRequest(did, paramData, signature, proof);
+            require(VeridaDataVerificationLib.validateSignature(paramData, signature, did), "Invalid Signature");
         }
 
         string memory name = _name.lower();
@@ -86,9 +98,8 @@ contract NameRegistry is  VDAVerificationContract{
      * @param _name user name. Must be registered before
      * @param did DID address.
      * @param signature - Signature provided by transaction creator
-     * @param proof - Proof of signer
      */
-    function unregister(string calldata _name, address did, bytes calldata signature, bytes calldata proof) external {
+    function unregister(string calldata _name, address did, bytes calldata signature) external {
         require(did != address(0x0), "Invalid zero address");
         require(isValidSuffix(_name), "Invalid suffix");
 
@@ -100,7 +111,7 @@ contract NameRegistry is  VDAVerificationContract{
                 didNonce
             );
 
-            verifyRequest(did, paramData, signature, proof);
+            require(VeridaDataVerificationLib.validateSignature(paramData, signature, did), "Invalid Signature");
         }
         
         string memory name = _name.lower();
