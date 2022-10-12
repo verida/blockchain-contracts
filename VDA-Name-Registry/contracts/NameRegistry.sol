@@ -8,7 +8,7 @@ import "./BytesLib.sol";
 import "./StringLib.sol";
 import "./VeridaDataVerificationLib.sol";
 
-// import "hardhat/console.sol";
+import "hardhat/console.sol";
 /**
  * @title Verida NameRegistry contract
  */
@@ -101,7 +101,6 @@ contract NameRegistry is  OwnableUpgradeable {
      */
     function unregister(string calldata _name, address did, bytes calldata signature) external {
         require(did != address(0x0), "Invalid zero address");
-        require(isValidSuffix(_name), "Invalid suffix");
 
         {
             uint didNonce = getNonce(did);
@@ -209,28 +208,45 @@ contract NameRegistry is  OwnableUpgradeable {
         uint len = nameBytes.length;
 
         uint startIndex = len;
-        uint endIndex = len - 1;
-        uint index = len - 1;
-        while (index >= 0 && startIndex >= len) {
+        uint index = 0;
+        uint8 dotCount = 0;
+        while (index < len && dotCount < 2 && isValidCharacter(nameBytes[index])) {
             // Find a "."
             if (nameBytes[index] == 0x2E) {
                 startIndex = index + 1;
+                dotCount++;
             }
 
-            index--;
+            index++;
         }
+        require(dotCount < 2, "Too many dots in name");
+        require(index == len, "Invalid character");
         require(startIndex < len, "No Suffix");
 
-        // bytes memory suffixBytes = new bytes(endIndex - startIndex + 1);
         bytes memory suffixBytes = new bytes(32);
 
-        for (index = startIndex; index <= endIndex; index++) {
+        for (index = startIndex; index < len; index++) {
             suffixBytes[index - startIndex] = nameBytes[index];
         }
 
         assembly {
             suffix := mload(add(suffixBytes, 32))
         }
+    }
+
+    /**
+     * @notice Check whether character is allowed in NameRegistry
+     * @param char - one byte from name string value
+     * @return - true if valid.
+     */
+    function isValidCharacter(bytes1 char) private pure returns(bool) {
+        if (char >= 0x61 && char <= 0x7a)
+            return true;
+        if (char >= 0x30 && char <= 0x39)
+            return true;
+        if (char ==0x5f || char == 0x2d || char == 0x2e)
+            return true;
+        return false;
     }
 
     /**
@@ -273,5 +289,10 @@ contract NameRegistry is  OwnableUpgradeable {
         }
         return string(bytesArray);
     }
+
+    // function strTest(string calldata str) external {
+    //     bytes memory byteArr = bytes(str);
+    //     console.logBytes(byteArr);
+    // }
 
 }

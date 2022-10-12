@@ -52,12 +52,12 @@ describe("NameRegistry", function () {
   let accountList: SignerWithAddress[];
 
   const testNames = [
-    "John.verida",
-    "Smith Elba.verida",
-    "Bill Clin.verida",
-    "Jerry Smith.verida",
+    "helloworld.verida",
+    "hello----world--.verida",
+    "hello_world-dave.verida",
+    "JerrySmith.verida",
 
-    "Jerry Smith.test",
+    "JerrySmith.test",
     "Billy.test",
   ];
 
@@ -92,7 +92,29 @@ describe("NameRegistry", function () {
       ).to.be.rejectedWith("Invalid zero address");
     });
 
-    it("Failed : Invalid suffix", async () => {
+    it("Failed : Invalid characters", async () => {
+      const invalidnames = ["hello world.verida", "hello!world.verida"];
+      for (let i = 0; i < invalidnames.length; i++) {
+        const name = invalidnames[i];
+        const signature = await getRegisterSignature(name, dids[0]);
+        await expect(
+          contract.register(name, dids[0].address, signature)
+        ).to.be.rejectedWith("Invalid character");
+      }
+    });
+
+    it("Failed : . not permitted", async () => {
+      const invalidnames = ["david.test.verida", "hello..verida"];
+      for (let i = 0; i < invalidnames.length; i++) {
+        const name = invalidnames[i];
+        const signature = await getRegisterSignature(name, dids[0]);
+        await expect(
+          contract.register(name, dids[0].address, signature)
+        ).to.be.rejectedWith("Too many dots in name");
+      }
+    });
+
+    it("Failed : Unregistered suffix", async () => {
       const signature = await getRegisterSignature(testNames[4], dids[0]);
 
       await expect(
