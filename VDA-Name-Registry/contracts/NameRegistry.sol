@@ -203,7 +203,7 @@ contract NameRegistry is  OwnableUpgradeable {
     function getSuffix(string calldata _name) private pure returns(bytes32 suffix) {
         string memory name = _name.lower();
         bytes memory nameBytes = bytes(name);
-        require(nameBytes.length > 0, "NoSuffix");
+        require(nameBytes.length > 0, "No Suffix");
 
         uint len = nameBytes.length;
 
@@ -219,8 +219,7 @@ contract NameRegistry is  OwnableUpgradeable {
 
             index++;
         }
-        require(dotCount < 2, "Too many dots in name");
-        require(index == len, "Invalid character");
+        require(dotCount < 2 && index == len, "Invalid character");
         require(startIndex < len, "No Suffix");
 
         bytes memory suffixBytes = new bytes(32);

@@ -110,7 +110,7 @@ describe("NameRegistry", function () {
         const signature = await getRegisterSignature(name, dids[0]);
         await expect(
           contract.register(name, dids[0].address, signature)
-        ).to.be.rejectedWith("Too many dots in name");
+        ).to.be.rejectedWith("Invalid character");
       }
     });
 
