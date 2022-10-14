@@ -13,7 +13,7 @@ import "@nomiclabs/hardhat-ethers";
 import "@openzeppelin/hardhat-upgrades";
 
 dotenv.config({ path: __dirname + "/.env" });
-const { PRIVATE_KEY, POLYGONSCAN_API_KEY } = process.env;
+const { PRIVATE_KEY, POLYGONSCAN_API_KEY, POLYGON_RPC_PRIVATE_NO_AUTH } = process.env;
 
 // This is a sample Hardhat task. To learn how to create your own go to
 // https://hardhat.org/guides/create-task.html
@@ -42,6 +42,12 @@ const config: HardhatUserConfig = {
       },
     ],
   },
+  paths: {
+    sources: "./contracts",
+    tests: "./test",
+    cache: "./cache",
+    artifacts: "./artifacts",
+  },
   networks: {
     bsctestnet: {
       url: "https://data-seed-prebsc-1-s1.binance.org:8545/",
@@ -59,7 +65,13 @@ const config: HardhatUserConfig = {
       accounts: [PRIVATE_KEY!],
     },
     polygontestnet: {
-      url: "http://44.234.36.28:8545",
+      // url: "http://44.234.36.28:8545",
+      url: "https://rpc-mumbai.maticvigil.com/",
+      chainId: 80001,
+      accounts: [PRIVATE_KEY!],
+    },
+    polygonprivatenet: {
+      url: POLYGON_RPC_PRIVATE_NO_AUTH,
       chainId: 80001,
       accounts: [PRIVATE_KEY!],
     },

@@ -92,14 +92,14 @@ describe("NameRegistry", function () {
       ).to.be.rejectedWith("Invalid zero address");
     });
 
-    it("Failed : Invalid characters", async () => {
+    it("Failed : Invalid character specified in names", async () => {
       const invalidnames = ["hello world.verida", "hello!world.verida"];
       for (let i = 0; i < invalidnames.length; i++) {
         const name = invalidnames[i];
         const signature = await getRegisterSignature(name, dids[0]);
         await expect(
           contract.register(name, dids[0].address, signature)
-        ).to.be.rejectedWith("Invalid character");
+        ).to.be.rejectedWith("Invalid character specified in name");
       }
     });
 
@@ -110,7 +110,7 @@ describe("NameRegistry", function () {
         const signature = await getRegisterSignature(name, dids[0]);
         await expect(
           contract.register(name, dids[0].address, signature)
-        ).to.be.rejectedWith("Invalid character");
+        ).to.be.rejectedWith("Invalid character specified in name");
       }
     });
 

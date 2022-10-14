@@ -3,16 +3,51 @@
 //
 // When running the script with `npx hardhat run <script>` you'll find the Hardhat
 // Runtime Environment's members available in the global scope.
-import { ethers, upgrades } from "hardhat";
+import hre, { ethers, upgrades } from "hardhat";
+import * as fs from "fs";
+
+async function saveDeployedAddress(
+  proxyAddr: string,
+  adminAddr: string,
+  implAddress: string
+) {
+  const dir = __dirname;
+
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir);
+  }
+
+  fs.writeFileSync(
+    dir + "/contract-address.json",
+    JSON.stringify(
+      {
+        Proxy: proxyAddr,
+        ProxyAdmin: adminAddr,
+        Implementation: implAddress
+      },
+      undefined,
+      2
+    )
+  );
+}
 
 async function main() {
   const contractFactory = await ethers.getContractFactory("NameRegistry");
   const contract = await upgrades.deployProxy(contractFactory, {
     initializer: "initialize",
+    timeout: 0,
+    pollingInterval: 5000,
   });
 
   await contract.deployed();
 
+  const proxyAddr = contract.address;
+  const adminAddr = await hre.upgrades.erc1967.getAdminAddress(proxyAddr);
+  const implAddr = await hre.upgrades.erc1967.getImplementationAddress(
+    proxyAddr
+  );
+
+  await saveDeployedAddress(proxyAddr, adminAddr, implAddr);
   console.log("NameRegistry deployed to: ", contract.address);
 }
 

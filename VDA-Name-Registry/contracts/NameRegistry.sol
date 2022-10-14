@@ -219,7 +219,7 @@ contract NameRegistry is  OwnableUpgradeable {
 
             index++;
         }
-        require(dotCount < 2 && index == len, "Invalid character");
+        require(dotCount < 2 && index == len, "Invalid character specified in name");
         require(startIndex < len, "No Suffix");
 
         bytes memory suffixBytes = new bytes(32);
