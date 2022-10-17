@@ -1,23 +1,27 @@
 //SPDX-License-Identifier: MIT
 pragma solidity ^0.8.7;
 
-// import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
-// import "@openzeppelin/contracts/access/Ownable.sol";
-
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/structs/EnumerableSetUpgradeable.sol";
 
 import "./BytesLib.sol";
 import "./StringLib.sol";
+import "./VeridaDataVerificationLib.sol";
 
+import "hardhat/console.sol";
 /**
  * @title Verida NameRegistry contract
  */
-contract NameRegistry is OwnableUpgradeable {
+contract NameRegistry is  OwnableUpgradeable {
 
     using EnumerableSetUpgradeable for EnumerableSetUpgradeable.Bytes32Set;
     using BytesLib for bytes;
     using StringLib for string;
+
+    /**
+     * @notice nonce for did
+     */
+    mapping(address => uint) internal nonce;
 
     /**
      * @notice username to did
@@ -34,19 +38,6 @@ contract NameRegistry is OwnableUpgradeable {
      */
     mapping(address => EnumerableSetUpgradeable.Bytes32Set) private _DIDInfoList;
 
-    /**
-     * @notice Modifier to verify validity of transactions
-     * @dev Not working on View functions. Cancel transaction if transaction is not verified
-     * @param identity - DID of Verida
-     * @param signature - Signature provided by transaction creator
-     */
-    modifier onlyVerifiedSignature(address identity, bytes calldata signature) {
-        // require signature is signed by identity
-        bytes memory rightSign = hex"67de2d20880a7d27b71cdcb38817ba95800ca82dff557cedd91b96aacb9062e80b9e0b8cb9614fd61ce364502349e9079c26abaa21890d7bc2f1f6c8ff77f6261c";
-        require(signature.equal(rightSign), "Invalid signature");
-        _;
-    }
-
     event Register(string indexed name, address indexed DID);
     event Unregister(string indexed name, address indexed DID);
     event AddSuffix(string indexed suffix);
@@ -59,54 +50,85 @@ contract NameRegistry is OwnableUpgradeable {
         suffixList.add(strToBytes32("verida"));
     }
 
-    
+    /**
+     * @dev return nonce of a did
+     * @param did DID address
+     */
+    function getNonce(address did) public view returns(uint) {
+        return nonce[did];
+    }
 
     /**
      * @dev register name & DID
-     * @param name user name is 32bytes string. It's a hash value. Duplication not allowed
+     * @param _name user name. Duplication not allowed
      * @param did DID address.
      * @param signature - Signature provided by transaction creator
      */
-    function register(string memory name, address did, bytes calldata signature) external onlyVerifiedSignature(did, signature) {
+    function register(string calldata _name, address did, bytes calldata signature) external {
         require(did != address(0x0), "Invalid zero address");
-        require(isValidSuffix(name), "Invalid suffix");
+        require(isValidSuffix(_name), "Invalid suffix");
 
-        name = name.lower();
+        {
+            uint didNonce = getNonce(did);
+            bytes memory paramData = abi.encodePacked(
+                _name,
+                did,
+                didNonce
+            );
+
+            require(VeridaDataVerificationLib.validateSignature(paramData, signature, did), "Invalid Signature");
+        }
+
+        string memory name = _name.lower();
         bytes32 nameBytes = strToBytes32(name);
         require(_nameToDID[nameBytes] == address(0x0), "Name already registered");
         
         EnumerableSetUpgradeable.Bytes32Set storage didUserNameList = _DIDInfoList[did];
         
         _nameToDID[nameBytes] = did;
+        // To-do(Alex) : Check for upper & lower case strings
+        // nameBytes = strToBytes32(_name);
         didUserNameList.add(nameBytes);
 
-        emit Register(name, did);
+        emit Register(_name, did);
     }
 
     /**
      * @dev unregister name
-     * @param name user name. Must be registered before
+     * @param _name user name. Must be registered before
      * @param did DID address.
      * @param signature - Signature provided by transaction creator
      */
-    function unregister(string memory name, address did, bytes calldata signature) external onlyVerifiedSignature(did, signature) {
+    function unregister(string calldata _name, address did, bytes calldata signature) external {
         require(did != address(0x0), "Invalid zero address");
-        require(isValidSuffix(name), "Invalid suffix");
 
-        name = name.lower();
+        {
+            uint didNonce = getNonce(did);
+            bytes memory paramData = abi.encodePacked(
+                _name,
+                did,
+                didNonce
+            );
+
+            require(VeridaDataVerificationLib.validateSignature(paramData, signature, did), "Invalid Signature");
+        }
+        
+        string memory name = _name.lower();
         bytes32 nameBytes = strToBytes32(name);
 
         address callerDID = _nameToDID[nameBytes];
         require(callerDID != address(0x0), "Unregistered name");
 
         require(callerDID == did, "Invalid DID");
-
+        
         EnumerableSetUpgradeable.Bytes32Set storage didUserNameList = _DIDInfoList[callerDID];
 
         delete _nameToDID[nameBytes];
+        // To-do(Alex) : Check for upper & lower case strings
+        // nameBytes = strToBytes32(_name);
         didUserNameList.remove(nameBytes);
 
-        emit Unregister(name, callerDID);
+        emit Unregister(_name, callerDID);
     }
 
     /**
@@ -127,10 +149,9 @@ contract NameRegistry is OwnableUpgradeable {
     /**
      * @dev Find name of DID
      * @param did Must be registered before.
-     * @param signature - Signature provided by transaction creator
      * @return name
      */
-    function getUserNameList(address did, bytes calldata signature) external view onlyVerifiedSignature(did, signature) returns(string[] memory) {
+    function getUserNameList(address did) external view returns(string[] memory) {
         EnumerableSetUpgradeable.Bytes32Set storage didUserNameList = _DIDInfoList[did];
 
         uint256 length = didUserNameList.length();
@@ -165,52 +186,66 @@ contract NameRegistry is OwnableUpgradeable {
 
     /**
      * @notice Check whether name has valid suffix
-     * @param name - name to check
+     * @param _name - name to check
      * @return result
      */
-    function isValidSuffix(string memory name) private returns(bool) {
-        name = name.lower();
-
-        bytes32 suffix = getSuffix(name);
+    function isValidSuffix(string calldata _name) private view returns(bool) {
+        bytes32 suffix = getSuffix(_name);
         return suffixList.contains(suffix);
     }
 
     /**
      * @notice Get Suffix from name
      * @dev Rejected if not found suffix
-     * @param name - Input name
+     * @param _name - Input name
      * @return suffix - return suffix in bytes32
      */
-    function getSuffix(string memory name) private pure returns(bytes32 suffix) {
-        name = name.lower();
+    function getSuffix(string calldata _name) private pure returns(bytes32 suffix) {
+        string memory name = _name.lower();
         bytes memory nameBytes = bytes(name);
-        require(nameBytes.length > 0, "NoSuffix");
+        require(nameBytes.length > 0, "No Suffix");
 
         uint len = nameBytes.length;
 
         uint startIndex = len;
-        uint endIndex = len - 1;
-        uint index = len - 1;
-        while (index >= 0 && startIndex >= len) {
+        uint index = 0;
+        uint8 dotCount = 0;
+        while (index < len && dotCount < 2 && isValidCharacter(nameBytes[index])) {
             // Find a "."
             if (nameBytes[index] == 0x2E) {
                 startIndex = index + 1;
+                dotCount++;
             }
 
-            index--;
+            index++;
         }
+        require(dotCount < 2 && index == len, "Invalid character specified in name");
         require(startIndex < len, "No Suffix");
 
-        bytes memory suffixBytes = new bytes(endIndex - startIndex + 1);
+        bytes memory suffixBytes = new bytes(32);
 
-        for (index = startIndex; index <= endIndex; index++) {
+        for (index = startIndex; index < len; index++) {
             suffixBytes[index - startIndex] = nameBytes[index];
         }
-
 
         assembly {
             suffix := mload(add(suffixBytes, 32))
         }
+    }
+
+    /**
+     * @notice Check whether character is allowed in NameRegistry
+     * @param char - one byte from name string value
+     * @return - true if valid.
+     */
+    function isValidCharacter(bytes1 char) private pure returns(bool) {
+        if (char >= 0x61 && char <= 0x7a)
+            return true;
+        if (char >= 0x30 && char <= 0x39)
+            return true;
+        if (char ==0x5f || char == 0x2d || char == 0x2e)
+            return true;
+        return false;
     }
 
     /**
@@ -253,5 +288,10 @@ contract NameRegistry is OwnableUpgradeable {
         }
         return string(bytesArray);
     }
+
+    // function strTest(string calldata str) external {
+    //     bytes memory byteArr = bytes(str);
+    //     console.logBytes(byteArr);
+    // }
 
 }
