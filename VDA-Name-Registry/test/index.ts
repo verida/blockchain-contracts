@@ -81,7 +81,7 @@ describe("NameRegistry", function () {
     })) as NameRegistry;
   });
 
-  describe("Register", async () => {
+  describe("Register", () => {
     it("Failed : Invalid zero address", async () => {
       await expect(
         contract.register(
@@ -114,6 +114,20 @@ describe("NameRegistry", function () {
       }
     });
 
+    it("Failed : Invalid name length", async () => {
+      const invalidnames = [
+        "a.verida",
+        "abcdefghijklmnopqrstuvwxyz012345.verida",
+      ];
+      for (let i = 0; i < invalidnames.length; i++) {
+        const name = invalidnames[i];
+        const signature = await getRegisterSignature(name, dids[0]);
+        await expect(
+          contract.register(name, dids[0].address, signature)
+        ).to.be.rejectedWith("Invalid name length");
+      }
+    });
+
     it("Failed : Unregistered suffix", async () => {
       const signature = await getRegisterSignature(testNames[4], dids[0]);
 
@@ -137,7 +151,7 @@ describe("NameRegistry", function () {
       );
     });
 
-    it("Failed: Name already registered", async () => {
+    it("Failed : Name already registered", async () => {
       let signature = await getRegisterSignature(testNames[0], dids[0]);
       await expect(
         contract.register(testNames[0], dids[0].address, signature)
@@ -160,10 +174,39 @@ describe("NameRegistry", function () {
           .register(testNames[0], dids[1].address, signature)
       ).to.be.rejectedWith("Name already registered");
     });
+  });
+
+  describe("Max names per DID", () => {
+    it("Add mutiple user names failed : MaxNaemsPerDID", async () => {
+      expect((await contract.maxNamesPerDID()).toNumber()).to.be.eq(1);
+
+      expect((await contract.getUserNameList(dids[0].address)).length).to.be.eq(
+        1
+      );
+
+      const signature = await getRegisterSignature(testNames[1], dids[0]);
+      await expect(
+        contract.register(testNames[1], dids[0].address, signature)
+      ).to.be.rejectedWith("Exceed number names per DID");
+    });
+
+    it("Update MaxNamesPerDID failed : non-owner", async () => {
+      await expect(
+        contract.connect(accountList[1]).updateMaxNamesPerDID(5)
+      ).to.be.rejectedWith("Ownable: caller is not the owner");
+    });
+
+    it("Update MaxNamesPerDID Success", async () => {
+      await contract.updateMaxNamesPerDID(5);
+      expect(await contract.maxNamesPerDID()).to.be.eq(5);
+    });
 
     it("Add multiple user names successfully", async () => {
-      let signature = await getRegisterSignature(testNames[1], dids[0]);
+      expect(
+        (await contract.maxNamesPerDID()).toNumber()
+      ).to.be.greaterThanOrEqual(3);
 
+      let signature = await getRegisterSignature(testNames[1], dids[0]);
       await contract.register(testNames[1], dids[0].address, signature);
       expect((await contract.getUserNameList(dids[0].address)).length).to.be.eq(
         2
@@ -177,7 +220,7 @@ describe("NameRegistry", function () {
     });
   });
 
-  describe("Find DID", async () => {
+  describe("Find DID", () => {
     it("Failed : Unregistered name", async () => {
       await expect(contract.findDid(testNames[3])).to.be.rejectedWith(
         "Unregistered name"
@@ -195,8 +238,8 @@ describe("NameRegistry", function () {
     });
   });
 
-  describe("getUserNameList", async () => {
-    it("Failed: No registered DID", async () => {
+  describe("getUserNameList", () => {
+    it("Failed : No registered DID", async () => {
       // This happens when user unregister all user names.
       let signature = await getRegisterSignature(testNames[3], dids[1]);
       await contract
@@ -221,15 +264,15 @@ describe("NameRegistry", function () {
     });
   });
 
-  describe("Unregister", async () => {
-    it("Failed: Unregistered name", async () => {
+  describe("Unregister", () => {
+    it("Failed : Unregistered name", async () => {
       const signature = await getRegisterSignature(testNames[3], dids[0]);
       await expect(
         contract.unregister(testNames[3], dids[0].address, signature)
       ).to.be.rejectedWith("Unregistered name");
     });
 
-    it("Failed: Invalid DID", async () => {
+    it("Failed : Invalid DID", async () => {
       let signature = await getRegisterSignature(testNames[0], dids[1]);
       await expect(
         contract
@@ -277,7 +320,7 @@ describe("NameRegistry", function () {
     });
   });
 
-  describe("Add suffix", async () => {
+  describe("Add suffix", () => {
     it("Failed : Not a owner", async () => {
       await expect(
         contract.connect(accountList[1]).addSufix(newSuffix)
