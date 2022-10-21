@@ -89,7 +89,7 @@ contract NameRegistry is  OwnableUpgradeable {
         
         EnumerableSet.StringSet storage didUserNameList = _DIDInfoList[did];
 
-        require(didUserNameList.length() < maxNamesPerDID, "Exceed number names per DID");
+        require(didUserNameList.length() < maxNamesPerDID, "DID can not support any more names");
         
         _nameToDID[name] = did;
         // To-do(Alex) : Check for upper & lower case strings
@@ -227,7 +227,7 @@ contract NameRegistry is  OwnableUpgradeable {
         require(startIndex < len, "No Suffix");
         // uint nameLen = startIndex;
 
-        require(startIndex > 2 && startIndex < 32, "Invalid name length");
+        require(startIndex > 2 && startIndex < 34, "Invalid name length");
 
         bytes memory suffixBytes = new bytes(len - startIndex);
 

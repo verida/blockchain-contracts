@@ -114,20 +114,6 @@ describe("NameRegistry", function () {
       }
     });
 
-    it("Failed : Invalid name length", async () => {
-      const invalidnames = [
-        "a.verida",
-        "abcdefghijklmnopqrstuvwxyz012345.verida",
-      ];
-      for (let i = 0; i < invalidnames.length; i++) {
-        const name = invalidnames[i];
-        const signature = await getRegisterSignature(name, dids[0]);
-        await expect(
-          contract.register(name, dids[0].address, signature)
-        ).to.be.rejectedWith("Invalid name length");
-      }
-    });
-
     it("Failed : Unregistered suffix", async () => {
       const signature = await getRegisterSignature(testNames[4], dids[0]);
 
@@ -140,6 +126,38 @@ describe("NameRegistry", function () {
       await expect(
         contract.register(testNames[0], zeroAddress, "Invalid signature")
       ).to.be.rejectedWith("Invalid signature");
+    });
+
+    describe("Name Length Test", () => {
+      it("Failed on length 1 & 33", async () => {
+        const did = Wallet.createRandom();
+        const invalidnames = [
+          "a.verida", // length 1
+          "abcdefghijklmnopqrstuvwxyz0123456.verida", // length 33
+        ];
+        for (let i = 0; i < invalidnames.length; i++) {
+          const name = invalidnames[i];
+          const signature = await getRegisterSignature(name, did);
+          await expect(
+            contract.register(name, did.address, signature)
+          ).to.be.rejectedWith("Invalid name length");
+        }
+      });
+
+      it("Success on length 2 & 32", async () => {
+        const names = [
+          // "ab.verida", // length 2
+          "abcdefghijklmnopqrstuvwxyz012345.verida", // length 32
+        ];
+        for (let i = 0; i < names.length; i++) {
+          const did = Wallet.createRandom();
+          const name = names[i];
+          const signature = await getRegisterSignature(name, did);
+          await contract.register(name, did.address, signature);
+
+          expect(await contract.findDid(name)).to.be.eq(did.address);
+        }
+      });
     });
 
     it("Register one username successfully", async () => {
@@ -187,7 +205,7 @@ describe("NameRegistry", function () {
       const signature = await getRegisterSignature(testNames[1], dids[0]);
       await expect(
         contract.register(testNames[1], dids[0].address, signature)
-      ).to.be.rejectedWith("Exceed number names per DID");
+      ).to.be.rejectedWith("DID can not support any more names");
     });
 
     it("Update MaxNamesPerDID failed : non-owner", async () => {
