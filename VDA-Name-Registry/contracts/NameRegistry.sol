@@ -2,9 +2,8 @@
 pragma solidity ^0.8.7;
 
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/utils/structs/EnumerableSetUpgradeable.sol";
 
-import "./BytesLib.sol";
+import "./EnumerableSet.sol";
 import "./StringLib.sol";
 import "./VeridaDataVerificationLib.sol";
 
@@ -14,8 +13,7 @@ import "hardhat/console.sol";
  */
 contract NameRegistry is  OwnableUpgradeable {
 
-    using EnumerableSetUpgradeable for EnumerableSetUpgradeable.Bytes32Set;
-    using BytesLib for bytes;
+    using EnumerableSet for EnumerableSet.StringSet;
     using StringLib for string;
 
     /**
@@ -24,30 +22,37 @@ contract NameRegistry is  OwnableUpgradeable {
     mapping(address => uint) internal nonce;
 
     /**
+     * @notice Maximum names per DID.
+     */
+    uint public maxNamesPerDID;
+
+    /**
      * @notice username to did
      */
-    mapping(bytes32 => address) private _nameToDID;
+    mapping(string => address) private _nameToDID;
 
     /**
      * @notice Allowed suffix list
      */
-    EnumerableSetUpgradeable.Bytes32Set private suffixList;
+    EnumerableSet.StringSet private suffixList;
 
     /** 
      * @notice DID to username list
      */
-    mapping(address => EnumerableSetUpgradeable.Bytes32Set) private _DIDInfoList;
+    mapping(address => EnumerableSet.StringSet) private _DIDInfoList;
 
     event Register(string indexed name, address indexed DID);
     event Unregister(string indexed name, address indexed DID);
     event AddSuffix(string indexed suffix);
+    event UpdateMaxNamesPerDID(uint from, uint to);
 
     /**
      * @notice Initialize
      */
     function initialize() public initializer {
         __Ownable_init();
-        suffixList.add(strToBytes32("verida"));
+        suffixList.add("verida");
+        maxNamesPerDID = 1;
     }
 
     /**
@@ -80,15 +85,16 @@ contract NameRegistry is  OwnableUpgradeable {
         }
 
         string memory name = _name.lower();
-        bytes32 nameBytes = strToBytes32(name);
-        require(_nameToDID[nameBytes] == address(0x0), "Name already registered");
+        require(_nameToDID[name] == address(0x0), "Name already registered");
         
-        EnumerableSetUpgradeable.Bytes32Set storage didUserNameList = _DIDInfoList[did];
+        EnumerableSet.StringSet storage didUserNameList = _DIDInfoList[did];
+
+        require(didUserNameList.length() < maxNamesPerDID, "DID can not support any more names");
         
-        _nameToDID[nameBytes] = did;
+        _nameToDID[name] = did;
         // To-do(Alex) : Check for upper & lower case strings
         // nameBytes = strToBytes32(_name);
-        didUserNameList.add(nameBytes);
+        didUserNameList.add(name);
 
         emit Register(_name, did);
     }
@@ -114,19 +120,18 @@ contract NameRegistry is  OwnableUpgradeable {
         }
         
         string memory name = _name.lower();
-        bytes32 nameBytes = strToBytes32(name);
 
-        address callerDID = _nameToDID[nameBytes];
+        address callerDID = _nameToDID[name];
         require(callerDID != address(0x0), "Unregistered name");
 
         require(callerDID == did, "Invalid DID");
         
-        EnumerableSetUpgradeable.Bytes32Set storage didUserNameList = _DIDInfoList[callerDID];
+        EnumerableSet.StringSet storage didUserNameList = _DIDInfoList[callerDID];
 
-        delete _nameToDID[nameBytes];
+        delete _nameToDID[name];
         // To-do(Alex) : Check for upper & lower case strings
         // nameBytes = strToBytes32(_name);
-        didUserNameList.remove(nameBytes);
+        didUserNameList.remove(name);
 
         emit Unregister(_name, callerDID);
     }
@@ -138,9 +143,8 @@ contract NameRegistry is  OwnableUpgradeable {
      */
     function findDid(string memory name) external view returns(address) {
         name = name.lower();
-        bytes32 nameByte = strToBytes32(name);
 
-        address callerDID = _nameToDID[nameByte];
+        address callerDID = _nameToDID[name];
         require(callerDID != address(0x0), "Unregistered name");
 
         return callerDID;
@@ -152,7 +156,7 @@ contract NameRegistry is  OwnableUpgradeable {
      * @return name
      */
     function getUserNameList(address did) external view returns(string[] memory) {
-        EnumerableSetUpgradeable.Bytes32Set storage didUserNameList = _DIDInfoList[did];
+        EnumerableSet.StringSet storage didUserNameList = _DIDInfoList[did];
 
         uint256 length = didUserNameList.length();
         require(length > 0, "No registered DID");
@@ -160,7 +164,7 @@ contract NameRegistry is  OwnableUpgradeable {
         string[] memory userNameList = new string[](length);
 
         for (uint i = 0; i < length; i++) {
-            userNameList[i] = bytes32ToString(didUserNameList.at(i));
+            userNameList[i] = didUserNameList.at(i);
         }
 
         return userNameList;
@@ -173,13 +177,12 @@ contract NameRegistry is  OwnableUpgradeable {
      * @param suffix - Suffix to be added
      */
 
-    function addSufix(string memory suffix) public onlyOwner {
+    function addSufix(string memory suffix) external onlyOwner {
         suffix = suffix.lower();
 
-        bytes32 suffixBytes = strToBytes32(suffix);
-        require(!suffixList.contains(suffixBytes), "Already registered");
+        require(!suffixList.contains(suffix), "Already registered");
 
-        suffixList.add(suffixBytes);
+        suffixList.add(suffix);
 
         emit AddSuffix(suffix);
     }
@@ -190,7 +193,7 @@ contract NameRegistry is  OwnableUpgradeable {
      * @return result
      */
     function isValidSuffix(string calldata _name) private view returns(bool) {
-        bytes32 suffix = getSuffix(_name);
+        string memory suffix = getSuffix(_name);
         return suffixList.contains(suffix);
     }
 
@@ -200,10 +203,11 @@ contract NameRegistry is  OwnableUpgradeable {
      * @param _name - Input name
      * @return suffix - return suffix in bytes32
      */
-    function getSuffix(string calldata _name) private pure returns(bytes32 suffix) {
+    function getSuffix(string calldata _name) private pure returns(string memory suffix) {
         string memory name = _name.lower();
         bytes memory nameBytes = bytes(name);
         require(nameBytes.length > 0, "No Suffix");
+
 
         uint len = nameBytes.length;
 
@@ -221,16 +225,17 @@ contract NameRegistry is  OwnableUpgradeable {
         }
         require(dotCount < 2 && index == len, "Invalid character specified in name");
         require(startIndex < len, "No Suffix");
+        // uint nameLen = startIndex;
 
-        bytes memory suffixBytes = new bytes(32);
+        require(startIndex > 2 && startIndex < 34, "Invalid name length");
+
+        bytes memory suffixBytes = new bytes(len - startIndex);
 
         for (index = startIndex; index < len; index++) {
             suffixBytes[index - startIndex] = nameBytes[index];
         }
 
-        assembly {
-            suffix := mload(add(suffixBytes, 32))
-        }
+        suffix = string(suffixBytes);
     }
 
     /**
@@ -248,50 +253,11 @@ contract NameRegistry is  OwnableUpgradeable {
         return false;
     }
 
-    /**
-     * @notice Convert String to Bytes32
-     * @param source - Input string
-     * @return result - Converted Bytes32
-     */
-    function strToBytes32(string memory source) private pure returns(bytes32 result) {
-        bytes memory tempEmptyStringTest = bytes(source);
-        require(tempEmptyStringTest.length <= 32, "Too long string");
-        
-        if (tempEmptyStringTest.length == 0) {
-            return 0x0;
-        }
+    function updateMaxNamesPerDID(uint count) external onlyOwner {
+        require(count > 0, "Zero not allowed");
+        uint orgValue = maxNamesPerDID;
+        maxNamesPerDID = count;
 
-        assembly {
-            result := mload(add(source, 32))
-        }
+        emit UpdateMaxNamesPerDID(orgValue, count);
     }
-
-    /**
-     * @notice Convert Bytes32 to String
-     * @param did - Input value
-     * @return string
-     */
-    function bytes32ToString(bytes32 did) private pure returns(string memory) {
-        // string memory converted = string(abi.encodePacked(did));
-        // return converted;
-        if (did[0] == 0x0)
-            return "";
-
-        uint8 len = 31;
-        while(len >= 0 && did[len] == 0) {
-            len--;
-        }
-        
-        bytes memory bytesArray = new bytes(len+1);
-        for (uint8 i = 0; i <= len; i++) {
-            bytesArray[i] = did[i];
-        }
-        return string(bytesArray);
-    }
-
-    // function strTest(string calldata str) external {
-    //     bytes memory byteArr = bytes(str);
-    //     console.logBytes(byteArr);
-    // }
-
 }

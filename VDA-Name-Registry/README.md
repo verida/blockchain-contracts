@@ -25,7 +25,9 @@ General users can do the following:
 Contract owner can do the following:
 - Add a suffix
 
+
 # Build & Test
+
 Open terminal (ubuntu) and navigate to the project directory.
 ```
 cd <PROJECT_PATH>
@@ -38,6 +40,14 @@ npx hardhat compile
 ## Test
 ```
 npx hardhat test
+```
+### **Test Dependencies**
+This project dependes on following libraries in verida-js:
+- @verida/encryption-utils
+
+Link above dependencies by `yarn link <dependency name>` command.
+```
+yarn link @verida/encryption-utils
 ```
 ## Deploy
 ```
@@ -64,3 +74,4 @@ __Only the contract owner can upgrade the contract to the next version__
 ```
 npx hardhat run scripts/upgrade.ts --network <TARGET_NET>
 ```
+
