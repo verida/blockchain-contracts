@@ -146,7 +146,7 @@ describe("NameRegistry", function () {
 
       it("Success on length 2 & 32", async () => {
         const names = [
-          // "ab.verida", // length 2
+          "ab.verida", // length 2
           "abcdefghijklmnopqrstuvwxyz012345.verida", // length 32
         ];
         for (let i = 0; i < names.length; i++) {
