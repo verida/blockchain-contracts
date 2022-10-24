@@ -65,18 +65,18 @@ contract NameRegistry is  OwnableUpgradeable {
 
     /**
      * @dev register name & DID
-     * @param _name user name. Duplication not allowed
+     * @param name user name. Duplication not allowed
      * @param did DID address.
      * @param signature - Signature provided by transaction creator
      */
-    function register(string calldata _name, address did, bytes calldata signature) external {
+    function register(string calldata name, address did, bytes calldata signature) external {
         require(did != address(0x0), "Invalid zero address");
-        require(isValidSuffix(_name), "Invalid suffix");
+        require(isValidSuffix(name), "Invalid suffix");
 
         {
             uint didNonce = getNonce(did);
             bytes memory paramData = abi.encodePacked(
-                _name,
+                name,
                 did,
                 didNonce
             );
@@ -84,34 +84,34 @@ contract NameRegistry is  OwnableUpgradeable {
             require(VeridaDataVerificationLib.validateSignature(paramData, signature, did), "Invalid Signature");
         }
 
-        string memory name = _name.lower();
-        require(_nameToDID[name] == address(0x0), "Name already registered");
+        string memory _name = name.lower();
+        require(_nameToDID[_name] == address(0x0), "Name already registered");
         
         EnumerableSet.StringSet storage didUserNameList = _DIDInfoList[did];
 
         require(didUserNameList.length() < maxNamesPerDID, "DID can not support any more names");
         
-        _nameToDID[name] = did;
+        _nameToDID[_name] = did;
         // To-do(Alex) : Check for upper & lower case strings
         // nameBytes = strToBytes32(_name);
-        didUserNameList.add(name);
+        didUserNameList.add(_name);
 
-        emit Register(_name, did);
+        emit Register(name, did);
     }
 
     /**
      * @dev unregister name
-     * @param _name user name. Must be registered before
+     * @param name user name. Must be registered before
      * @param did DID address.
      * @param signature - Signature provided by transaction creator
      */
-    function unregister(string calldata _name, address did, bytes calldata signature) external {
+    function unregister(string calldata name, address did, bytes calldata signature) external {
         require(did != address(0x0), "Invalid zero address");
 
         {
             uint didNonce = getNonce(did);
             bytes memory paramData = abi.encodePacked(
-                _name,
+                name,
                 did,
                 didNonce
             );
@@ -119,21 +119,21 @@ contract NameRegistry is  OwnableUpgradeable {
             require(VeridaDataVerificationLib.validateSignature(paramData, signature, did), "Invalid Signature");
         }
         
-        string memory name = _name.lower();
+        string memory _name = name.lower();
 
-        address callerDID = _nameToDID[name];
+        address callerDID = _nameToDID[_name];
         require(callerDID != address(0x0), "Unregistered name");
 
         require(callerDID == did, "Invalid DID");
         
         EnumerableSet.StringSet storage didUserNameList = _DIDInfoList[callerDID];
 
-        delete _nameToDID[name];
+        delete _nameToDID[_name];
         // To-do(Alex) : Check for upper & lower case strings
         // nameBytes = strToBytes32(_name);
-        didUserNameList.remove(name);
+        didUserNameList.remove(_name);
 
-        emit Unregister(_name, callerDID);
+        emit Unregister(name, callerDID);
     }
 
     /**
@@ -189,23 +189,23 @@ contract NameRegistry is  OwnableUpgradeable {
 
     /**
      * @notice Check whether name has valid suffix
-     * @param _name - name to check
+     * @param name - name to check
      * @return result
      */
-    function isValidSuffix(string calldata _name) private view returns(bool) {
-        string memory suffix = getSuffix(_name);
+    function isValidSuffix(string calldata name) private view returns(bool) {
+        string memory suffix = getSuffix(name);
         return suffixList.contains(suffix);
     }
 
     /**
      * @notice Get Suffix from name
      * @dev Rejected if not found suffix
-     * @param _name - Input name
+     * @param name - Input name
      * @return suffix - return suffix in bytes32
      */
-    function getSuffix(string calldata _name) private pure returns(string memory suffix) {
-        string memory name = _name.lower();
-        bytes memory nameBytes = bytes(name);
+    function getSuffix(string calldata name) private pure returns(string memory suffix) {
+        string memory _name = name.lower();
+        bytes memory nameBytes = bytes(_name);
         require(nameBytes.length > 0, "No Suffix");
 
 
