@@ -1,6 +1,13 @@
 {
-  "name": "vda-verification-contract",
+  "name": "@verida/vda-verification-contract",
+  "description": "Verification base contract of Verida",
   "version": "0.0.1",
+  "files": [
+    "**/*.sol",
+    ""
+  ],
+  "author": "Alex@verida",
+  "license": "MIT",
   "devDependencies": {
     "@ethersproject/abi": "^5.4.7",
     "@ethersproject/providers": "^5.4.7",
