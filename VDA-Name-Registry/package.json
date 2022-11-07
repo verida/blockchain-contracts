@@ -1,6 +1,10 @@
 {
-  "name": "hardhat-project",
+  "name": "@verida/name-registry",
+  "description": "Verida name registry contract",
   "version": "0.2.0",
+  "files": [
+    "**/*.sol"
+  ],
   "devDependencies": {
     "@nomiclabs/hardhat-ethers": "^2.0.4",
     "@nomiclabs/hardhat-etherscan": "^3.0.4",

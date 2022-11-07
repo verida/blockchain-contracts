@@ -20,7 +20,7 @@ contract VDAVerificationContract is OwnableUpgradeable {
         return nonce[did];
     }
 
-    function verifyRequest(address did, bytes memory params, bytes calldata signature, bytes calldata proof) internal {
+    function verifyRequest(address did, bytes memory params, bytes calldata signature, bytes calldata proof) internal virtual {
         bytes32 paramsHash = keccak256(params);
         address paramSigner = ECDSAUpgradeable.recover(paramsHash, signature);
 

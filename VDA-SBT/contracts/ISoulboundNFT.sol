@@ -3,6 +3,18 @@ pragma solidity ^0.8.7;
 
 interface ISoulboundNFT {
     /**
+     * @notice emitted when a company account added
+     * @param account Company account added
+     */
+    event AddCompanyAccount(address account);
+
+    /**
+     * @notice emitted when a company account removed
+     * @param account Company account removed
+     */
+    event RemoveCompanyAccount(address account);
+
+    /**
      * @notice emitted when a new SBT type added
      * @param sbtType Added SBT type
      */
@@ -12,7 +24,7 @@ interface ISoulboundNFT {
      * @notice emitted when a SBT type removed
      * @param sbtType Removed SBT type
      */
-    event RemoveSBTType(string indexed sbtType);
+    // event RemoveSBTType(string indexed sbtType);
 
     /**
      * @notice emitted when a user claimed a SBT
@@ -21,6 +33,34 @@ interface ISoulboundNFT {
      * @param sbtType SBT type
      */
     event SBTClaimed(address indexed to, uint tokenId, string sbtType);
+
+    /**
+     * @notice Get total supply of token
+     * @dev Only owner can see this
+     * @return uint Total supplyf of SBT tokens
+     */
+    function totalSupply() external view returns(uint);
+
+    /**
+     * @notice Add Verida account that provides proof to users
+     * @dev Only owner can do this
+     * @param account Company account to be added
+     */
+    function addCompanyAccount(address account) external;
+
+    /**
+     * @notice Remove Verida account that provides proof to users
+     * @dev Only owner can do this
+     * @param account Company account to be removed
+     */
+    function removeCompanyAccount(address account) external;
+
+    /**
+     * @notice Get list of company accounts 
+     * @dev Only owner can see this
+     * @return address[] list of company accounts
+     */
+    function listCompanyAccounts() external view returns(address[] memory);
 
     /**
      * @notice Add a new SBT type
@@ -34,7 +74,7 @@ interface ISoulboundNFT {
      * @dev Only the owner can remove
      * @param sbtType existing type to be removed
      */
-    function removeSBTType(string calldata sbtType) external;
+    // function removeSBTType(string calldata sbtType) external;
 
     /**
      * @notice Return the list of registered SBT types
