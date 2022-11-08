@@ -14,6 +14,18 @@ contract VeridaDIDRegistry is OwnableUpgradeable, IVeridaDIDRegistry {
   using EnumerableSet for EnumerableSet.StringSet;
 
   /**
+   * @notice Map of controllers
+   * @dev DID address => controller address
+   */
+  mapping (address => address) private _controllers;
+
+  /**
+   * @notice Flags for registered status
+   * @dev DID address => bool
+   */
+  mapping (address => bool) private _isRegistered;
+
+  /**
    * @notice Map of nonce
    * @dev DID address => nonce
    */
@@ -36,16 +48,15 @@ contract VeridaDIDRegistry is OwnableUpgradeable, IVeridaDIDRegistry {
    * @dev See {IVeridaDIDRegistry}
    */
   function register(address didAddress, string[] calldata endpoints, bytes calldata signature ) external override {
-
     {
-      bytes memory rawMsg = abi.encodePacked(didAddress);
+      bytes memory rawMsg = abi.encodePacked(didAddress, "/");
       for (uint i = 0; i < endpoints.length; i++) {
-        rawMsg = abi.encodePacked(rawMsg, endpoints[i]);
+        rawMsg = abi.encodePacked(rawMsg, endpoints[i], "/");
       }
 
       rawMsg = abi.encodePacked(rawMsg, _nonce[didAddress]);
 
-      require(VeridaDataVerificationLib.validateSignature(rawMsg, signature, didAddress), "Invalid Signature");
+      require(VeridaDataVerificationLib.validateSignature(rawMsg, signature, didAddress), "Invalid signature");
       _nonce[didAddress]++;
     }
 
@@ -56,16 +67,88 @@ contract VeridaDIDRegistry is OwnableUpgradeable, IVeridaDIDRegistry {
       list.add(endpoints[i]);
     }
 
+    _isRegistered[didAddress] = true;
+
     emit Register(didAddress, endpoints);
   }
 
   /**
    * @dev See {IVeridaDIDRegistry}
    */
-  function lookup(address didAddress) external view override returns(string[] memory) {
-    EnumerableSet.StringSet storage list = _endpoints[didAddress];
+  function revoke(address didAddress, bytes calldata signature) external override {
+    require(_isRegistered[didAddress], "Unregistered address");
+    {
+      address controller = _getController(didAddress);
+      bytes memory rawMsg = abi.encodePacked(
+        didAddress, 
+        "/revoke/",
+        _nonce[didAddress]);
+      
+      require(VeridaDataVerificationLib.validateSignature(rawMsg, signature, controller), "Invalid signature");
+      _nonce[didAddress]++;
+    }
 
+    delete _controllers[didAddress];
+
+    EnumerableSet.StringSet storage list = _endpoints[didAddress];
+    list.clear();
+
+    _isRegistered[didAddress] = false;
+
+    emit Revoke(didAddress);
+  }
+
+  /**
+   * @notice Internal function to get a controller of DID address
+   * @dev This is internal function to be used in another functions. Gas efficient than external function
+   * @param didAddress DID address
+   * @return address Controller of DID address
+   */
+  function _getController(address didAddress) internal view returns(address) {
+    if (_controllers[didAddress] == address(0x0))
+      return didAddress;
+    return _controllers[didAddress];
+  }
+
+  /**
+   * @dev See {IVeridaDIDRegistry}
+   */
+  function getController(address didAddress) external view override returns(address) {
+    return _getController(didAddress);
+  }
+
+  /**
+   * @dev See {IVeridaDIDRegistry}
+   */
+  function setController(address didAddress, address controller, bytes calldata signature) external override {
+    require(_isRegistered[didAddress], "Unregistered address");
+    {
+      address oldController = _getController(didAddress);
+      bytes memory rawMsg = abi.encodePacked(
+        didAddress, 
+        "/controller/",
+        controller,
+        "/",
+        _nonce[didAddress]);
+      
+      require(VeridaDataVerificationLib.validateSignature(rawMsg, signature, oldController), "Invalid signature");
+      _nonce[didAddress]++;
+    }
+
+    _controllers[didAddress] = controller;
+
+    emit SetController(didAddress, controller);
+  }
+
+  /**
+   * @dev See {IVeridaDIDRegistry}
+   */
+  function lookup(address didAddress) external view override returns(string[] memory) {
+    require(_isRegistered[didAddress], "Unregistered address");
+
+    EnumerableSet.StringSet storage list = _endpoints[didAddress];
     uint length = list.length();
+
     string[] memory ret = new string[](length);
 
     for (uint i = 0; i < length; i++) {
