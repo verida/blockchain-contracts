@@ -1,5 +1,14 @@
 {
-  "name": "hardhat-project",
+  "name": "@verida/SBT",
+  "version": "0.0.1",
+  "files": [
+    "artifacts",
+    "contracts",
+    "dist",
+    "typechain"
+  ],
+  "author": "Alex J <alex@verida.io, trust2ray@gmail.com>",
+  "license": "MIT",
   "devDependencies": {
     "@ethersproject/abi": "^5.7.0",
     "@ethersproject/providers": "^5.7.2",

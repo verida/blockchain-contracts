@@ -220,10 +220,15 @@ contract SoulboundNFT is VDAVerificationContract,
         require(_sbtInfo[sbtType][msg.sender] == 0, "Already claimed type");
         
         {
+            address stackDID = did;
             uint didNonce = getNonce(did);
             bytes memory params = abi.encodePacked(
                 sbtType,
+                "-",
                 uniqueId,
+                "-",
+                stackDID,
+                "-",
                 didNonce
             );
             verifyRequest(did, params, signature, proof);
@@ -285,9 +290,6 @@ contract SoulboundNFT is VDAVerificationContract,
         bytes32 paramsHash = keccak256(params);
         address paramSigner = ECDSAUpgradeable.recover(paramsHash, signature);
 
-        console.log("=========================");
-        console.log(paramSigner);
-        
         bool isVerified = false;
         uint index = 0;
 
@@ -295,14 +297,11 @@ contract SoulboundNFT is VDAVerificationContract,
             address account = _companyAccounts.at(index);
             bytes memory proofString = abi.encodePacked(
                 account,
+                '-',
                 paramSigner
             );
             bytes32 proofHash = keccak256(proofString);
             address proofSigner = ECDSAUpgradeable.recover(proofHash, proof);
-
-            console.log("********");
-            console.log(account);
-            console.log(proofSigner);
 
             if (proofSigner == account){
                 isVerified = true;
@@ -310,8 +309,6 @@ contract SoulboundNFT is VDAVerificationContract,
             }
             index++;
         }
-
-        console.log("=========================");
 
         require(isVerified, "Invalid proof");
         nonce[did]++;
