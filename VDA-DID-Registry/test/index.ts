@@ -65,7 +65,7 @@ const getRegisterSignature = async(did : string, endpoints: string[], signKey: s
 const getControllerSignature = async(did: string, controller: string, signKey: string) => {
   const rawMsg = ethers.utils.solidityPack(
     ['address', 'string', 'address', 'string'],
-    [did, '/controller/', controller, "/"]
+    [did, '/setController/', controller, "/"]
   )
   return await createVeridaSign(rawMsg, signKey, did);
 }
@@ -120,36 +120,6 @@ describe("Verida DIDRegistry", () => {
     await didReg.deployed();
   });
  
-  /*
-  describe("identityOwner()", () => {
-    const orgOwner = Wallet.createRandom()
-    const newOwner = Wallet.createRandom()
-    const testDID = orgOwner.address
-
-    describe("default owner", () => {
-      it("should return the identity address itself", async () => {
-        const owner = await didReg.identityOwner(testDID);
-        expect(owner).to.equal(orgOwner.address);
-      });
-    });
-
-    describe("changed owner", () => {
-      before(async () => {
-        const rawMsg = ethers.utils.solidityPack(
-          ['address', 'address'],
-          [testDID, newOwner.address]
-        )
-        const signature = await createVeridaSign(rawMsg, orgOwner.privateKey, testDID)
-        await didReg.changeOwner(testDID, newOwner.address, signature);
-      });
-      it("should return the chaged owner address", async () => {
-        const owner = await didReg.identityOwner(testDID);
-        expect(owner).to.equal(newOwner.address);
-      });
-    });
-  });
-  */
-
   describe("Register", () => {
     it("Should reject for invalid signature", async () => {
       const signature = await getRegisterSignature(did, endPoints_A, badSigner.privateKey)
@@ -168,6 +138,25 @@ describe("Verida DIDRegistry", () => {
       await expect(didReg.register(did, endPoints_B, signature)).to.emit(didReg, "Register");
 
       expect(await didReg.lookup(did)).to.deep.equal(endPoints_B);
+    })
+
+    it("Should reject for revoked DID address", async () => {
+      const tempDID = Wallet.createRandom();
+
+      // Register
+      let signature = await getRegisterSignature(tempDID.address, endPoints_A, tempDID.privateKey);
+      await expect(didReg.register(tempDID.address, endPoints_A, signature)).to.emit(didReg, "Register");
+      
+      // Revoke
+      signature = await getRevokeSignature(tempDID.address, tempDID.privateKey);
+      await expect(didReg.revoke(tempDID.address, signature)).to.emit(didReg, "Revoke");
+
+      signature = await getRegisterSignature(tempDID.address, endPoints_B, tempDID.privateKey);
+      await expect(didReg.register(
+        tempDID.address,
+        endPoints_B,
+        signature
+      )).to.be.rejectedWith("Revoked DID address");
     })
   })
 

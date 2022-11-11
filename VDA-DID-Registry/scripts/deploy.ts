@@ -5,37 +5,8 @@
 // Runtime Environment's members available in the global scope.
 import { ethers, upgrades } from "hardhat";
 import hre from "hardhat";
-import Axios from 'axios'
 
-const getMaticFee = async (isProd : boolean) => {
-  let maxFeePerGas = ethers.BigNumber.from(40000000000) // fallback to 40 gwei
-  let maxPriorityFeePerGas = ethers.BigNumber.from(40000000000) // fallback to 40 gwei
-  let gasLimit = ethers.BigNumber.from(50000000000) // fallback to 50 gwei
-
-  try {
-    const { data } = await Axios({
-        method: 'get',
-        url: isProd
-        ? 'https://gasstation-mainnet.matic.network/v2'
-        : 'https://gasstation-mumbai.matic.today/v2',
-    })
-    console.log('Result : ', data)
-    maxFeePerGas = ethers.utils.parseUnits(
-        Math.ceil(data.fast.maxFee) + '',
-        'gwei'
-    )
-    maxPriorityFeePerGas = ethers.utils.parseUnits(
-        Math.ceil(data.fast.maxPriorityFee) + '',
-        'gwei'
-    )
-  } catch {
-      // ignore
-      console.log('Error in get gasfee')
-  }
-
-  return {maxFeePerGas, maxPriorityFeePerGas, gasLimit}
-
-}
+import { saveDeployedAddress, getMaticFee } from "./utils";
 
 async function main() {
 
@@ -84,6 +55,11 @@ async function main() {
 
   await contract.deployed();
 
+  const proxyAddr = contract.address;
+  const adminAddr = await hre.upgrades.erc1967.getAdminAddress(proxyAddr)
+  const implAddr = await hre.upgrades.erc1967.getImplementationAddress(proxyAddr)
+  await saveDeployedAddress(proxyAddr, adminAddr, implAddr);
+  
   console.log("RegistryContract deployed to:", contract.address);
 }
 

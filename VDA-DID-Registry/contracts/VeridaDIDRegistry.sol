@@ -26,7 +26,7 @@ contract VeridaDIDRegistry is OwnableUpgradeable, IVeridaDIDRegistry {
   mapping (address => bool) private _isRegistered;
 
   /**
-   * @notice Map of nonce
+   * @notice Next nonce of DID
    * @dev DID address => nonce
    */
   mapping(address => uint) private _nonce;
@@ -48,6 +48,10 @@ contract VeridaDIDRegistry is OwnableUpgradeable, IVeridaDIDRegistry {
    * @dev See {IVeridaDIDRegistry}
    */
   function register(address didAddress, string[] calldata endpoints, bytes calldata signature ) external override {
+    if (_nonce[didAddress] != 0) {
+      require(_isRegistered[didAddress], "Revoked DID address");
+    }
+
     {
       bytes memory rawMsg = abi.encodePacked(didAddress, "/");
       for (uint i = 0; i < endpoints.length; i++) {
@@ -126,7 +130,7 @@ contract VeridaDIDRegistry is OwnableUpgradeable, IVeridaDIDRegistry {
       address oldController = _getController(didAddress);
       bytes memory rawMsg = abi.encodePacked(
         didAddress, 
-        "/controller/",
+        "/setController/",
         controller,
         "/",
         _nonce[didAddress]);
