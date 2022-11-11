@@ -1,7 +1,6 @@
 {
   "name": "vda-did-registry",
-  "version": "0.0.6",
-  "description": "A repository storing keys and other data about Ethereum Decentralized Identifiers (DIDs)",
+  "version": "0.0.1",
   "main": "artifacts/contracts/VeridaDIDRegistry.sol/VeridaDIDRegistry.json",
   "dependencies": {
     "@openzeppelin/contracts-upgradeable": "^4.7.2"
@@ -61,19 +60,17 @@
     "lint": "yarn lint:sol && yarn lint:js",
     "prettier": "prettier -w '**/*.{ts,js,json,md}'"
   },
-  "author": "Pelle Braendgaard <pelle.braendgaard@consensys.net>",
-  "contributors": [
-    "Mircea Nistor <mirceanis@gmail.com>"
-  ],
+  "author": "Alex J <alex@verida.io, trust2ray@gmail.com>",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git@github.com:uport-project/ethr-did-registry.git"
+    "url": "git@github.com:verida/blockchain-contracts.git"
   },
   "files": [
     "artifacts",
     "contracts",
     "dist",
-    "typechain"
+    "typechain",
+    "scripts/*.json"
   ]
 }
