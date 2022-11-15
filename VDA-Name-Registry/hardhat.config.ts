@@ -65,8 +65,8 @@ const config: HardhatUserConfig = {
       accounts: [PRIVATE_KEY!],
     },
     polygontestnet: {
-      // url: "http://44.234.36.28:8545",
-      url: "https://rpc-mumbai.maticvigil.com/",
+      url: "https://ca-admin:q9SBb1F58Lk275t0lPlKf4MN@polygon-mumbai.capturealpha.com",
+      // url: "https://rpc-mumbai.maticvigil.com",
       chainId: 80001,
       accounts: [PRIVATE_KEY!],
     },

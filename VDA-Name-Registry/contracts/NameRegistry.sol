@@ -19,7 +19,7 @@ contract NameRegistry is  OwnableUpgradeable {
     /**
      * @notice nonce for did
      */
-    mapping(address => uint) internal nonce;
+    mapping(address => uint) internal _nonce;
 
     /**
      * @notice Maximum names per DID.
@@ -59,8 +59,8 @@ contract NameRegistry is  OwnableUpgradeable {
      * @dev return nonce of a did
      * @param did DID address
      */
-    function getNonce(address did) public view returns(uint) {
-        return nonce[did];
+    function nonce(address did) public view returns(uint) {
+        return _nonce[did];
     }
 
     /**
@@ -74,7 +74,7 @@ contract NameRegistry is  OwnableUpgradeable {
         require(isValidSuffix(name), "Invalid suffix");
 
         {
-            uint didNonce = getNonce(did);
+            uint didNonce = nonce(did);
             bytes memory paramData = abi.encodePacked(
                 name,
                 did,
@@ -109,7 +109,7 @@ contract NameRegistry is  OwnableUpgradeable {
         require(did != address(0x0), "Invalid zero address");
 
         {
-            uint didNonce = getNonce(did);
+            uint didNonce = nonce(did);
             bytes memory paramData = abi.encodePacked(
                 name,
                 did,
@@ -141,7 +141,7 @@ contract NameRegistry is  OwnableUpgradeable {
      * @param name user name. Must be registered
      * @return DID address of user
      */
-    function findDid(string memory name) external view returns(address) {
+    function findDID(string memory name) external view returns(address) {
         name = name.lower();
 
         address callerDID = _nameToDID[name];
