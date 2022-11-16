@@ -32,7 +32,7 @@ const createVeridaSign = async (
 ) => {
   if (contract === undefined) return "";
 
-  const nonce = (await contract.getNonce(docDID)).toNumber();
+  const nonce = (await contract.nonce(docDID)).toNumber();
   rawMsg = ethers.utils.solidityPack(["bytes", "uint256"], [rawMsg, nonce]);
   const privateKeyArray = new Uint8Array(
     Buffer.from(privateKey.slice(2), "hex")
@@ -155,7 +155,7 @@ describe("NameRegistry", function () {
           const signature = await getRegisterSignature(name, did);
           await contract.register(name, did.address, signature);
 
-          expect(await contract.findDid(name)).to.be.eq(did.address);
+          expect(await contract.findDID(name)).to.be.eq(did.address);
         }
       });
     });
@@ -240,19 +240,19 @@ describe("NameRegistry", function () {
 
   describe("Find DID", () => {
     it("Failed : Unregistered name", async () => {
-      await expect(contract.findDid(testNames[3])).to.be.rejectedWith(
+      await expect(contract.findDID(testNames[3])).to.be.rejectedWith(
         "Unregistered name"
       );
 
       await expect(
-        contract.connect(accountList[1]).findDid(testNames[3])
+        contract.connect(accountList[1]).findDID(testNames[3])
       ).to.be.rejectedWith("Unregistered name");
     });
 
     it("Successfully get DID", async () => {
-      expect(await contract.findDid(testNames[0])).to.equal(dids[0].address);
-      expect(await contract.findDid(testNames[1])).to.equal(dids[0].address);
-      expect(await contract.findDid(testNames[2])).to.equal(dids[0].address);
+      expect(await contract.findDID(testNames[0])).to.equal(dids[0].address);
+      expect(await contract.findDID(testNames[1])).to.equal(dids[0].address);
+      expect(await contract.findDID(testNames[2])).to.equal(dids[0].address);
     });
   });
 

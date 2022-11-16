@@ -58,7 +58,7 @@ async function main() {
   const proxyAddr = contract.address;
   const adminAddr = await hre.upgrades.erc1967.getAdminAddress(proxyAddr)
   const implAddr = await hre.upgrades.erc1967.getImplementationAddress(proxyAddr)
-  await saveDeployedAddress(proxyAddr, adminAddr, implAddr);
+  await saveDeployedAddress(hre.network.name, proxyAddr, adminAddr, implAddr);
   
   console.log("RegistryContract deployed to:", contract.address);
 }

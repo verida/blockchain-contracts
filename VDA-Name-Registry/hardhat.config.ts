@@ -60,13 +60,14 @@ const config: HardhatUserConfig = {
       accounts: [PRIVATE_KEY!],
     },
     polygonmainnet: {
-      url: "https://polygon-rpc.com/",
+      // url: "https://polygon-rpc.com/",
+      url: "https://polygon-mainnet.g.alchemy.com/v2/JT3kfJ7hivnlA2dtPNpw3ahJCjhW26EV",
       chainId: 137,
       accounts: [PRIVATE_KEY!],
     },
     polygontestnet: {
-      // url: "http://44.234.36.28:8545",
-      url: "https://rpc-mumbai.maticvigil.com/",
+      // url: "https://rpc-mumbai.maticvigil.com",
+      url: "https://polygon-mumbai.g.alchemy.com/v2/PAsQgyEm6lFytuZqbJQfZHWrP-0MZmsK",
       chainId: 80001,
       accounts: [PRIVATE_KEY!],
     },
