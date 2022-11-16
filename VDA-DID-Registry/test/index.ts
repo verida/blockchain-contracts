@@ -132,12 +132,12 @@ describe("Verida DIDRegistry", () => {
     })
 
     it("Should update for already registered DID address", async () => {
-      expect(await didReg.lookup(did)).to.deep.equal(endPoints_A);
+      expect((await didReg.lookup(did))[1]).to.deep.equal(endPoints_A);
 
       const signature = await getRegisterSignature(did, endPoints_B, identity.privateKey)
       await expect(didReg.register(did, endPoints_B, signature)).to.emit(didReg, "Register");
 
-      expect(await didReg.lookup(did)).to.deep.equal(endPoints_B);
+      expect((await didReg.lookup(did))[1]).to.deep.equal(endPoints_B);
     })
 
     it("Should reject for revoked DID address", async () => {
@@ -162,7 +162,7 @@ describe("Verida DIDRegistry", () => {
 
   describe("Lookup", () => {
     it("Get endopints registered", async () => {
-      const list = await didReg.lookup(did);
+      const list = (await didReg.lookup(did))[1];
       expect(list).to.deep.equal(endPoints_B);
     })
 
@@ -176,7 +176,7 @@ describe("Verida DIDRegistry", () => {
       const signature = await getRegisterSignature(testDID.address, endPoints_Empty, testDID.privateKey)
       await expect(didReg.register(testDID.address, endPoints_Empty, signature)).to.emit(didReg, "Register");
 
-      expect(await didReg.lookup(testDID.address)).to.deep.equal(endPoints_Empty);
+      expect((await didReg.lookup(testDID.address))[1]).to.deep.equal(endPoints_Empty);
     })
 
     it("Should reject for revoked DID", async () => {
@@ -185,7 +185,7 @@ describe("Verida DIDRegistry", () => {
       // Register
       let signature = await getRegisterSignature(testDID.address, endPoints_A, testDID.privateKey);
       await didReg.register(testDID.address, endPoints_A, signature);
-      expect(await didReg.lookup(testDID.address)).to.deep.equal(endPoints_A);
+      expect((await didReg.lookup(testDID.address))[1]).to.deep.equal(endPoints_A);
 
       expect(await didReg.getController(testDID.address)).to.equal(testDID.address);
       // Revoke

@@ -147,7 +147,7 @@ contract VeridaDIDRegistry is OwnableUpgradeable, IVeridaDIDRegistry {
   /**
    * @dev See {IVeridaDIDRegistry}
    */
-  function lookup(address didAddress) external view override returns(string[] memory) {
+  function lookup(address didAddress) external view override returns(address, string[] memory) {
     require(_isRegistered[didAddress], "Unregistered address");
 
     EnumerableSet.StringSet storage list = _endpoints[didAddress];
@@ -159,7 +159,7 @@ contract VeridaDIDRegistry is OwnableUpgradeable, IVeridaDIDRegistry {
       ret[i] = list.at(i);
     }
 
-    return ret;
+    return (_getController(didAddress), ret);
   }
 
   /**

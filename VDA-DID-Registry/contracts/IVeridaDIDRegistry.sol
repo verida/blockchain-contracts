@@ -59,9 +59,10 @@ interface IVeridaDIDRegistry {
     /**
      * @notice Lookup the endpoints for a given DID address
      * @param didAddress : DID address.
+     * @return address Address of controller
      * @return string[] Array of endpoints for a given DID address
      */
-    function lookup(address didAddress) external view returns(string[] memory);
+    function lookup(address didAddress) external view returns(address, string[] memory);
 
     /**
      * @notice Obtain the nonce for a DID address
