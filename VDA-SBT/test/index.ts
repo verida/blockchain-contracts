@@ -78,18 +78,18 @@ describe("Verida Soulbound", () => {
             it("Failed : non-owner", async () => {
                 await expect(contract
                     .connect(veridians[0])
-                    .addCompanyAccount(companyAccounts[0].address))
+                    .addTrustedAddress(companyAccounts[0].address))
                 .to.be.rejectedWith("Ownable: caller is not the owner");
             })
 
             it("Success", async () => {
-                await expect(contract.addCompanyAccount(companyAccounts[0].address))
-                    .to.emit(contract, "AddCompanyAccount")
+                await expect(contract.addTrustedAddress(companyAccounts[0].address))
+                    .to.emit(contract, "AddTrustedAddress")
                     .withArgs(companyAccounts[0].address);
             })
 
             it("Failed : Existing account", async () => {
-                await expect(contract.addCompanyAccount(companyAccounts[0].address))
+                await expect(contract.addTrustedAddress(companyAccounts[0].address))
                     .to.be.rejectedWith("Existing account");
             })
         })
@@ -98,35 +98,35 @@ describe("Verida Soulbound", () => {
             it("Failed : non-owner", async () => {
                 await expect(contract
                     .connect(veridians[0])
-                    .removeCompanyAccount(companyAccounts[0].address))
+                    .removeTrustedAddress(companyAccounts[0].address))
                 .to.be.rejectedWith("Ownable: caller is not the owner");
             })
 
             it("Success", async () => {
-                await expect(contract.removeCompanyAccount(companyAccounts[0].address))
-                    .to.emit(contract, "RemoveCompanyAccount")
+                await expect(contract.removeTrustedAddress(companyAccounts[0].address))
+                    .to.emit(contract, "RemoveTrustedAddress")
                     .withArgs(companyAccounts[0].address);
             })
 
             it("Failed : Invalid account", async () => {
                 // Not registered account
-                await expect(contract.removeCompanyAccount(companyAccounts[1].address))
+                await expect(contract.removeTrustedAddress(companyAccounts[1].address))
                     .to.be.rejectedWith("Invalid account");
 
                 // Already removed account
-                await expect(contract.removeCompanyAccount(companyAccounts[0].address))
+                await expect(contract.removeTrustedAddress(companyAccounts[0].address))
                     .to.be.rejectedWith("Invalid account");
             })
         })
 
         it("List company accounts", async () => {
-            expect((await contract.listCompanyAccounts()).length).to.be.equal(0);
+            expect((await contract.getTrustedAddresses()).length).to.be.equal(0);
 
-            await contract.addCompanyAccount(companyAccounts[0].address);
-            expect((await contract.listCompanyAccounts()).length).to.be.equal(1);
+            await contract.addTrustedAddress(companyAccounts[0].address);
+            expect((await contract.getTrustedAddresses()).length).to.be.equal(1);
 
-            await contract.removeCompanyAccount(companyAccounts[0].address);
-            expect((await contract.listCompanyAccounts()).length).to.be.equal(0);
+            await contract.removeTrustedAddress(companyAccounts[0].address);
+            expect((await contract.getTrustedAddresses()).length).to.be.equal(0);
         })
     })
 
@@ -229,7 +229,7 @@ describe("Verida Soulbound", () => {
         })
 
         it("Failed : VerifyRequest - No company accounts in contract", async () => {
-            expect((await contract.listCompanyAccounts()).length).to.be.eq(0);
+            expect((await contract.getTrustedAddresses()).length).to.be.eq(0);
             await expect(contract.connect(claimer).claimSBT(
                 did.address,
                 sbtType,
@@ -241,9 +241,9 @@ describe("Verida Soulbound", () => {
 
         it("Add Company accounts to contract", async () => {
             for (let i = 0; i < companyAccounts.length; i++) {
-                await contract.addCompanyAccount(companyAccounts[i].address);
+                await contract.addTrustedAddress(companyAccounts[i].address);
             }
-            expect((await contract.listCompanyAccounts()).length).to.be.eq(companyAccounts.length);
+            expect((await contract.getTrustedAddresses()).length).to.be.eq(companyAccounts.length);
         })
 
         it("Failed : VerifyRequest - Invalid proof", async () => {

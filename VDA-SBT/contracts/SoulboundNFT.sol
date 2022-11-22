@@ -139,27 +139,27 @@ contract SoulboundNFT is VDAVerificationContract,
     /**
      * @dev See {ISoulboundNFT}
      */
-    function addCompanyAccount(address account) external onlyOwner override {
+    function addTrustedAddress(address account) external onlyOwner override {
         require(!_companyAccounts.contains(account), "Existing account");
         _companyAccounts.add(account);
 
-        emit AddCompanyAccount(account);
+        emit AddTrustedAddress(account);
     }
 
     /**
      * @dev See {ISoulboundNFT}
      */
-    function removeCompanyAccount(address account) external onlyOwner override {
+    function removeTrustedAddress(address account) external onlyOwner override {
         require(_companyAccounts.contains(account), "Invalid account");
         _companyAccounts.remove(account);
 
-        emit RemoveCompanyAccount(account);
+        emit RemoveTrustedAddress(account);
     }
 
     /**
      * @dev See {ISoulboundNFT}
      */
-    function listCompanyAccounts() external view override returns(address[] memory) {
+    function getTrustedAddresses() external view override returns(address[] memory) {
         uint length = _companyAccounts.length();
         address[] memory list = new address[](length);
         for (uint i = 0; i < length; i++) {

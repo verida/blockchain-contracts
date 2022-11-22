@@ -6,13 +6,13 @@ interface ISoulboundNFT {
      * @notice emitted when a company account added
      * @param account Company account added
      */
-    event AddCompanyAccount(address account);
+    event AddTrustedAddress(address account);
 
     /**
      * @notice emitted when a company account removed
      * @param account Company account removed
      */
-    event RemoveCompanyAccount(address account);
+    event RemoveTrustedAddress(address account);
 
     /**
      * @notice emitted when a new SBT type added
@@ -46,21 +46,21 @@ interface ISoulboundNFT {
      * @dev Only owner can do this
      * @param account Company account to be added
      */
-    function addCompanyAccount(address account) external;
+    function addTrustedAddress(address account) external;
 
     /**
      * @notice Remove Verida account that provides proof to users
      * @dev Only owner can do this
      * @param account Company account to be removed
      */
-    function removeCompanyAccount(address account) external;
+    function removeTrustedAddress(address account) external;
 
     /**
      * @notice Get list of company accounts 
      * @dev Only owner can see this
      * @return address[] list of company accounts
      */
-    function listCompanyAccounts() external view returns(address[] memory);
+    function getTrustedAddresses() external view returns(address[] memory);
 
     /**
      * @notice Add a new SBT type
