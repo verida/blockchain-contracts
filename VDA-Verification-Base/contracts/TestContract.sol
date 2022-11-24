@@ -5,8 +5,13 @@ import "./VDAVerificationContract.sol";
 
 contract TestContract is VDAVerificationContract {
 
+    using EnumerableSetUpgradeable for EnumerableSetUpgradeable.AddressSet;
+
+    EnumerableSetUpgradeable.AddressSet validSigners;
+
     function initialize() public initializer {
         __VDAVerificationContract_init();
+        
     }
 
     function testSign(address did, string calldata name, string calldata value, bytes calldata signature , bytes calldata proof) external {
@@ -17,7 +22,10 @@ contract TestContract is VDAVerificationContract {
             didNonce
         );
 
-        verifyRequest(did, paramData, signature, proof);
+        if (!validSigners.contains(did)) {
+            validSigners.add(did);
+        }
+        verifyRequest(did, validSigners, paramData, signature, proof);
     }
 
     function testRawStringData(address did, bytes calldata rawData, bytes calldata signature, bytes calldata proof) external {
@@ -27,6 +35,9 @@ contract TestContract is VDAVerificationContract {
             didNonce
         );
 
-        verifyRequest(did, _unsignedData, signature, proof);
+        if (!validSigners.contains(did)) {
+            validSigners.add(did);
+        }
+        verifyRequest(did, validSigners, _unsignedData, signature, proof);
     }
 }

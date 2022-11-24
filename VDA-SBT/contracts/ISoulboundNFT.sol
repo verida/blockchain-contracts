@@ -14,11 +14,11 @@ interface ISoulboundNFT {
      */
     event RemoveTrustedAddress(address account);
 
-    /**
-     * @notice emitted when a new SBT type added
-     * @param sbtType Added SBT type
-     */
-    event AddSBTType(string indexed sbtType);
+    // /**
+    //  * @notice emitted when a new SBT type added
+    //  * @param sbtType Added SBT type
+    //  */
+    // event AddSBTType(string indexed sbtType);
 
     /**
      * @notice emitted when a SBT type removed
@@ -62,18 +62,11 @@ interface ISoulboundNFT {
      */
     function getTrustedAddresses() external view returns(address[] memory);
 
-    /**
-     * @notice Add a new SBT type
-     * @dev Only the owner can add
-     * @param sbtType new type to be added
-     */
-    function addSBTType(string calldata sbtType) external;
-
-    /**
-     * @notice Remove a existing SBT type
-     * @dev Only the owner can remove
-     * @param sbtType existing type to be removed
-     */
+    // /**
+    //  * @notice Remove a existing SBT type
+    //  * @dev Only the owner can remove
+    //  * @param sbtType existing type to be removed
+    //  */
     // function removeSBTType(string calldata sbtType) external;
 
     /**
@@ -90,6 +83,8 @@ interface ISoulboundNFT {
      * @param sbtType Existing SBT type
      * @param uniqueId Unique id of SBT. Forexample twitter account id.
      * @param signature Signature signed by did
+     * @param sbtURI Token URI to be set
+     * @param recipient Token receiver
      * @param proof Proof provided by Verida-server
      * @return uint Claimed tokenId
      */
@@ -97,6 +92,8 @@ interface ISoulboundNFT {
         address did,
         string calldata sbtType,
         string calldata uniqueId,
+        string calldata sbtURI,
+        address recipient,
         bytes calldata signature,
         bytes calldata proof
     ) external returns(uint);

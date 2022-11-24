@@ -2,9 +2,9 @@
 pragma solidity ^0.8.7;
 
 import "@openzeppelin/contracts-upgradeable/token/ERC721/extensions/IERC721MetadataUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/token/ERC721/ERC721Upgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC721/extensions/ERC721URIStorageUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/CountersUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/utils/structs/EnumerableSetUpgradeable.sol";
+// import "@openzeppelin/contracts-upgradeable/utils/structs/EnumerableSetUpgradeable.sol";
 
 import "@verida/vda-verification-contract/contracts/VDAVerificationContract.sol";
 import "@verida/name-registry/contracts/EnumerableSet.sol";
@@ -16,7 +16,7 @@ import "hardhat/console.sol";
 
 contract SoulboundNFT is VDAVerificationContract, 
     IERC721MetadataUpgradeable,
-    ERC721Upgradeable, 
+    ERC721URIStorageUpgradeable, 
     IERC5192, 
     ISoulboundNFT {
     using CountersUpgradeable for CountersUpgradeable.Counter;
@@ -27,7 +27,7 @@ contract SoulboundNFT is VDAVerificationContract,
      * @notice Verida wallets that provide proof
      * @dev Only owner can mange this list
      */
-    EnumerableSetUpgradeable.AddressSet private _companyAccounts;
+    EnumerableSetUpgradeable.AddressSet private _trustedAddresses;
 
     /**
      * @notice tokenId counter
@@ -40,27 +40,24 @@ contract SoulboundNFT is VDAVerificationContract,
      */
     EnumerableSet.StringSet private _sbtTypes;
 
-    /**
-     * @notice Claimed SBT info by SBT type
-     * @dev mapping of SBTType => (user => tokenId)
-     */
-    mapping(string => mapping(address => uint)) private _sbtInfo;
-
     // /**
-    //  * @notice Claimed SBT info by users
-    //  * @dev Used to allow one sbt per type
+    //  * @notice Claimed SBT info by SBT type
+    //  * @dev mapping of SBTType => (user => tokenId)
     //  */
-    // mapping(address => mapping(string => bool)) private _userInfo;
+    // mapping(string => mapping(address => uint)) private _sbtInfo;
+
+    /**
+     * @notice Claimed SBT info by users
+     * @dev mapping of User => (SBTType => tokenId)
+     */
+    mapping(address => mapping(string => uint)) private _userInfo;
 
     /** 
      * @notice SBT type of tokenId
      */
     mapping(uint => string) private _tokenSBTType;
 
-    modifier onlyValidSBTType(string calldata sbtType) {
-        require(_sbtTypes.contains(sbtType), "Invalid SBT type");
-        _;
-    }
+    
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -83,10 +80,10 @@ contract SoulboundNFT is VDAVerificationContract,
     function tokenURI(uint256 tokenId)
         public
         view
-        override(IERC721MetadataUpgradeable, ERC721Upgradeable)
+        override(IERC721MetadataUpgradeable, ERC721URIStorageUpgradeable)
         returns (string memory)
     {
-        return ERC721Upgradeable.tokenURI(tokenId);
+        return ERC721URIStorageUpgradeable.tokenURI(tokenId);
     }
 
     /**
@@ -140,8 +137,8 @@ contract SoulboundNFT is VDAVerificationContract,
      * @dev See {ISoulboundNFT}
      */
     function addTrustedAddress(address account) external onlyOwner override {
-        require(!_companyAccounts.contains(account), "Existing account");
-        _companyAccounts.add(account);
+        require(!_trustedAddresses.contains(account), "Existing account");
+        _trustedAddresses.add(account);
 
         emit AddTrustedAddress(account);
     }
@@ -150,8 +147,8 @@ contract SoulboundNFT is VDAVerificationContract,
      * @dev See {ISoulboundNFT}
      */
     function removeTrustedAddress(address account) external onlyOwner override {
-        require(_companyAccounts.contains(account), "Invalid account");
-        _companyAccounts.remove(account);
+        require(_trustedAddresses.contains(account), "Invalid account");
+        _trustedAddresses.remove(account);
 
         emit RemoveTrustedAddress(account);
     }
@@ -160,23 +157,44 @@ contract SoulboundNFT is VDAVerificationContract,
      * @dev See {ISoulboundNFT}
      */
     function getTrustedAddresses() external view override returns(address[] memory) {
-        uint length = _companyAccounts.length();
+        uint length = _trustedAddresses.length();
         address[] memory list = new address[](length);
         for (uint i = 0; i < length; i++) {
-            list[i] = _companyAccounts.at(i);
+            list[i] = _trustedAddresses.at(i);
         }
 
         return list;
     }
 
     /**
-     * @dev See {ISoulboundNFT}
+     * @notice Validate SBT type
+     * @dev Reject transaction if SBTType is invalid
+     * @param sbtType SBT Type
      */
-    function addSBTType(string calldata sbtType) external onlyOwner override {
+    function isValidSBTType(string calldata sbtType) private view returns(bool) {
+        bool isValid = true;
+        if (!_sbtTypes.contains(sbtType)) {
+            bytes memory charSet = bytes(sbtType);
+            for (uint i = 0; i < charSet.length && isValid; i++) {
+                if (!(charSet[i] >= 0x61 && charSet[i] <= 0x7a) 
+                    && !(charSet[i] >= 0x30 && charSet[i] <= 0x39)
+                    && charSet[i] != 0x2d)
+                    isValid = false;
+            }
+        }
+        return isValid;
+    }
+
+    /**
+     * @notice Add a new SBT type
+     * @dev Only the owner can add
+     * @param sbtType new type to be added
+     */
+    function addSBTType(string calldata sbtType) internal {
         require(!_sbtTypes.contains(sbtType), "Existing SBT type");
         _sbtTypes.add(sbtType);
 
-        emit AddSBTType(sbtType);
+        // emit AddSBTType(sbtType);
     }
 
     /**
@@ -214,34 +232,49 @@ contract SoulboundNFT is VDAVerificationContract,
         address did,
         string calldata sbtType,
         string calldata uniqueId,
+        string calldata sbtURI,
+        address recipient,
         bytes calldata signature,
         bytes calldata proof
-    ) external onlyValidSBTType(sbtType) override returns(uint) {
-        require(_sbtInfo[sbtType][msg.sender] == 0, "Already claimed type");
-        
+    ) external override returns(uint) {
+
+        require(isValidSBTType(sbtType), "Invalid SBT type");
         {
-            address stackDID = did;
-            uint didNonce = getNonce(did);
             bytes memory params = abi.encodePacked(
+                did,
+                "-",
                 sbtType,
                 "-",
                 uniqueId,
+                "-");
+            params = abi.encodePacked(
+                params,
+                sbtURI,
                 "-",
-                stackDID,
-                "-",
-                didNonce
-            );
-            verifyRequest(did, params, signature, proof);
+                recipient,
+                "-");
+            params = abi.encodePacked(
+                params,
+                getNonce(did));
+            verifyRequest(did, _trustedAddresses, params, signature, proof);
         }
+
+        require(_userInfo[recipient][sbtType] == 0, "Already claimed type");
 
         _tokenIdCounter.increment();
         uint256 tokenId = _tokenIdCounter.current();
-        _safeMint(msg.sender, tokenId);
+        _safeMint(recipient, tokenId);
 
-        _sbtInfo[sbtType][msg.sender] = tokenId;
+        // SetTokenURI
+        _setTokenURI(tokenId, sbtURI);
+
+        _userInfo[recipient][sbtType] = tokenId;
         _tokenSBTType[tokenId] = sbtType;
 
-        emit SBTClaimed(msg.sender, tokenId, sbtType);
+        emit SBTClaimed(recipient, tokenId, sbtType);
+
+        // Register SBTType
+        addSBTType(sbtType);
 
         return tokenId;
     }
@@ -257,7 +290,7 @@ contract SoulboundNFT is VDAVerificationContract,
         string memory sbtType;
         for (uint i = 0; i < _sbtTypes.length(); i++) {
             sbtType = _sbtTypes.at(i);
-            if (_sbtInfo[sbtType][msg.sender] != 0) {
+            if (_userInfo[msg.sender][sbtType] != 0) {
                 sbtList[index] = sbtType;
                 index++;
             }
@@ -268,8 +301,8 @@ contract SoulboundNFT is VDAVerificationContract,
     /**
      * @dev See {IsoulboundNFT}
      */
-    function isSBTClaimed(string calldata sbtType) external view onlyValidSBTType(sbtType) override returns(bool) {
-        return _sbtInfo[sbtType][msg.sender] > 0;
+    function isSBTClaimed(string calldata sbtType) external view override returns(bool) {
+        return _userInfo[msg.sender][sbtType] > 0;
     }
 
     /**
@@ -281,36 +314,4 @@ contract SoulboundNFT is VDAVerificationContract,
         return _tokenSBTType[tokenId];
     }
 
-    /**
-     * @dev Override function of VDA-Verification-Base/VDAVerificationContract.sol
-     */
-    function verifyRequest(address did, bytes memory params, bytes calldata signature, bytes calldata proof) internal override {
-        require(_companyAccounts.length() > 0, "No company accounts");
-
-        bytes32 paramsHash = keccak256(params);
-        address paramSigner = ECDSAUpgradeable.recover(paramsHash, signature);
-
-        bool isVerified = false;
-        uint index = 0;
-
-        while (index < _companyAccounts.length() && !isVerified) {
-            address account = _companyAccounts.at(index);
-            bytes memory proofString = abi.encodePacked(
-                account,
-                '-',
-                paramSigner
-            );
-            bytes32 proofHash = keccak256(proofString);
-            address proofSigner = ECDSAUpgradeable.recover(proofHash, proof);
-
-            if (proofSigner == account){
-                isVerified = true;
-                break;
-            }
-            index++;
-        }
-
-        require(isVerified, "Invalid proof");
-        nonce[did]++;
-    }
 }

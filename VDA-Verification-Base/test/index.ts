@@ -94,8 +94,8 @@ describe("VDA Verification base", () => {
         const signature = await getTestDataSignature()
 
         const rawProof = ethers.utils.solidityPack(
-            ['string', 'address', 'string', 'address'],
-            ['did:vda:', did.address, '-', paramSigner.address]
+            ['address', 'string', 'address'],
+            [ did.address, '-', paramSigner.address]
         )
         const proof = await createProofSign(rawProof, did.privateKey)
 
@@ -117,8 +117,8 @@ describe("VDA Verification base", () => {
         const signature = await createVeridaSign(rawMsg, paramSigner.privateKey, did.address)
 
         const rawProof = ethers.utils.solidityPack(
-            ['string', 'address', 'string', 'address'],
-            ['did:vda:', did.address, '-', paramSigner.address]
+            ['address', 'string', 'address'],
+            [ did.address, '-', paramSigner.address]
         )
         const proof = await createProofSign(rawProof, did.privateKey)
 
