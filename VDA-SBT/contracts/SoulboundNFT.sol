@@ -40,12 +40,6 @@ contract SoulboundNFT is VDAVerificationContract,
      */
     EnumerableSet.StringSet private _sbtTypes;
 
-    // /**
-    //  * @notice Claimed SBT info by SBT type
-    //  * @dev mapping of SBTType => (user => tokenId)
-    //  */
-    // mapping(string => mapping(address => uint)) private _sbtInfo;
-
     /**
      * @notice Claimed SBT info by users
      * @dev mapping of User => (SBTType => tokenId)
@@ -167,7 +161,7 @@ contract SoulboundNFT is VDAVerificationContract,
     }
 
     /**
-     * @notice Validate SBT type
+     * @notice Check characters of SBTType
      * @dev Reject transaction if SBTType is invalid
      * @param sbtType SBT Type
      */
@@ -191,39 +185,11 @@ contract SoulboundNFT is VDAVerificationContract,
      * @param sbtType new type to be added
      */
     function addSBTType(string calldata sbtType) internal {
-        require(!_sbtTypes.contains(sbtType), "Existing SBT type");
-        _sbtTypes.add(sbtType);
+        if (!_sbtTypes.contains(sbtType))
+            _sbtTypes.add(sbtType);
 
-        // emit AddSBTType(sbtType);
     }
 
-    /**
-     * @dev See {ISoulboundNFT}
-     */
-    /*
-    function removeSBTType(string calldata sbtType) external onlyOwner override {
-        require(_sbtTypes.contains(sbtType), "Not registered type");
-        _sbtTypes.remove(sbtType);
-
-        emit RemoveSBTType(sbtType);
-    }
-    */
-
-    /**
-     * @dev See {ISoulboundNFT}
-     */
-    function allowedSBTTypes() external view override returns(string[] memory) {
-        // To-do
-        uint length = _sbtTypes.length();
-
-        string[] memory sbtTypeList = new string[](length);
-
-        for (uint i = 0; i < length; i++) {
-            sbtTypeList[i] = _sbtTypes.at(i);
-        }
-
-        return sbtTypeList;
-    }
 
     /**
      * @dev See {IsoulboundNFT}

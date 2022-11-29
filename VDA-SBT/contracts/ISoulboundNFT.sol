@@ -14,18 +14,6 @@ interface ISoulboundNFT {
      */
     event RemoveTrustedAddress(address account);
 
-    // /**
-    //  * @notice emitted when a new SBT type added
-    //  * @param sbtType Added SBT type
-    //  */
-    // event AddSBTType(string indexed sbtType);
-
-    /**
-     * @notice emitted when a SBT type removed
-     * @param sbtType Removed SBT type
-     */
-    // event RemoveSBTType(string indexed sbtType);
-
     /**
      * @notice emitted when a user claimed a SBT
      * @param to address that claims the SBT
@@ -68,13 +56,6 @@ interface ISoulboundNFT {
     //  * @param sbtType existing type to be removed
     //  */
     // function removeSBTType(string calldata sbtType) external;
-
-    /**
-     * @notice Return the list of registered SBT types
-     * @dev Anyone can request this
-     * @return string[] SBT types array
-     */
-    function allowedSBTTypes() external view returns(string[] memory);
 
     /**
      * @notice Claim a SBT type to requested user
