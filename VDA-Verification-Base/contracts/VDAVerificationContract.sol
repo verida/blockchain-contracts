@@ -4,7 +4,11 @@ pragma solidity ^0.8.9;
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/cryptography/ECDSAUpgradeable.sol";
 
+import "@openzeppelin/contracts-upgradeable/utils/structs/EnumerableSetUpgradeable.sol";
+
 contract VDAVerificationContract is OwnableUpgradeable {
+
+    using EnumerableSetUpgradeable for EnumerableSetUpgradeable.AddressSet;
 
     mapping(address => uint) internal nonce;
     
@@ -20,20 +24,39 @@ contract VDAVerificationContract is OwnableUpgradeable {
         return nonce[did];
     }
 
-    function verifyRequest(address did, bytes memory params, bytes calldata signature, bytes calldata proof) internal {
+    function verifyRequest(
+        address did, 
+        EnumerableSetUpgradeable.AddressSet storage validSigners,
+        bytes memory params, 
+        bytes calldata signature, 
+        bytes calldata proof
+    ) internal virtual {
+        require(validSigners.length() > 0, "No signers available");
+
         bytes32 paramsHash = keccak256(params);
-        address paramSigner = ECDSAUpgradeable.recover(paramsHash, signature);
+        address contextSigner = ECDSAUpgradeable.recover(paramsHash, signature);
 
-        bytes memory proofString = abi.encodePacked(
-            "did:vda:",
-            did,
-            "-",
-            paramSigner
-        );
-        bytes32 proofHash = keccak256(proofString);
-        address proofSigner = ECDSAUpgradeable.recover(proofHash, proof);
-        require(proofSigner == did, "Invalid proof");
+        bool isVerified = false;
+        uint index = 0;
 
+        while (index < validSigners.length() && !isVerified) {
+            address account = validSigners.at(index);
+            bytes memory proofString = abi.encodePacked(
+                account,
+                '-',
+                contextSigner
+            );
+            bytes32 proofHash = keccak256(proofString);
+            address didSigner = ECDSAUpgradeable.recover(proofHash, proof);
+
+            if (didSigner == account){
+                isVerified = true;
+                break;
+            }
+            index++;
+        }
+
+        require(isVerified, "Invalid proof");
         nonce[did]++;
     }
 }
