@@ -1,5 +1,18 @@
 {
-  "name": "hardhat-project",
+  "name": "@verida/vda-did-linkage-contract",
+  "description": "DID linkage contract of Verida",
+  "version": "0.0.1",
+  "author": "Alex J <alex@verida.io, trust2ray@gmail.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:verida/blockchain-contracts.git"
+  },
+  "files": [
+    "artifacts",
+    "contracts",
+    "typechain"
+  ],
   "devDependencies": {
     "@ethersproject/abi": "^5.7.0",
     "@ethersproject/providers": "^5.7.2",

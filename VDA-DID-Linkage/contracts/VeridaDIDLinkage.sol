@@ -3,10 +3,14 @@ pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/structs/EnumerableSetUpgradeable.sol";
+import "@verida/vda-verification-contract/contracts/VDAVerificationContract.sol";
 
 import "./IVeridaDIDLinkage.sol";
 
-contract VeridaDIDLinkage is IVeridaDIDLinkage, OwnableUpgradeable {
+contract VeridaDIDLinkage is VDAVerificationContract,
+    IVeridaDIDLinkage, 
+    OwnableUpgradeable 
+{
 
     using EnumerableSetUpgradeable for EnumerableSetUpgradeable.AddressSet;
 
@@ -22,7 +26,7 @@ contract VeridaDIDLinkage is IVeridaDIDLinkage, OwnableUpgradeable {
     * @notice Initialize
     */
     function initialize() public initializer {
-    __Ownable_init();
+        __VDAVerificationContract_init();
     }
 
     /**
@@ -101,19 +105,14 @@ contract VeridaDIDLinkage is IVeridaDIDLinkage, OwnableUpgradeable {
     }
 
     /**
-     * Temporary function for test
-     */
-    function verifyRequest(address did, bytes memory params, bytes calldata signature, bytes calldata proof) internal {
-    }
-
-    /**
      * @dev See {IVeridaDIDLinkage}
      */
     function link(
         address did, 
         string calldata identifier, 
         bytes calldata signature,
-        bytes calldata signatureProof) external {
+        bytes calldata signatureProof) external 
+    {
 
         string memory kind;
         string memory id;
