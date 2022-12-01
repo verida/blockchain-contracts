@@ -40,4 +40,30 @@ contract TestContract is VDAVerificationContract {
         }
         verifyRequest(did, validSigners, _unsignedData, signature, proof);
     }
+
+    function recoverTest(bytes calldata params, bytes calldata signature) external pure returns(address){
+        bytes32 paramHash = keccak256(params);
+        address signer = ECDSAUpgradeable.recover(paramHash, signature);
+
+        return signer;
+    }
+
+    function rawRecover(string calldata params, bytes calldata signature) external pure returns(address) {
+        bytes32 paramHash = keccak256(bytes(params));
+        address signer = ECDSAUpgradeable.recover(paramHash, signature);
+
+        return signer;
+    }
+
+    function rawRecoverAddress(address addr1, address addr2, bytes calldata signature) external view returns(address) {
+        string memory strAddr1 = StringsUpgradeable.toHexString(uint256(uint160(addr1)));
+        string memory strAddr2 = StringsUpgradeable.toHexString(uint256(uint160(addr2)));
+
+        bytes memory merged = abi.encodePacked(strAddr1, strAddr2);
+
+        bytes32 paramHash = keccak256(merged);
+        address signer = ECDSAUpgradeable.recover(paramHash, signature);
+
+        return signer;
+    }
 }

@@ -40,39 +40,29 @@ describe("Recover Test", () => {
         await contract.deployed()
     })
 
-    it("Get signer", async () => {
-        console.log('did : ', didwallet);
-        console.log('ParamSigner : ', paramSigner)
-
-        const keys = await keyring.getKeys()
-        console.log('Keys = ', keys)
-
+    it("Get signer from Keyring signed message", async () => {
         const msg = `ABCDEF`
-
         const params = ethers.utils.solidityPack(
             ['string'],[msg]
         )
         const signature = await keyring.sign(msg)
 
+        const keys = await keyring.getKeys()
         const signer = await contract.recoverTest(params, signature)
-        console.log("Signer = ", signer)
+        assert.ok(signer.toLowerCase() === keys.signPublicAddress.toLowerCase())
     })
 
-    it("Raw sign", async() => {
+    it("Recover raw string instead of bytes", async() => {
         const msg = `ABCDEF`
         
         const privateKeyArray = new Uint8Array(Buffer.from(paramSigner.privateKey.slice(2), 'hex'))
         const signature = EncryptionUtils.signData(msg.toLowerCase(), privateKeyArray)
-
-        console.log('Param Signer : ', paramSigner.address)
-        console.log('Prive Key : ', paramSigner.privateKey)
-        console.log('Public Key : ', paramSigner.publicKey)
-
+        
         const signer = await contract.rawRecover(msg.toLowerCase(), signature)
-        console.log('Signer returned : ', signer)
+        assert.ok(signer.toLowerCase() === paramSigner.address.toLowerCase())
     })
 
-    it.only("Raw address recover test", async () => {
+    it("Recover raw addresses", async () => {
         const addr1 = '0x642DcdA49b2B10Bcb383C8948017821Eee06bf12'
         const addr2 = '0xb1e6cC4Cd1c654A19491aE8F52fA04672619D8c6'
 
@@ -81,11 +71,8 @@ describe("Recover Test", () => {
         const privateKeyArray = new Uint8Array(Buffer.from(paramSigner.privateKey.slice(2), 'hex'))
         const signature = EncryptionUtils.signData(msg.toLowerCase(), privateKeyArray)
 
-        console.log('Param Signer : ', paramSigner.address)
-        console.log('Prive Key : ', paramSigner.privateKey)
-        console.log('Public Key : ', paramSigner.publicKey)
-
         const signer = await contract.rawRecoverAddress(addr1, addr2, signature)
-        console.log('Signer returned-- : ', signer)
+
+        assert.ok(signer.toLowerCase() === paramSigner.address.toLowerCase())
     })
 })

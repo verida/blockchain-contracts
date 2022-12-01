@@ -82,10 +82,7 @@ describe("VDA Verification base test", () => {
         it("Failed for invalid proof", async () => {
             const signature = await getTestDataSignature()
 
-            const rawProof = ethers.utils.solidityPack(
-                ['address', 'string', 'address'],
-                [did.address, '-', badSigner.address]
-            )
+            const rawProof = `${did.address}${badSigner.address}`.toLowerCase()
             const proof = await createProofSign(rawProof, did.privateKey)
             await expect(contract.testSign(did.address, name, value, signature, proof)).to.be.rejectedWith("Invalid proof")
         })
@@ -93,10 +90,7 @@ describe("VDA Verification base test", () => {
         it("Test", async () => {
             const signature = await getTestDataSignature()
 
-            const rawProof = ethers.utils.solidityPack(
-                ['address', 'string', 'address'],
-                [ did.address, '-', paramSigner.address]
-            )
+            const rawProof = `${did.address}${paramSigner.address}`.toLowerCase()
             const proof = await createProofSign(rawProof, did.privateKey)
 
             const orgNonce = await contract.getNonce(did.address)

@@ -41,7 +41,7 @@ const veridians = [
     }
 ]
 
-const createVeridaSign = async (rawMsg : any, privateKey: string, docDID: string) => {
+const createVeridaSign = async (rawMsg : any, privateKey: string | Uint8Array, docDID: string) => {
     if (contract === undefined)
       return ''
 
@@ -51,7 +51,9 @@ const createVeridaSign = async (rawMsg : any, privateKey: string, docDID: string
       ['bytes','uint256'],
       [rawMsg, nonce]
     )
-    const privateKeyArray = new Uint8Array(Buffer.from(privateKey.slice(2), 'hex'))
+    const privateKeyArray = typeof privateKey === 'string' ?
+        new Uint8Array(Buffer.from(privateKey.slice(2), 'hex')) :
+        privateKey
     return EncryptionUtils.signData(rawMsg, privateKeyArray)
 }
 
@@ -60,22 +62,14 @@ const createRawSignature = async (rawMsg : any, privateKey: String ) => {
     return EncryptionUtils.signData(rawMsg, privateKeyArray)
 }
 
-describe("VDA Verification base", () => {
+describe("VDA Verification Proof Test", () => {
     const did = veridians[0]
     const paramSigner = veridians[1]
     const badSigner = veridians[2]
     
     const name = "Jack"
     const value = "Tester"
-
-    const getTestDataSignature = async () => {
-        const rawMsg = ethers.utils.solidityPack(
-            ['string', 'string'],
-            [name, value]
-        )
-        return await createVeridaSign(rawMsg, paramSigner.privateKey, did.address)
-    }
-
+    
     before(async () => {
         accountList = await ethers.getSigners()
 
@@ -89,42 +83,47 @@ describe("VDA Verification base", () => {
         await contract.deployed()
     })
 
-    it("Keyring test", async () => {
-        const didWallet = veridians[0];
-        const paramSigner = veridians[1];
-
-        const keyring = new Keyring(paramSigner.mnemonic)
-        const keys = await keyring.getKeys()
-
-        const proofRawMsg = ethers.utils.solidityPack(
-            ["address", "address"],
-            [didWallet.address, keys.signPublicAddress]
-        )
-        const privateKeyArray = new Uint8Array(
-            Buffer.from(didWallet.privateKey.slice(2), "hex")
-        )
-        const proof = EncryptionUtils.signData(proofRawMsg, privateKeyArray)
+    describe('Keyring test', () => {
+        it("Test for Keyring sign() function", async () => {
+            const didWallet = veridians[0];
+            const paramSigner = veridians[1];
+    
+            const keyring = new Keyring(paramSigner.mnemonic)
+            const keys = await keyring.getKeys()
+    
+            const proofRawMsg = `${didWallet.address}${keys.signPublicAddress}`.toLowerCase()
+            const privateKeyArray = new Uint8Array(
+                Buffer.from(didWallet.privateKey.slice(2), "hex")
+            )
+            const proof = EncryptionUtils.signData(proofRawMsg, privateKeyArray)
 
 
-        const rawMsg = ethers.utils.solidityPack(
-            ['string'],
-            [`
-            {
-                type: "kycCredential",
-                uniqueId: "12345678"
-            }
-            `]
-        )
-        const signature = await createVeridaSign(rawMsg, keys.signPrivateKey, didWallet.address)
+            const rawMsg = ethers.utils.solidityPack(
+                ['string',],
+                [`
+                {
+                    type: "kycCredential",
+                    uniqueId: "12345678"
+                }
+                `]
+            )
 
-        console.log("SignPublicAddress : ", keys.signPublicAddress)
+            const nonce = (await contract.getNonce(didWallet.address)).toNumber()
+            const msgWithNonce = ethers.utils.solidityPack(
+                ['bytes','uint256'],
+                [rawMsg, nonce]
+              )
+            const signature = keyring.sign(msgWithNonce)
+    
+            await contract.testRawStringData(didWallet.address, rawMsg, signature, proof)
+            const updatedNonce = (await contract.getNonce(didWallet.address)).toNumber()
 
-        // const orgNonce = await contract.getNonce(didWallet.address)
-        await contract.testRawStringData(didWallet.address, rawMsg, signature, proof)
-    });
-
+            assert.equal((nonce+1), updatedNonce, 'Nonce updated');
+        });
+    })
+    
     describe("Proof test with DIDDocument & DIDClient", () => {
-        it.only("On-chain verification with DIDDocument", async () => {
+        it("On-chain verification with DIDDocument", async () => {
             const {
                 didwallet,
                 account,
@@ -175,7 +174,10 @@ describe("VDA Verification base", () => {
             )
             const signature = await keyring.sign(params)
 
-            await contract.verifyRequestWithArray(ADDRESS, [ADDRESS], params, signature, proof);
+            await contract.verifyRequestWithArray(ADDRESS, [ADDRESS], params, signature, didDocumentContextProof);
+
+            const updatedNonce = (await contract.getNonce(ADDRESS)).toNumber()
+            assert.equal(orgNonce + 1, updatedNonce, 'Nonce updated after verification')
         })
 
     })
