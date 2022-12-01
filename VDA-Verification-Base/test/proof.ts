@@ -1,7 +1,7 @@
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
-import chai, { expect } from "chai";
+import chai, { expect, util } from "chai";
 import chaiAsPromised from "chai-as-promised";
-import { BigNumber, Wallet } from "ethers";
+import { BigNumber, utils, Wallet } from "ethers";
 const assert = require('assert')
 
 import EncryptionUtils from '@verida/encryption-utils'
@@ -11,7 +11,8 @@ import { TestContract } from "../typechain-types";
 
 import { Interfaces, DIDDocument } from "@verida/did-document";
 import { Keyring } from "@verida/keyring";
-import { getDIDClient } from "./utils"
+import { getDIDClient, initVerida } from "./utils"
+import { Console } from "console";
 
 chai.use(chaiAsPromised);
 
@@ -123,63 +124,53 @@ describe("VDA Verification base", () => {
     });
 
     describe("Proof test with DIDDocument & DIDClient", () => {
-        const didwallet = Wallet.createRandom()
-        const didaddress = didwallet.address.toLowerCase()
-        const did = `did:vda:testnet:${didaddress}`
-
-        const paramSigner = Wallet.createRandom()
-        const keyring = new Keyring(paramSigner.mnemonic.phrase)
-
-        const CONTEXT_NAME = 'Verida: Test DID Context'
-        const EndpointType = Interfaces.EndpointType
-        
-        const endpoints = {
-            database: {
-                type: EndpointType.DATABASE,
-                endpointUri: [
-                    `https://acacia-dev1.tn.verida.tech/did/did:vda:testnet:${didaddress}`,
-                    `https://acacia-dev2.tn.verida.tech/did/did:vda:testnet:${didaddress}`,
-                    `https://acacia-dev3.tn.verida.tech/did/did:vda:testnet:${didaddress}`
-                ]
-            },
-            messaging: {
-                type: EndpointType.MESSAGING,
-                endpointUri: [
-                    `https://acacia-dev1.tn.verida.tech/did/did:vda:testnet:${didaddress}`,
-                    `https://acacia-dev2.tn.verida.tech/did/did:vda:testnet:${didaddress}`,
-                    `https://acacia-dev3.tn.verida.tech/did/did:vda:testnet:${didaddress}`
-                ]
-            }
-        }
 
         it.only("On-chain verification with DIDDocument", async () => {
-            console.log("Accounts: ", accountList.length)
+            const {
+                didwallet,
+                account,
+                client,
+                context,
+                CONTEXT_NAME
+            } = await initVerida()
 
-            // const txSigner = Wallet.fromMnemonic("test test test test test test test test test test test junk", `m/44'/60'/0'/0/0`)
-                        
-            const didClient = await getDIDClient(didwallet);
+            const PRIVATE_KEY = didwallet.privateKey
+            const ADDRESS = didwallet.address
 
-            const initialDoc = new DIDDocument(did, didwallet.publicKey)
-            initialDoc.addContext(CONTEXT_NAME, keyring, didwallet.privateKey, endpoints)
-
-            const saved = await didClient.save(initialDoc)
-            console.log("Saved : ", saved)
+            console.log("Getting DID client...")
+            const didClient = await account.getDidClient()
+            const did = await account.did()
+            console.log("Getting keyring....")
+            const keyring = await account.keyring(CONTEXT_NAME)
 
             const doc = await didClient.get(did)
             const data = doc.export()
-            console.log('export')
-            console.log(data)
 
-            console.log("doc ID", doc.id)
+            // Log the full DID Document
+            // console.log(data)
 
             // Master keys controlled by the DID
             const keys = await keyring.getKeys()
             const publicKeyHex = keys.signPublicKeyHex
-            // const proofString = `${doc.id}-${publicKeyHex}`
-            const proofString = `${didaddress}-${keys.signPublicAddress}`
-            const proof = await keyring.sign(proofString)
+            
+            // Proof 
+            const proofString = `${ADDRESS}${keys.signPublicAddress}`.toLowerCase()
+            const privateKeyBuffer = new Uint8Array(Buffer.from(PRIVATE_KEY.slice(2), 'hex'))
+            const proof = EncryptionUtils.signData(proofString, privateKeyBuffer)
 
             const contextHash = DIDDocument.generateContextHash(doc.id, CONTEXT_NAME)
+            const didDocumentVerificationMethod = data.verificationMethod?.find(item => {
+                return item.id.match(`${doc.id}\\?context=${contextHash}&type=sign`)
+            })
+            // @ts-ignore
+            const didDocumentContextProof = didDocumentVerificationMethod.proof
+
+            // Verify the proof stored in the DID document for this context matches the expected
+            // proof that we generated above
+            assert.equal(proof, didDocumentContextProof)
+
+            return
+
             console.log('public keys for the DID', keys)
             console.log('proofString that was signed by the DID controller to prove it owns the context signing key', proofString)
             console.log('proof that was generated by the DID controller', proof)
@@ -189,6 +180,7 @@ describe("VDA Verification base", () => {
 
             const sigValid = await EncryptionUtils.verifySig(proofString, proof, keys.signPublicKeyHex)
             assert.ok(sigValid, 'proofString was signed by the DID controller')
+            
 
             const orgNonce = (await contract.getNonce(didaddress)).toNumber()
             const params = ethers.utils.solidityPack(

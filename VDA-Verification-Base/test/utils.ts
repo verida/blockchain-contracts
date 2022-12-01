@@ -1,4 +1,7 @@
 import { DIDClient, DIDClientConfig } from "@verida/did-client"
+import { AutoAccount } from "@verida/account-node";
+import { Client, EnvironmentType } from "@verida/client-ts";
+
 // import { Wallet } from '@ethersproject/wallet'
 import { Wallet } from "ethers"
 import { JsonRpcProvider } from '@ethersproject/providers'
@@ -65,4 +68,54 @@ export async function getDIDClient(veridaAccount: Wallet) {
     )*/
 
     return didClient
+}
+
+const DEFAULT_ENDPOINTS = ['https://acacia-dev1.tn.verida.tech/did/', 'https://acacia-dev2.tn.verida.tech/did/', 'https://acacia-dev3.tn.verida.tech/did/']
+
+export async function initVerida() {
+    const didwallet = Wallet.createRandom()
+
+    const account = new AutoAccount({
+        defaultDatabaseServer: {
+            type: 'VeridaDatabase',
+            endpointUri: DEFAULT_ENDPOINTS
+        },
+        defaultMessageServer: {
+            type: 'VeridaMessage',
+            endpointUri: DEFAULT_ENDPOINTS
+        },
+    }, {
+        privateKey: didwallet.privateKey,
+        environment: EnvironmentType.TESTNET,
+        didClientConfig: {
+            callType: 'web3',
+            web3Config: {
+                privateKey,
+                rpcUrl
+            },
+            didEndpoints: DEFAULT_ENDPOINTS
+        }
+    })
+
+    const client = new Client({
+        environment: EnvironmentType.TESTNET,
+        didClientConfig: {
+            rpcUrl
+        }
+    })
+
+    console.log("Connecting account...")
+    await client.connect(account)
+
+    const CONTEXT_NAME = 'Verida: Test DID Context'
+    console.log("Opening context...")
+    const context = await client.openContext(CONTEXT_NAME, true)
+
+    return {
+        didwallet,
+        account,
+        client,
+        context,
+        CONTEXT_NAME
+    }
 }
