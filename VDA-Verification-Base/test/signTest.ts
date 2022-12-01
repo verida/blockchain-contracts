@@ -57,4 +57,35 @@ describe("Recover Test", () => {
         const signer = await contract.recoverTest(params, signature)
         console.log("Signer = ", signer)
     })
+
+    it("Raw sign", async() => {
+        const msg = `ABCDEF`
+        
+        const privateKeyArray = new Uint8Array(Buffer.from(paramSigner.privateKey.slice(2), 'hex'))
+        const signature = EncryptionUtils.signData(msg.toLowerCase(), privateKeyArray)
+
+        console.log('Param Signer : ', paramSigner.address)
+        console.log('Prive Key : ', paramSigner.privateKey)
+        console.log('Public Key : ', paramSigner.publicKey)
+
+        const signer = await contract.rawRecover(msg.toLowerCase(), signature)
+        console.log('Signer returned : ', signer)
+    })
+
+    it.only("Raw address recover test", async () => {
+        const addr1 = '0x642DcdA49b2B10Bcb383C8948017821Eee06bf12'
+        const addr2 = '0xb1e6cC4Cd1c654A19491aE8F52fA04672619D8c6'
+
+        const msg = `${addr1}${addr2}`
+        
+        const privateKeyArray = new Uint8Array(Buffer.from(paramSigner.privateKey.slice(2), 'hex'))
+        const signature = EncryptionUtils.signData(msg.toLowerCase(), privateKeyArray)
+
+        console.log('Param Signer : ', paramSigner.address)
+        console.log('Prive Key : ', paramSigner.privateKey)
+        console.log('Public Key : ', paramSigner.publicKey)
+
+        const signer = await contract.rawRecoverAddress(addr1, addr2, signature)
+        console.log('Signer returned-- : ', signer)
+    })
 })

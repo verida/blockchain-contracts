@@ -3,10 +3,11 @@ pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/cryptography/ECDSAUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/StringsUpgradeable.sol";
 
 import "@openzeppelin/contracts-upgradeable/utils/structs/EnumerableSetUpgradeable.sol";
 
-import "hardhat/console.sol";
+// import "hardhat/console.sol";
 
 contract VDAVerificationContract is OwnableUpgradeable {
 
@@ -37,16 +38,17 @@ contract VDAVerificationContract is OwnableUpgradeable {
 
         bytes32 paramsHash = keccak256(params);
         address contextSigner = ECDSAUpgradeable.recover(paramsHash, signature);
+        string memory strContextSigner = StringsUpgradeable.toHexString(uint256(uint160(contextSigner)));
 
         bool isVerified = false;
         uint index = 0;
 
         while (index < validSigners.length() && !isVerified) {
             address account = validSigners.at(index);
+            string memory strAccount = StringsUpgradeable.toHexString(uint256(uint160(account)));
             bytes memory proofString = abi.encodePacked(
-                account,
-                '-',
-                contextSigner
+                strAccount,
+                strContextSigner
             );
             bytes32 proofHash = keccak256(proofString);
             address didSigner = ECDSAUpgradeable.recover(proofHash, proof);
@@ -68,25 +70,22 @@ contract VDAVerificationContract is OwnableUpgradeable {
         bytes calldata params, 
         bytes calldata signature, 
         bytes calldata proof
-    ) external {
+    ) public {
         require(validSigners.length > 0, "No signers available");
 
         bytes32 paramsHash = keccak256(params);
         address contextSigner = ECDSAUpgradeable.recover(paramsHash, signature);
-
-        console.log("==================");
-        console.log(contextSigner);
-        console.log("==================");
+        string memory strContextSigner = StringsUpgradeable.toHexString(uint256(uint160(contextSigner)));
 
         bool isVerified = false;
         uint index = 0;
 
         while (index < validSigners.length && !isVerified) {
             address account = validSigners[index];
+            string memory strAccount = StringsUpgradeable.toHexString(uint256(uint160(account)));
             bytes memory proofString = abi.encodePacked(
-                account,
-                '-',
-                contextSigner
+                strAccount,
+                strContextSigner
             );
             bytes32 proofHash = keccak256(proofString);
             address didSigner = ECDSAUpgradeable.recover(proofHash, proof);
@@ -104,6 +103,25 @@ contract VDAVerificationContract is OwnableUpgradeable {
 
     function recoverTest(bytes calldata params, bytes calldata signature) external pure returns(address){
         bytes32 paramHash = keccak256(params);
+        address signer = ECDSAUpgradeable.recover(paramHash, signature);
+
+        return signer;
+    }
+
+    function rawRecover(string calldata params, bytes calldata signature) external pure returns(address) {
+        bytes32 paramHash = keccak256(bytes(params));
+        address signer = ECDSAUpgradeable.recover(paramHash, signature);
+
+        return signer;
+    }
+
+    function rawRecoverAddress(address addr1, address addr2, bytes calldata signature) external view returns(address) {
+        string memory strAddr1 = StringsUpgradeable.toHexString(uint256(uint160(addr1)));
+        string memory strAddr2 = StringsUpgradeable.toHexString(uint256(uint160(addr2)));
+
+        bytes memory merged = abi.encodePacked(strAddr1, strAddr2);
+
+        bytes32 paramHash = keccak256(merged);
         address signer = ECDSAUpgradeable.recover(paramHash, signature);
 
         return signer;

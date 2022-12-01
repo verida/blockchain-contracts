@@ -1,17 +1,11 @@
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import chai, { expect } from "chai";
 import chaiAsPromised from "chai-as-promised";
-import { BigNumber, Wallet } from "ethers";
 
 import EncryptionUtils from '@verida/encryption-utils'
-import { DIDDocument } from '@verida/did-document'
 
 import hre, { ethers , upgrades } from "hardhat"
 import { TestContract } from "../typechain-types";
-
-import { Client } from '@verida/client-ts'
-import { AutoAccount } from '@verida/account-node'
-import CONFIG from './config'
 
 chai.use(chaiAsPromised);
 
@@ -55,29 +49,7 @@ const createProofSign = async (rawMsg : any, privateKey: String ) => {
     return EncryptionUtils.signData(rawMsg, privateKeyArray)
 }
 
-const getVerida = async () => {
-    const client = new Client({
-        environment: CONFIG.ENVIRONMENT,
-        /*didClientConfig: {
-            rpcUrl: CONFIG.DID_CLIENT_CONFIG.rpcUrl
-        }*/
-    })
-    
-    
-    const account = new AutoAccount(CONFIG.DEFAULT_ENDPOINTS, {
-        privateKey: CONFIG.VDA_PRIVATE_KEY,
-        environment: CONFIG.ENVIRONMENT,
-        didClientConfig: CONFIG.DID_CLIENT_CONFIG
-    })
-    await client.connect(account)
-
-    return {
-        client,
-        account
-    }
-}
-
-describe("VDA Verification base", () => {
+describe("VDA Verification base test", () => {
     const did = veridians[0]
     const paramSigner = veridians[1]
     const badSigner = veridians[2]
@@ -130,62 +102,6 @@ describe("VDA Verification base", () => {
             const orgNonce = await contract.getNonce(did.address)
             await contract.testSign(did.address, name, value, signature, proof)
             expect (await contract.getNonce(did.address)).to.be.equal(orgNonce.add(1))
-        })
-
-        it("Test raw String params", async () => {
-            const { client, account } = await getVerida()
-            const context = await client.openContext(CONFIG.CONTEXT_NAME)
-
-            // force open a database to ensure the DID document is written to the blockchain
-            const db = await context!.openDatabase('test')
-
-            // Sign a message using the context signing key
-            const rawMsg = "hello world"
-            const keyring = await account.keyring(CONFIG.CONTEXT_NAME)
-            const signature = await keyring.sign(rawMsg)
-
-            // Fetch the proof from the DID document
-            const didClient = account.getDidClient()
-            const did = await account.did()
-            const didDocument = await didClient.get(did)
-            const contextHash = DIDDocument.generateContextHash(did, CONFIG.CONTEXT_NAME)
-            const doc = didDocument.export()
-            console.log(doc.verificationMethod)
-
-            const signingVerificationMethod = doc.verificationMethod!.find(entry => {
-                entry.id == `${did}?context=${contextHash}&type=sign`
-            })
-
-            // @ts-ignore
-            const proof = signingVerificationMethod.proof
-    
-            // @alex take it from here
-            const orgNonce = await contract.getNonce(did)
-            await contract.testRawStringData(did, rawMsg, signature, proof)
-            expect (await contract.getNonce(did)).to.be.equal(orgNonce.add(1))
-            /*
-            const rawMsg = ethers.utils.solidityPack(
-                ['string'],
-                [`
-                {
-                    type: "kycCredential",
-                    uniqueId: "12345678"
-                }
-                `]
-            )
-            const signature = await createVeridaSign(rawMsg, paramSigner.privateKey, did.address)
-
-            const rawProof = ethers.utils.solidityPack(
-                ['address', 'string', 'address'],
-                [ did.address, '-', paramSigner.address]
-            )
-            const proof = await createProofSign(rawProof, did.privateKey)
-
-            const orgNonce = await contract.getNonce(did.address)
-            await contract.testRawStringData(did.address, rawMsg, signature, proof)
-            expect (await contract.getNonce(did.address)).to.be.equal(orgNonce.add(1))
-            */
-
         })
     })
 })
