@@ -1,7 +1,6 @@
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import chai, { expect, util } from "chai";
 import chaiAsPromised from "chai-as-promised";
-import { BigNumber, utils, Wallet } from "ethers";
 const assert = require('assert')
 
 import EncryptionUtils from '@verida/encryption-utils'
@@ -12,7 +11,6 @@ import { TestContract } from "../typechain-types";
 import { Interfaces, DIDDocument } from "@verida/did-document";
 import { Keyring } from "@verida/keyring";
 import { getDIDClient, initVerida } from "./utils"
-import { Console } from "console";
 
 chai.use(chaiAsPromised);
 
@@ -41,35 +39,7 @@ const veridians = [
     }
 ]
 
-const createVeridaSign = async (rawMsg : any, privateKey: string | Uint8Array, docDID: string) => {
-    if (contract === undefined)
-      return ''
-
-    const nonce = (await contract.getNonce(docDID)).toNumber()
-
-    rawMsg = ethers.utils.solidityPack(
-      ['bytes','uint256'],
-      [rawMsg, nonce]
-    )
-    const privateKeyArray = typeof privateKey === 'string' ?
-        new Uint8Array(Buffer.from(privateKey.slice(2), 'hex')) :
-        privateKey
-    return EncryptionUtils.signData(rawMsg, privateKeyArray)
-}
-
-const createRawSignature = async (rawMsg : any, privateKey: String ) => {
-    const privateKeyArray = new Uint8Array(Buffer.from(privateKey.slice(2), 'hex'))
-    return EncryptionUtils.signData(rawMsg, privateKeyArray)
-}
-
 describe("VDA Verification Proof Test", () => {
-    const did = veridians[0]
-    const paramSigner = veridians[1]
-    const badSigner = veridians[2]
-    
-    const name = "Jack"
-    const value = "Tester"
-    
     before(async () => {
         accountList = await ethers.getSigners()
 
@@ -84,10 +54,15 @@ describe("VDA Verification Proof Test", () => {
     })
 
     describe('Keyring test', () => {
-        it("Test for Keyring sign() function", async () => {
-            const didWallet = veridians[0];
-            const paramSigner = veridians[1];
+        const didWallet = veridians[0]
+        const paramSigner = veridians[1]
+
+        before(async () => {
+            await contract.addTrustedSigner(didWallet.address)
+        })
     
+        it("Test for Keyring sign() function", async () => {
+            
             const keyring = new Keyring(paramSigner.mnemonic)
             const keys = await keyring.getKeys()
     
@@ -108,7 +83,7 @@ describe("VDA Verification Proof Test", () => {
                 `]
             )
 
-            const nonce = (await contract.getNonce(didWallet.address)).toNumber()
+            const nonce = (await contract.nonce(didWallet.address)).toNumber()
             const msgWithNonce = ethers.utils.solidityPack(
                 ['bytes','uint256'],
                 [rawMsg, nonce]
@@ -116,7 +91,7 @@ describe("VDA Verification Proof Test", () => {
             const signature = keyring.sign(msgWithNonce)
     
             await contract.testRawStringData(didWallet.address, rawMsg, signature, proof)
-            const updatedNonce = (await contract.getNonce(didWallet.address)).toNumber()
+            const updatedNonce = (await contract.nonce(didWallet.address)).toNumber()
 
             assert.equal((nonce+1), updatedNonce, 'Nonce updated');
         });
@@ -167,7 +142,7 @@ describe("VDA Verification Proof Test", () => {
             // proof that we generated above
             assert.equal(proof, didDocumentContextProof)
 
-            const orgNonce = (await contract.getNonce(ADDRESS)).toNumber()
+            const orgNonce = (await contract.nonce(ADDRESS)).toNumber()
             const params = ethers.utils.solidityPack(
                 ['string', 'uint'],
                 ['Test data', orgNonce]
@@ -176,7 +151,7 @@ describe("VDA Verification Proof Test", () => {
 
             await contract.verifyRequestWithArray(ADDRESS, [ADDRESS], params, signature, didDocumentContextProof);
 
-            const updatedNonce = (await contract.getNonce(ADDRESS)).toNumber()
+            const updatedNonce = (await contract.nonce(ADDRESS)).toNumber()
             assert.equal(orgNonce + 1, updatedNonce, 'Nonce updated after verification')
         })
 

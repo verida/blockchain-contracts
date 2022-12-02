@@ -13,7 +13,11 @@ contract VDAVerificationContract is OwnableUpgradeable {
 
     using EnumerableSetUpgradeable for EnumerableSetUpgradeable.AddressSet;
 
-    mapping(address => uint) internal nonce;
+    /** @notice Nonce for dids */
+    mapping(address => uint) internal _nonce;
+
+    /** @notice Trusted signer addresses */
+    EnumerableSetUpgradeable.AddressSet internal _trustedSigners;
     
     /**
      * @notice Initializer for deploying the contract
@@ -32,30 +36,52 @@ contract VDAVerificationContract is OwnableUpgradeable {
     }
 
     /**
+     * @notice Add a trusted signer
+     * @dev Only the contract owner can add
+     * @param did Trusted signer address
+     */
+    function addTrustedSigner(address did) external onlyOwner {
+        if (!_trustedSigners.contains(did)) {
+            _trustedSigners.add(did);
+        }
+    }
+
+    /**
+     * @notice Remove a trusted signer
+     * @dev Only the contract owner can remove
+     * @param did Trusted signer address
+     */
+    function removeTrustedSigner(address did) external onlyOwner {
+        require(_trustedSigners.contains(did), "Unregistered address");
+        _trustedSigners.remove(did);
+    }
+
+
+    /**
      * @notice Get a nonce for DID
      * @dev This is used to sign the message. It's for against replay-attack of the transactions
      * @param did DID for nonce
      * @return uint Current nonce of the DID
      */
-    function getNonce(address did) public view returns(uint) {
-        return nonce[did];
+    function nonce(address did) external view returns(uint) {
+        return _nonce[did];
     }
-
+    
      /**
      * @notice Verify whether the request is valid. 
      * @dev Verify the signature & proof signed by valid signers
      * @param did DID for nonce
-     * @param validSigners Available signers list one of which sign the proof
      * @param params Parameter shows the message
      * @param signature Signature of the message
      * @param proof Proof
+     * @param validSigners Available signers list one of which sign the proof
      */
     function verifyRequest(
         address did, 
-        EnumerableSetUpgradeable.AddressSet storage validSigners,
         bytes memory params, 
         bytes calldata signature, 
-        bytes calldata proof
+        bytes calldata proof,
+        EnumerableSetUpgradeable.AddressSet storage validSigners
     ) internal virtual {
         require(validSigners.length() > 0, "No signers available");
 
@@ -84,8 +110,23 @@ contract VDAVerificationContract is OwnableUpgradeable {
         }
 
         require(isVerified, "Invalid proof");
-        nonce[did]++;
+        _nonce[did]++;
     }
 
-    
+    /**
+     * @notice Verify whether the request is valid. 
+     * @dev Verify the signature & proof signed by valid signers
+     * @param did DID for nonce
+     * @param params Parameter shows the message
+     * @param signature Signature of the message
+     * @param proof Proof
+     */
+    function verifyRequest(
+        address did, 
+        bytes memory params, 
+        bytes calldata signature, 
+        bytes calldata proof
+    ) internal virtual {
+        verifyRequest(did, params, signature, proof, _trustedSigners);
+    }
 }

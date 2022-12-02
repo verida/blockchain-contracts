@@ -7,7 +7,7 @@ contract TestContract is VDAVerificationContract {
 
     using EnumerableSetUpgradeable for EnumerableSetUpgradeable.AddressSet;
 
-    EnumerableSetUpgradeable.AddressSet validSigners;
+    EnumerableSetUpgradeable.AddressSet private validSigners;
 
     function initialize() public initializer {
         __VDAVerificationContract_init();
@@ -24,17 +24,14 @@ contract TestContract is VDAVerificationContract {
      * @param proof Proof
      */
     function testSign(address did, string calldata name, string calldata value, bytes calldata signature , bytes calldata proof) external {
-        uint didNonce = getNonce(did);
+        uint didNonce = _nonce[did];
         bytes memory paramData = abi.encodePacked(
             name,
             value,
             didNonce
         );
 
-        if (!validSigners.contains(did)) {
-            validSigners.add(did);
-        }
-        verifyRequest(did, validSigners, paramData, signature, proof);
+        verifyRequest(did, paramData, signature, proof);
     }
 
     /**
@@ -46,62 +43,68 @@ contract TestContract is VDAVerificationContract {
      * @param proof Proof
      */
     function testRawStringData(address did, bytes calldata rawData, bytes calldata signature, bytes calldata proof) external {
-        uint didNonce = getNonce(did);
+        uint didNonce = _nonce[did];
         bytes memory _unsignedData = abi.encodePacked(
             rawData,
             didNonce
         );
 
-        if (!validSigners.contains(did)) {
-            validSigners.add(did);
-        }
-        verifyRequest(did, validSigners, _unsignedData, signature, proof);
+        verifyRequest(did, _unsignedData, signature, proof);
     }
 
     /**
      * @notice Test function for `test/proof.ts`
      * @dev This function works the same as verifyRequest(...) of VDAVerificationContract.sol
      * @param did DID for nonce
-     * @param validSigners Available signers list one of which sign the proof
+     * @param inputSigners Available signers list one of which sign the proof
      * @param params Parameter shows the message
      * @param signature Signature of the message
      * @param proof Proof
      */
     function verifyRequestWithArray(
         address did, 
-        address[] calldata validSigners,
+        address[] calldata inputSigners,
         bytes calldata params, 
         bytes calldata signature, 
         bytes calldata proof
     ) external {
-        require(validSigners.length > 0, "No signers available");
 
-        bytes32 paramsHash = keccak256(params);
-        address contextSigner = ECDSAUpgradeable.recover(paramsHash, signature);
-        string memory strContextSigner = StringsUpgradeable.toHexString(uint256(uint160(contextSigner)));
+        require(inputSigners.length > 0, "No signers available");
 
-        bool isVerified = false;
-        uint index = 0;
-
-        while (index < validSigners.length && !isVerified) {
-            address account = validSigners[index];
-            string memory strAccount = StringsUpgradeable.toHexString(uint256(uint160(account)));
-            bytes memory proofString = abi.encodePacked(
-                strAccount,
-                strContextSigner
-            );
-            bytes32 proofHash = keccak256(proofString);
-            address didSigner = ECDSAUpgradeable.recover(proofHash, proof);
-
-            if (didSigner == account){
-                isVerified = true;
-                break;
+        for (uint i = 0; i < inputSigners.length; i++) {
+            if (!validSigners.contains(inputSigners[i])) {
+                validSigners.add(inputSigners[i]);
             }
-            index++;
         }
 
-        require(isVerified, "Invalid proof");
-        nonce[did]++;
+        verifyRequest(did, params, signature, proof, validSigners);
+
+        // bytes32 paramsHash = keccak256(params);
+        // address contextSigner = ECDSAUpgradeable.recover(paramsHash, signature);
+        // string memory strContextSigner = StringsUpgradeable.toHexString(uint256(uint160(contextSigner)));
+
+        // bool isVerified = false;
+        // uint index = 0;
+
+        // while (index < validSigners.length && !isVerified) {
+        //     address account = validSigners[index];
+        //     string memory strAccount = StringsUpgradeable.toHexString(uint256(uint160(account)));
+        //     bytes memory proofString = abi.encodePacked(
+        //         strAccount,
+        //         strContextSigner
+        //     );
+        //     bytes32 proofHash = keccak256(proofString);
+        //     address didSigner = ECDSAUpgradeable.recover(proofHash, proof);
+
+        //     if (didSigner == account){
+        //         isVerified = true;
+        //         break;
+        //     }
+        //     index++;
+        // }
+
+        // require(isVerified, "Invalid proof");
+        // nonce[did]++;
     }
 
     /**

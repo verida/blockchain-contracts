@@ -35,7 +35,7 @@ const createVeridaSign = async (rawMsg : any, privateKey: string, docDID: string
     if (contract === undefined)
       return ''
   
-    const nonce = (await contract.getNonce(docDID)).toNumber()
+    const nonce = (await contract.nonce(docDID)).toNumber()
     rawMsg = ethers.utils.solidityPack(
       ['bytes','uint256'],
       [rawMsg, nonce]
@@ -76,6 +76,8 @@ describe("VDA Verification base test", () => {
             }
         )) as TestContract
         await contract.deployed()
+
+        await contract.addTrustedSigner(did.address)
     })
 
     describe("Basic test with input values", () => {
@@ -93,9 +95,9 @@ describe("VDA Verification base test", () => {
             const rawProof = `${did.address}${paramSigner.address}`.toLowerCase()
             const proof = await createProofSign(rawProof, did.privateKey)
 
-            const orgNonce = await contract.getNonce(did.address)
+            const orgNonce = await contract.nonce(did.address)
             await contract.testSign(did.address, name, value, signature, proof)
-            expect (await contract.getNonce(did.address)).to.be.equal(orgNonce.add(1))
+            expect (await contract.nonce(did.address)).to.be.equal(orgNonce.add(1))
         })
     })
 })
