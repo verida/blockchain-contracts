@@ -166,8 +166,8 @@ describe("VDA Verification Proof Test", () => {
             // Generate a request and sign it from the user DID. It's up to the smart contract to determine
             // How best to send these parameters.
             const userDidRequestParams = ethers.utils.solidityPack(
-                ['string', 'string'],
-                [rawString, signedData]
+                ['string', 'string', 'string'],
+                [rawString, signedData, userDidNonce]
             )
             const userDidSignedRequest = await userKeyring.sign(userDidRequestParams)
 
