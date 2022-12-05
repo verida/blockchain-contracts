@@ -2,6 +2,9 @@
   "name": "@verida/vda-verification-contract",
   "description": "Verification base contract of Verida",
   "version": "0.0.2",
+  "scripts": {
+    "test": "npx hardhat test"
+  },
   "files": [
     "**/*.sol",
     ""

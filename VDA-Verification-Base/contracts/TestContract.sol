@@ -63,7 +63,7 @@ contract TestContract is VDAVerificationContract {
      */
     function verifyRequestWithArray(
         address did, 
-        address[] calldata inputSigners,
+        address[] calldata inputSigners, // These will never by supplied via an external method, so this should be removed
         bytes calldata params, 
         bytes calldata signature, 
         bytes calldata proof

@@ -72,9 +72,7 @@ export async function getDIDClient(veridaAccount: Wallet) {
 
 const DEFAULT_ENDPOINTS = ['https://acacia-dev1.tn.verida.tech/did/', 'https://acacia-dev2.tn.verida.tech/did/', 'https://acacia-dev3.tn.verida.tech/did/']
 
-export async function initVerida() {
-    const didwallet = Wallet.createRandom()
-
+export async function initVerida(didwallet: Wallet, CONTEXT_NAME: string) {
     const account = new AutoAccount({
         defaultDatabaseServer: {
             type: 'VeridaDatabase',
@@ -107,7 +105,6 @@ export async function initVerida() {
     console.log("Connecting account...")
     await client.connect(account)
 
-    const CONTEXT_NAME = 'Verida: Test DID Context'
     console.log("Opening context...")
     const context = await client.openContext(CONTEXT_NAME, true)
 
