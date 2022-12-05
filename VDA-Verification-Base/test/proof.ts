@@ -114,48 +114,46 @@ describe("VDA Verification Proof Test", () => {
      */
     describe("Proof test with DIDDocument & DIDClient", () => {
         it("On-chain verification with DIDDocument", async () => {
-            const signVerida = await initVerida(Wallet.createRandom(), 'Verida: Test DID Signing Context')
-            const signWallet = signVerida.didwallet
+            //const signWallet = Wallet.createRandom()
+            const signWallet = Wallet.fromMnemonic('devote biology pass disorder fit cherry grace polar wrist trash regret frame')
+            const signVerida = await initVerida(signWallet, 'Verida: Test DID Signing Context')
             const signAccount = signVerida.account
-            const signClient = signVerida.client
-            const signContext = signVerida.context
+            const signerDid = await signAccount.did()
             const SIGN_CONTEXT_NAME = signVerida.CONTEXT_NAME
+
+            console.log(signWallet.mnemonic, signWallet.publicKey, signWallet.privateKey, signWallet.address)
 
             const userVerida = await initVerida(Wallet.createRandom(), 'Verida: Test DID User Context')
             const userWallet = userVerida.didwallet
             const userAccount = userVerida.account
-            const userClient = userVerida.client
-            const userContext = userVerida.context
+            const userDid = await userAccount.did()
             const USER_CONTEXT_NAME = userVerida.CONTEXT_NAME
             const userKeyring = await userAccount.keyring(USER_CONTEXT_NAME)
 
+            // Add the signing wallet to our list of trusted addresses
+            await contract.addTrustedSigner(signWallet.address)
+
+
             // Build a keyring of the signing wallet
             const didClient = await signAccount.getDidClient()
-            const did = await signAccount.did()
             const signKeyring = await signAccount.keyring(SIGN_CONTEXT_NAME)
 
-            const doc = await didClient.get(did)
-            const data = doc.export()
+            const signerDoc = await didClient.get(signerDid)
 
             // Get the keys of the signing wallet
-            const keys = await signKeyring.getKeys()
+            const signerKeys = await signKeyring.getKeys()
             
             // Generate a context proof string using the Signer private key
-            const proofString = `${signWallet.address}${keys.signPublicAddress}`.toLowerCase()
+            const proofString = `${signWallet.address}${signerKeys.signPublicAddress}`.toLowerCase()
             const privateKeyBuffer = new Uint8Array(Buffer.from(signWallet.privateKey.slice(2), 'hex'))
-            const proof = EncryptionUtils.signData(proofString, privateKeyBuffer)
+            const signerProof = EncryptionUtils.signData(proofString, privateKeyBuffer)
 
             // Verify the proof stored in the DID document for this context matches the expected
             // proof that we generated above
-            const contextHash = DIDDocument.generateContextHash(doc.id, SIGN_CONTEXT_NAME)
-            const didDocumentVerificationMethod = data.verificationMethod?.find((item: any) => {
-                return item.id.match(`${doc.id}\\?context=${contextHash}&type=sign`)
-            })
-            // @ts-ignore
-            const didDocumentContextProof = didDocumentVerificationMethod.proof
-            assert.equal(proof, didDocumentContextProof)
+            const didDocumentContextProof = signerDoc.locateContextProof(SIGN_CONTEXT_NAME)
+            assert.equal(signerProof, didDocumentContextProof)
 
-            // Have the signer generate some signed data
+            // Have the signer generate some signed data. Normally this is pre-generated and saved with the user.
             const rawString = "Test data"
             const signedData = await signKeyring.sign(rawString)
             console.log(signedData)
@@ -163,33 +161,26 @@ describe("VDA Verification Proof Test", () => {
             // Get the latest nonce for the user
             const userDidNonce = (await contract.nonce(userWallet.address)).toNumber()
 
-            // Generate a request and sign it from the user DID. It's up to the smart contract to determine
-            // How best to send these parameters.
+            // Generate a request and sign it from the user DID.
             const userDidRequestParams = ethers.utils.solidityPack(
-                ['string', 'string'],
-                [rawString, signedData]
+                ['string', 'string', 'string', 'uint'],
+                [rawString, signedData, signerProof, userDidNonce]
             )
             const userDidSignedRequest = await userKeyring.sign(userDidRequestParams)
+
+            // Get the keys of the signing wallet
+            const userKeys = await userKeyring.getKeys()
+            const userDoc = await didClient.get(userDid)
+            const userContextProof = userDoc.locateContextProof(USER_CONTEXT_NAME)
 
             // Have the user DID submit to to the test contract which verifies the
             // rawString was signed by the signer DID
             console.log('Submitting')
-            console.log(userWallet.address, userDidRequestParams, userDidSignedRequest, didDocumentContextProof)
-            await contract.verifyStringRequest(userWallet.address, userDidRequestParams, userDidSignedRequest, didDocumentContextProof)
+            console.log(userWallet.address, userDidRequestParams, userDidSignedRequest, userContextProof)
+            await contract.verifyStringRequest(userWallet.address, userDidRequestParams, userDidSignedRequest, userContextProof)
 
-
-            // Previous code; commented out by Chris 5 Dec 2022
-            /*const orgNonce = (await contract.nonce(ADDRESS)).toNumber()
-            const params = ethers.utils.solidityPack(
-                ['string', 'uint'],
-                ['Test data', orgNonce]
-            )
-            const signature = await keyring.sign(params)
-
-            /*await contract.verifyRequestWithArray(ADDRESS, [ADDRESS], params, signature, didDocumentContextProof);
-
-            const updatedNonce = (await contract.nonce(ADDRESS)).toNumber()
-            assert.equal(orgNonce + 1, updatedNonce, 'Nonce updated after verification')*/
+            // Remove the signing wallet to our list of trusted addresses
+            await contract.removeTrustedSigner(signWallet.address)
         })
 
     })

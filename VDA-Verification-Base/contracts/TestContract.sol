@@ -9,6 +9,13 @@ contract TestContract is VDAVerificationContract {
 
     EnumerableSetUpgradeable.AddressSet private validSigners;
 
+    struct VerifyStringParams {
+        string rawString;
+        string signedData;
+        string signerProof;
+        uint nonce;
+    }
+
     function initialize() public initializer {
         __VDAVerificationContract_init();
         
@@ -56,7 +63,6 @@ contract TestContract is VDAVerificationContract {
      * @notice Test function for `test/proof.ts`
      * @dev This function works the same as verifyRequest(...) of VDAVerificationContract.sol
      * @param did DID for nonce
-     * @param inputSigners Available signers list one of which sign the proof
      * @param params Parameter shows the message
      * @param signature Signature of the message
      * @param proof Proof
@@ -66,48 +72,20 @@ contract TestContract is VDAVerificationContract {
         bytes calldata params, 
         bytes calldata signature, 
         bytes calldata proof
-    ) external {
+    ) external returns(string memory) {
+        // Verify the `params` were signed by the requesting `did` and has the correct nonce to prevent replay attacks
+        verifyRequest(did, params, signature, proof);
 
-        require(inputSigners.length > 0, "No signers available");
+        // Unpack the params
+        bytes memory _unsignedData = abi.encodePacked();
 
-        for (uint i = 0; i < inputSigners.length; i++) {
-            if (!validSigners.contains(inputSigners[i])) {
-                validSigners.add(inputSigners[i]);
-            }
-        }
+        // Verify `signedData` (from params) matches `rawString` (from params) is signed by a DID in `validSigners`
+        VerifyStringParams memory _params;
+        (_params) = abi.decode(_unsignedData, (VerifyStringParams));
+        verifyData(bytes(_params.rawString), bytes(_params.signedData), bytes(_params.signerProof));
 
-        // @todo: Verify `params` is signed by `did` and includes the latest nonce (use existing verify request capabilities)
-        // @todo: Verify `signedData` (from params) matches `rawString` (from params) is signed by a DID in `validSigners`
-        
-
-        verifyRequest(did, params, signature, proof, validSigners);
-
-        // bytes32 paramsHash = keccak256(params);
-        // address contextSigner = ECDSAUpgradeable.recover(paramsHash, signature);
-        // string memory strContextSigner = StringsUpgradeable.toHexString(uint256(uint160(contextSigner)));
-
-        // bool isVerified = false;
-        // uint index = 0;
-
-        // while (index < validSigners.length && !isVerified) {
-        //     address account = validSigners[index];
-        //     string memory strAccount = StringsUpgradeable.toHexString(uint256(uint160(account)));
-        //     bytes memory proofString = abi.encodePacked(
-        //         strAccount,
-        //         strContextSigner
-        //     );
-        //     bytes32 proofHash = keccak256(proofString);
-        //     address didSigner = ECDSAUpgradeable.recover(proofHash, proof);
-
-        //     if (didSigner == account){
-        //         isVerified = true;
-        //         break;
-        //     }
-        //     index++;
-        // }
-
-        // require(isVerified, "Invalid proof");
-        // nonce[did]++;
+        // We can now use _params.rawString and trust it was signed by a valid signer
+        return _params.rawString;
     }
 
     /**
