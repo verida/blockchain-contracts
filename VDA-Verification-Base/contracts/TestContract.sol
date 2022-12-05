@@ -61,9 +61,8 @@ contract TestContract is VDAVerificationContract {
      * @param signature Signature of the message
      * @param proof Proof
      */
-    function verifyRequestWithArray(
+    function verifyStringRequest(
         address did, 
-        address[] calldata inputSigners, // These will never by supplied via an external method, so this should be removed
         bytes calldata params, 
         bytes calldata signature, 
         bytes calldata proof
@@ -76,6 +75,10 @@ contract TestContract is VDAVerificationContract {
                 validSigners.add(inputSigners[i]);
             }
         }
+
+        // @todo: Verify `params` is signed by `did` and includes the latest nonce (use existing verify request capabilities)
+        // @todo: Verify `signedData` (from params) matches `rawString` (from params) is signed by a DID in `validSigners`
+        
 
         verifyRequest(did, params, signature, proof, validSigners);
 

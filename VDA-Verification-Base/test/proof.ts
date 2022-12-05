@@ -163,11 +163,12 @@ describe("VDA Verification Proof Test", () => {
             // Get the latest nonce for the user
             const userDidNonce = (await contract.nonce(userWallet.address)).toNumber()
 
-            // Generate a request and sign it from the user DID
-            const userDidRequestParams = [
-                rawString,
-                userDidNonce
-            ]
+            // Generate a request and sign it from the user DID. It's up to the smart contract to determine
+            // How best to send these parameters.
+            const userDidRequestParams = ethers.utils.solidityPack(
+                ['string', 'string'],
+                [rawString, signedData]
+            )
             const userDidSignedRequest = await userKeyring.sign(userDidRequestParams)
 
             // Have the user DID submit to to the test contract which verifies the
