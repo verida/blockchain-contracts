@@ -8,3 +8,5 @@
 */artifacts/*
 */cache/*
 */typechain/*
+*/typechain-types/*
+*/.env

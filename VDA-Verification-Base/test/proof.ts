@@ -1,20 +1,13 @@
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
-import chai, { expect, util } from "chai";
-import chaiAsPromised from "chai-as-promised";
 const assert = require('assert')
 
 import EncryptionUtils from '@verida/encryption-utils'
 
-import hre, { ethers , upgrades } from "hardhat"
+import { ethers , upgrades } from "hardhat"
 import { TestContract } from "../typechain-types";
-
-import { Interfaces, DIDDocument } from "@verida/did-document";
 import { Keyring } from "@verida/keyring";
-import { getDIDClient, initVerida } from "./utils"
+import { initVerida } from "./utils"
 import { Wallet } from "ethers"
-import { sign } from "crypto";
-
-chai.use(chaiAsPromised);
 
 let accountList : SignerWithAddress[];
 
@@ -174,7 +167,6 @@ describe("VDA Verification Proof Test", () => {
             const userDidSignedRequest = await userKeyring.sign(userDidRequestParamsWithNonce)
 
             // Get the keys of the signing wallet
-            const userKeys = await userKeyring.getKeys()
             const userDoc = await didClient.get(userDid)
             const userContextProof = userDoc.locateContextProof(USER_CONTEXT_NAME)
 
