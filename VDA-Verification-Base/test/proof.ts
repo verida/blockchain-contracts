@@ -113,7 +113,7 @@ describe("VDA Verification Proof Test", () => {
      * The smart contract verifies the signed string proof is signed by the Signer DID.
      */
     describe("Proof test with DIDDocument & DIDClient", () => {
-        it("On-chain verification with DIDDocument", async () => {
+        it.only("On-chain verification with DIDDocument", async () => {
             //const signWallet = Wallet.createRandom()
             const signWallet = Wallet.fromMnemonic('devote biology pass disorder fit cherry grace polar wrist trash regret frame')
             const signVerida = await initVerida(signWallet, 'Verida: Test DID Signing Context')

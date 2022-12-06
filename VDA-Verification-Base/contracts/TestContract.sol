@@ -50,13 +50,7 @@ contract TestContract is VDAVerificationContract {
      * @param proof Proof
      */
     function testRawStringData(address did, bytes calldata rawData, bytes calldata signature, bytes calldata proof) external {
-        uint didNonce = _nonce[did];
-        bytes memory _unsignedData = abi.encodePacked(
-            rawData,
-            didNonce
-        );
-
-        verifyRequest(did, _unsignedData, signature, proof);
+        verifyRequest(did, rawData, signature, proof);
     }
 
     /**
