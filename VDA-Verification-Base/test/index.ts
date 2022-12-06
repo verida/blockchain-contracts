@@ -6,6 +6,8 @@ import EncryptionUtils from '@verida/encryption-utils'
 
 import hre, { ethers , upgrades } from "hardhat"
 import { TestContract } from "../typechain-types";
+import { Keyring } from "@verida/keyring";
+import { Wallet } from "ethers";
 
 chai.use(chaiAsPromised);
 
@@ -86,7 +88,7 @@ describe("VDA Verification base test", () => {
 
             const rawProof = `${did.address}${badSigner.address}`.toLowerCase()
             const proof = await createProofSign(rawProof, did.privateKey)
-            await expect(contract.testSign(did.address, name, value, signature, proof)).to.be.rejectedWith("Invalid proof")
+            await expect(contract.testSign(did.address, name, value, signature, proof)).to.be.rejectedWith("Data is not signed by a valid signing DID")
         })
 
         it("Test", async () => {

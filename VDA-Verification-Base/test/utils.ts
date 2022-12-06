@@ -102,10 +102,10 @@ export async function initVerida(didwallet: Wallet, CONTEXT_NAME: string) {
         }
     })
 
-    console.log("Connecting account...")
+    // console.log("Connecting account...")
     await client.connect(account)
 
-    console.log("Opening context...")
+    // console.log("Opening context...")
     const context = await client.openContext(CONTEXT_NAME, true)
 
     return {

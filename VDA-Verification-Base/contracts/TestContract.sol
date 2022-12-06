@@ -9,13 +9,6 @@ contract TestContract is VDAVerificationContract {
 
     EnumerableSetUpgradeable.AddressSet private validSigners;
 
-    struct VerifyStringParams {
-        string rawString;
-        string signedData;
-        string signerProof;
-        uint nonce;
-    }
-
     function initialize() public initializer {
         __VDAVerificationContract_init();
         
@@ -31,11 +24,9 @@ contract TestContract is VDAVerificationContract {
      * @param proof Proof
      */
     function testSign(address did, string calldata name, string calldata value, bytes calldata signature , bytes calldata proof) external {
-        uint didNonce = _nonce[did];
         bytes memory paramData = abi.encodePacked(
             name,
-            value,
-            didNonce
+            value
         );
 
         verifyRequest(did, paramData, signature, proof);
@@ -66,20 +57,17 @@ contract TestContract is VDAVerificationContract {
         bytes calldata params, 
         bytes calldata signature, 
         bytes calldata proof
-    ) external returns(string memory) {
+    ) external {
         // Verify the `params` were signed by the requesting `did` and has the correct nonce to prevent replay attacks
         verifyRequest(did, params, signature, proof);
 
         // Unpack the params
-        bytes memory _unsignedData = abi.encodePacked();
-
-        // Verify `signedData` (from params) matches `rawString` (from params) is signed by a DID in `validSigners`
-        VerifyStringParams memory _params;
-        (_params) = abi.decode(_unsignedData, (VerifyStringParams));
-        verifyData(bytes(_params.rawString), bytes(_params.signedData), bytes(_params.signerProof));
-
-        // We can now use _params.rawString and trust it was signed by a valid signer
-        return _params.rawString;
+        string memory rawString;
+        bytes memory signedData;
+        bytes memory signerProof;
+        (rawString, signedData, signerProof) = abi.decode(params, (string, bytes, bytes));
+        
+        verifyData(bytes(rawString), signedData, signerProof);
     }
 
     /**

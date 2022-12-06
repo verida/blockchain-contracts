@@ -113,7 +113,7 @@ describe("VDA Verification Proof Test", () => {
      * The smart contract verifies the signed string proof is signed by the Signer DID.
      */
     describe("Proof test with DIDDocument & DIDClient", () => {
-        it.only("On-chain verification with DIDDocument", async () => {
+        it("On-chain verification with DIDDocument", async () => {
             //const signWallet = Wallet.createRandom()
             const signWallet = Wallet.fromMnemonic('devote biology pass disorder fit cherry grace polar wrist trash regret frame')
             const signVerida = await initVerida(signWallet, 'Verida: Test DID Signing Context')
@@ -121,7 +121,7 @@ describe("VDA Verification Proof Test", () => {
             const signerDid = await signAccount.did()
             const SIGN_CONTEXT_NAME = signVerida.CONTEXT_NAME
 
-            console.log(signWallet.mnemonic, signWallet.publicKey, signWallet.privateKey, signWallet.address)
+            // console.log(signWallet.mnemonic, signWallet.publicKey, signWallet.privateKey, signWallet.address)
 
             const userVerida = await initVerida(Wallet.createRandom(), 'Verida: Test DID User Context')
             const userWallet = userVerida.didwallet
@@ -156,17 +156,22 @@ describe("VDA Verification Proof Test", () => {
             // Have the signer generate some signed data. Normally this is pre-generated and saved with the user.
             const rawString = "Test data"
             const signedData = await signKeyring.sign(rawString)
-            console.log(signedData)
+            // console.log(signedData)
 
             // Get the latest nonce for the user
             const userDidNonce = (await contract.nonce(userWallet.address)).toNumber()
 
             // Generate a request and sign it from the user DID.
-            const userDidRequestParams = ethers.utils.solidityPack(
-                ['string', 'string', 'string', 'uint'],
-                [rawString, signedData, signerProof, userDidNonce]
+            const userDidRequestParams = ethers.utils.AbiCoder.prototype.encode(
+                ['string', 'bytes', 'bytes'],
+                [rawString, signedData, signerProof]
             )
-            const userDidSignedRequest = await userKeyring.sign(userDidRequestParams)
+
+            const userDidRequestParamsWithNonce = ethers.utils.solidityPack(
+                ['bytes', 'uint'],
+                [userDidRequestParams, userDidNonce]
+            )
+            const userDidSignedRequest = await userKeyring.sign(userDidRequestParamsWithNonce)
 
             // Get the keys of the signing wallet
             const userKeys = await userKeyring.getKeys()
@@ -175,13 +180,12 @@ describe("VDA Verification Proof Test", () => {
 
             // Have the user DID submit to to the test contract which verifies the
             // rawString was signed by the signer DID
-            console.log('Submitting')
-            console.log(userWallet.address, userDidRequestParams, userDidSignedRequest, userContextProof)
+            // console.log('Submitting')
+            // console.log(userWallet.address, userDidRequestParams, userDidSignedRequest, userContextProof)
             await contract.verifyStringRequest(userWallet.address, userDidRequestParams, userDidSignedRequest, userContextProof)
 
             // Remove the signing wallet to our list of trusted addresses
             await contract.removeTrustedSigner(signWallet.address)
         })
-
     })
 })
