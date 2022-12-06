@@ -1,12 +1,13 @@
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import chai, { expect } from "chai";
 import chaiAsPromised from "chai-as-promised";
-import { BigNumber, Wallet } from "ethers";
 
 import EncryptionUtils from '@verida/encryption-utils'
 
 import hre, { ethers , upgrades } from "hardhat"
 import { TestContract } from "../typechain-types";
+import { Keyring } from "@verida/keyring";
+import { Wallet } from "ethers";
 
 chai.use(chaiAsPromised);
 
@@ -36,7 +37,7 @@ const createVeridaSign = async (rawMsg : any, privateKey: string, docDID: string
     if (contract === undefined)
       return ''
   
-    const nonce = (await contract.getNonce(docDID)).toNumber()
+    const nonce = (await contract.nonce(docDID)).toNumber()
     rawMsg = ethers.utils.solidityPack(
       ['bytes','uint256'],
       [rawMsg, nonce]
@@ -50,7 +51,7 @@ const createProofSign = async (rawMsg : any, privateKey: String ) => {
     return EncryptionUtils.signData(rawMsg, privateKeyArray)
 }
 
-describe("VDA Verification base", () => {
+describe("VDA Verification base test", () => {
     const did = veridians[0]
     const paramSigner = veridians[1]
     const badSigner = veridians[2]
@@ -77,54 +78,28 @@ describe("VDA Verification base", () => {
             }
         )) as TestContract
         await contract.deployed()
+
+        await contract.addTrustedSigner(did.address)
     })
 
-    it("Failed for invalid proof", async () => {
-        const signature = await getTestDataSignature()
+    describe("Basic test with input values", () => {
+        it("Failed for invalid proof", async () => {
+            const signature = await getTestDataSignature()
 
-        const rawProof = ethers.utils.solidityPack(
-            ['string', 'address', 'string', 'address'],
-            ['did:vda:', did.address, '-', badSigner.address]
-        )
-        const proof = await createProofSign(rawProof, did.privateKey)
-        await expect(contract.testSign(did.address, name, value, signature, proof)).to.be.rejectedWith("Invalid proof")
-    })
+            const rawProof = `${did.address}${badSigner.address}`.toLowerCase()
+            const proof = await createProofSign(rawProof, did.privateKey)
+            await expect(contract.testSign(did.address, name, value, signature, proof)).to.be.rejectedWith("Data is not signed by a valid signing DID")
+        })
 
-    it("Test", async () => {
-        const signature = await getTestDataSignature()
+        it("Test", async () => {
+            const signature = await getTestDataSignature()
 
-        const rawProof = ethers.utils.solidityPack(
-            ['address', 'string', 'address'],
-            [ did.address, '-', paramSigner.address]
-        )
-        const proof = await createProofSign(rawProof, did.privateKey)
+            const rawProof = `${did.address}${paramSigner.address}`.toLowerCase()
+            const proof = await createProofSign(rawProof, did.privateKey)
 
-        const orgNonce = await contract.getNonce(did.address)
-        await contract.testSign(did.address, name, value, signature, proof)
-        expect (await contract.getNonce(did.address)).to.be.equal(orgNonce.add(1))
-    })
-
-    it("Test raw String params", async () => {
-        const rawMsg = ethers.utils.solidityPack(
-            ['string'],
-            [`
-            {
-                type: "kycCredential",
-                uniqueId: "12345678"
-            }
-            `]
-        )
-        const signature = await createVeridaSign(rawMsg, paramSigner.privateKey, did.address)
-
-        const rawProof = ethers.utils.solidityPack(
-            ['address', 'string', 'address'],
-            [ did.address, '-', paramSigner.address]
-        )
-        const proof = await createProofSign(rawProof, did.privateKey)
-
-        const orgNonce = await contract.getNonce(did.address)
-        await contract.testRawStringData(did.address, rawMsg, signature, proof)
-        expect (await contract.getNonce(did.address)).to.be.equal(orgNonce.add(1))
-
+            const orgNonce = await contract.nonce(did.address)
+            await contract.testSign(did.address, name, value, signature, proof)
+            expect (await contract.nonce(did.address)).to.be.equal(orgNonce.add(1))
+        })
     })
 })
