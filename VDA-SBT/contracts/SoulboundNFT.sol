@@ -24,12 +24,6 @@ contract SoulboundNFT is VDAVerificationContract,
     using EnumerableSet for EnumerableSet.StringSet;
 
     /**
-     * @notice Verida wallets that provide proof
-     * @dev Only owner can mange this list
-     */
-    EnumerableSetUpgradeable.AddressSet private _trustedAddresses;
-
-    /**
      * @notice tokenId counter
      * @dev tokenId starts from 1.
      */
@@ -126,35 +120,15 @@ contract SoulboundNFT is VDAVerificationContract,
     function totalSupply() external view onlyOwner override returns(uint){
         return _tokenIdCounter.current();
     }
-
+    
     /**
      * @dev See {ISoulboundNFT}
      */
-    function addTrustedAddress(address account) external onlyOwner override {
-        require(!_trustedAddresses.contains(account), "Existing account");
-        _trustedAddresses.add(account);
-
-        emit AddTrustedAddress(account);
-    }
-
-    /**
-     * @dev See {ISoulboundNFT}
-     */
-    function removeTrustedAddress(address account) external onlyOwner override {
-        require(_trustedAddresses.contains(account), "Invalid account");
-        _trustedAddresses.remove(account);
-
-        emit RemoveTrustedAddress(account);
-    }
-
-    /**
-     * @dev See {ISoulboundNFT}
-     */
-    function getTrustedAddresses() external view override returns(address[] memory) {
-        uint length = _trustedAddresses.length();
+    function getTrustedSignerAddresses() external view override returns(address[] memory) {
+        uint length = _trustedSigners.length();
         address[] memory list = new address[](length);
         for (uint i = 0; i < length; i++) {
-            list[i] = _trustedAddresses.at(i);
+            list[i] = _trustedSigners.at(i);
         }
 
         return list;
@@ -190,57 +164,51 @@ contract SoulboundNFT is VDAVerificationContract,
 
     }
 
-
     /**
      * @dev See {IsoulboundNFT}
      */
     function claimSBT(
         address did,
-        string calldata sbtType,
-        string calldata uniqueId,
-        string calldata sbtURI,
-        address recipient,
+        SBTInfo calldata sbtInfo,
         bytes calldata signature,
         bytes calldata proof
     ) external override returns(uint) {
-
-        require(isValidSBTType(sbtType), "Invalid SBT type");
+        require(isValidSBTType(sbtInfo.sbtType), "Invalid SBT type");
         {
             bytes memory params = abi.encodePacked(
                 did,
                 "-",
-                sbtType,
+                sbtInfo.sbtType,
                 "-",
-                uniqueId,
+                sbtInfo.uniqueId,
+                "-",
+                sbtInfo.sbtURI,
+                "-",
+                sbtInfo.recipient,
                 "-");
             params = abi.encodePacked(
                 params,
-                sbtURI,
-                "-",
-                recipient,
-                "-");
-            params = abi.encodePacked(
-                params,
-                getNonce(did));
-            verifyRequest(did, _trustedAddresses, params, signature, proof);
+                _nonce[did]);
+            // verifyRequest(did, _trustedAddresses, params, signature, proof);
+            verifyData(params, signature, proof);
         }
 
-        require(_userInfo[recipient][sbtType] == 0, "Already claimed type");
+        require(_userInfo[sbtInfo.recipient][sbtInfo.sbtType] == 0, "Already claimed type");
 
         _tokenIdCounter.increment();
         uint256 tokenId = _tokenIdCounter.current();
-        _safeMint(recipient, tokenId);
+        _safeMint(sbtInfo.recipient, tokenId);
 
         // SetTokenURI
-        _setTokenURI(tokenId, sbtURI);
+        _setTokenURI(tokenId, sbtInfo.sbtURI);
 
-        _userInfo[recipient][sbtType] = tokenId;
-        _tokenSBTType[tokenId] = sbtType;
+        _userInfo[sbtInfo.recipient][sbtInfo.sbtType] = tokenId;
+        _tokenSBTType[tokenId] = sbtInfo.sbtType;
 
-        emit SBTClaimed(recipient, tokenId, sbtType);
+        emit SBTClaimed(sbtInfo.recipient, tokenId, sbtInfo.sbtType);
 
         // Register SBTType
-        addSBTType(sbtType);
+        addSBTType(sbtInfo.sbtType);
 
         return tokenId;
     }

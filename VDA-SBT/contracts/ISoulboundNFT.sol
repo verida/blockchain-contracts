@@ -3,16 +3,18 @@ pragma solidity ^0.8.7;
 
 interface ISoulboundNFT {
     /**
-     * @notice emitted when a company account added
-     * @param account Company account added
+     * @notice SBT information
+     * @param sbtType Existing SBT type
+     * @param uniqueId Unique id of SBT. Forexample twitter account id.
+     * @param sbtURI Token URI to be set
+     * @param recipient Token receiver
      */
-    event AddTrustedAddress(address account);
-
-    /**
-     * @notice emitted when a company account removed
-     * @param account Company account removed
-     */
-    event RemoveTrustedAddress(address account);
+    struct SBTInfo {
+        string sbtType;
+        string uniqueId;
+        string sbtURI;
+        address recipient;
+    }
 
     /**
      * @notice emitted when a user claimed a SBT
@@ -29,26 +31,13 @@ interface ISoulboundNFT {
      */
     function totalSupply() external view returns(uint);
 
-    /**
-     * @notice Add Verida account that provides proof to users
-     * @dev Only owner can do this
-     * @param account Company account to be added
-     */
-    function addTrustedAddress(address account) external;
-
-    /**
-     * @notice Remove Verida account that provides proof to users
-     * @dev Only owner can do this
-     * @param account Company account to be removed
-     */
-    function removeTrustedAddress(address account) external;
 
     /**
      * @notice Get list of company accounts 
      * @dev Only owner can see this
      * @return address[] list of company accounts
      */
-    function getTrustedAddresses() external view returns(address[] memory);
+    function getTrustedSignerAddresses() external view returns(address[] memory);
 
     // /**
     //  * @notice Remove a existing SBT type
@@ -61,20 +50,14 @@ interface ISoulboundNFT {
      * @notice Claim a SBT type to requested user
      * @dev Claim to msg.sender
      * @param did `did` of requesting user. Used for verification
-     * @param sbtType Existing SBT type
-     * @param uniqueId Unique id of SBT. Forexample twitter account id.
+     * @param sbtInfo SBT Information
      * @param signature Signature signed by did
-     * @param sbtURI Token URI to be set
-     * @param recipient Token receiver
      * @param proof Proof provided by Verida-server
      * @return uint Claimed tokenId
      */
     function claimSBT(
         address did,
-        string calldata sbtType,
-        string calldata uniqueId,
-        string calldata sbtURI,
-        address recipient,
+        SBTInfo calldata sbtInfo,
         bytes calldata signature,
         bytes calldata proof
     ) external returns(uint);
