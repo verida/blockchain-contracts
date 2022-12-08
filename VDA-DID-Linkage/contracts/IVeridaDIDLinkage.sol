@@ -40,20 +40,6 @@ interface IVeridaDIDLinkage {
     function addIdentifierType(string calldata identifierTypeId, string calldata signerType) external;
 
     /**
-     * @notice Add an trusted signer address
-     * @dev Only the owner of contract is allowed
-     * @param signer Signer address
-     */
-    function addTrustedSignerAddress(address signer) external;
-
-    /**
-     * @notice Remove a trusted signer address
-     * @dev Only the owner of contract is allowed
-     * @param signer Signer address
-     */
-    function removeTrustedSignerAddress(address signer) external;
-
-    /**
      * @notice Check whether an address is trusted
      * @dev Only owner of contract can check
      * @param signer Signer address to be checked

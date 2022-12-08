@@ -2,7 +2,9 @@
 pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/utils/structs/EnumerableSetUpgradeable.sol";
+// import "@openzeppelin/contracts-upgradeable/utils/structs/EnumerableSetUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/StringsUpgradeable.sol";
+
 import "@verida/vda-verification-contract/contracts/VDAVerificationContract.sol";
 
 import "./IVeridaDIDLinkage.sol";
@@ -12,9 +14,7 @@ contract VeridaDIDLinkage is VDAVerificationContract,
     OwnableUpgradeable 
 {
 
-    using EnumerableSetUpgradeable for EnumerableSetUpgradeable.AddressSet;
-
-    EnumerableSetUpgradeable.AddressSet private _trustedSigners;
+    // using EnumerableSetUpgradeable for EnumerableSetUpgradeable.AddressSet;
 
     /**
      * @notice Signer type for each identifier type
@@ -23,8 +23,8 @@ contract VeridaDIDLinkage is VDAVerificationContract,
     mapping(string => string) private _identifierType;
 
     /**
-    * @notice Initialize
-    */
+     * @notice Initialize
+     */
     function initialize() public initializer {
         __VDAVerificationContract_init();
     }
@@ -37,22 +37,6 @@ contract VeridaDIDLinkage is VDAVerificationContract,
         require(signerType == "Self" || signerType == "Trusted", "Invalid signer type");
 
         _identifierType[identifierTypeId] = signerType;
-    }
-
-    /**
-     * @dev See {IVeridaDIDLinkage}
-     */
-    function addTrustedSignerAddress(address signer) external onlyOwner {
-        require(!_trustedSigners.contains(signer), "Existing address");
-        _trustedSigners.add(signer);
-    }
-
-    /**
-     * @dev See {IVeridaDIDLinkage}
-     */
-    function removeTrustedSignerAddress(address signer) external onlyOwner {
-        require(_trustedSigners.contains(signer), "Invalid signer address");
-        _trustedSigners.remove(signer);
     }
 
     /**
@@ -113,11 +97,25 @@ contract VeridaDIDLinkage is VDAVerificationContract,
         bytes calldata signature,
         bytes calldata signatureProof) external 
     {
-
         string memory kind;
         string memory id;
         (kind, id) = parseIdentifier(identifier);
         require(bytes(_identifierType[kind]).length > 0, "Invalid identifier type");
+
+        string memory strDID = StringsUpgradeable.toHexString(uint256(uint160(did)));
+        bytes memory rawMsg = abi.encodePacked(
+            "did:vda:",
+            strDID,
+            "|",
+            identifier
+        );
+
+        if (_identifierType[kind] == "Self") {
+            // SignatureProof should be signed by the id of identifier
+
+        } else {
+            // SignatureProof should be signed by the trusted signers
+        }
 
         
         
