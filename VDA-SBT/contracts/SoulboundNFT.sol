@@ -170,27 +170,34 @@ contract SoulboundNFT is VDAVerificationContract,
     function claimSBT(
         address did,
         SBTInfo calldata sbtInfo,
-        bytes calldata signature,
-        bytes calldata proof
+        bytes calldata requestSignature,
+        bytes calldata requestProof
     ) external override returns(uint) {
         require(isValidSBTType(sbtInfo.sbtType), "Invalid SBT type");
         {
             bytes memory params = abi.encodePacked(
                 did,
-                "-",
+                // "-",
                 sbtInfo.sbtType,
-                "-",
+                // "-",
                 sbtInfo.uniqueId,
-                "-",
+                // "-",
                 sbtInfo.sbtURI,
-                "-",
-                sbtInfo.recipient,
-                "-");
+                // "-",
+                sbtInfo.recipient);
+
             params = abi.encodePacked(
                 params,
-                _nonce[did]);
-            // verifyRequest(did, _trustedAddresses, params, signature, proof);
-            verifyData(params, signature, proof);
+                // "-",
+                sbtInfo.signedData,
+                // "-",
+                sbtInfo.signedProof
+                // "-" 
+            );
+            
+            verifyRequest(did, params, requestSignature, requestProof);
+
+            verifyData(bytes(sbtInfo.uniqueId), sbtInfo.signedData, sbtInfo.signedProof);
         }
 
         require(_userInfo[sbtInfo.recipient][sbtInfo.sbtType] == 0, "Already claimed type");

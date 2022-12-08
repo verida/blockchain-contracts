@@ -8,12 +8,16 @@ interface ISoulboundNFT {
      * @param uniqueId Unique id of SBT. Forexample twitter account id.
      * @param sbtURI Token URI to be set
      * @param recipient Token receiver
+     * @param signedData Signature of `uniqueId`. Signed by the trusted signer
+     * @param signedProof Proof for `uniqudId`
      */
     struct SBTInfo {
         string sbtType;
         string uniqueId;
         string sbtURI;
         address recipient;
+        bytes signedData;
+        bytes signedProof;
     }
 
     /**
@@ -51,15 +55,15 @@ interface ISoulboundNFT {
      * @dev Claim to msg.sender
      * @param did `did` of requesting user. Used for verification
      * @param sbtInfo SBT Information
-     * @param signature Signature signed by did
-     * @param proof Proof provided by Verida-server
+     * @param requestSignature Signature signed by did
+     * @param requestProof Proof provided by Verida-server
      * @return uint Claimed tokenId
      */
     function claimSBT(
         address did,
         SBTInfo calldata sbtInfo,
-        bytes calldata signature,
-        bytes calldata proof
+        bytes calldata requestSignature,
+        bytes calldata requestProof
     ) external returns(uint);
 
     /**
