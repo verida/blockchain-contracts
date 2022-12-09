@@ -1,35 +1,68 @@
-//SPDX-License-Identifier : MIT
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.9;
 
 interface IVeridaDIDLinkage {
+
+    /**
+     * @notice Link information
+     * @param identifier Identifier that will be linked to did
+     * @param signedData Signer signature of identifier
+     * @param signatureProof Signer proof
+     */
+    struct LinkInfo {
+        string identifier;
+        bytes signedData;
+        bytes signedProof;
+    }
+
     /**
      * @notice Link a `did` to an `identifier`
      * @dev Transaction check verification by VDA-Verification-Base contract
-     * @param did DID address to be linked
-     * @param identifier Identifier that will be linked to did
-     * @param signature Used to verify request
-     * @param signatureProof Used to verify request
+     * @param didAddr DID address to be linked
+     * @param info Link information
+     * @param requestSignature Used to verify request
+     * @param requestProof Used to verify request
      */
     function link(
-        address did, 
-        string calldata identifier, 
-        bytes calldata signature,
-        bytes calldata signatureProof) external;
+        address didAddr, 
+        LinkInfo calldata info, 
+        bytes calldata requestSignature,
+        bytes calldata requestProof) external;
 
     /**
      * @notice Unlink an `identifier` from a `did`
-     * @param did DID address from which `identifier` is unlinked
+     * @param didAddr DID address from which `identifier` is unlinked
      * @param identifier Identifier that is unlinked
+     * @param requestSignature Used to verify request
+     * @param requestProof Used to verify request
      */
-    function unlink(address did, string calldata identifier) external;
+    function unlink(
+        address didAddr, 
+        string calldata identifier,
+        bytes calldata requestSignature,
+        bytes calldata requestProof
+    ) external;
 
     /**
      * @notice Check whether an `identifier` is linked to a `did`
-     * @param did DID address
+     * @param did DID
      * @param identifier Identifier to be checked the linked status
      * @return bool True if linked, false otherwise.
      */
-    function isLinked(address did, string calldata identifier) external returns(bool);
+    function isLinked(string calldata did, string calldata identifier) external view returns(bool);
+
+    /**
+     * @notice Get controller did of an identifier
+     * @param identifier Identifier
+     * @return string Controller DID
+     */
+    function getController(string calldata identifier) external view returns(string memory);
+
+    /**
+     * @notice Get the identifier list that is being controlled by inputed DID
+     * @param did DID
+     */
+    function getIdentifierList(string calldata did) external view returns(string[] memory);
 
     /**
      * @notice Add a identifierType
@@ -57,16 +90,16 @@ interface IVeridaDIDLinkage {
 
     /**
      * @notice emitted when an `identifer` is linked to a `did`
-     * @param did DID address
-     * @param identifier Identifier to be checked the linked status
+     * @param did DID
+     * @param identifier Identifier linked
      */
-    event Link(address did, string identifier);
+    event Link(string did, string identifier);
 
     /**
      * @notice emitted when an `identifier` is unlinked from a `did`
-     * @param did DID address
-     * @param identifier Identifier to be checked the linked status
+     * @param did DID
+     * @param identifier Identifier unlinked
      */
-    event Unlink(address did, string identifier);
+    event Unlink(string did, string identifier);
 
 }

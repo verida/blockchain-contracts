@@ -1,5 +1,5 @@
 {
-  "name": "vda-did-registry",
+  "name": "@verida/did-registry-contract",
   "version": "0.0.1",
   "main": "artifacts/contracts/VeridaDIDRegistry.sol/VeridaDIDRegistry.json",
   "dependencies": {

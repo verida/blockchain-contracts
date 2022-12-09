@@ -1,5 +1,5 @@
 {
-  "name": "@verida/vda-did-linkage-contract",
+  "name": "@verida/did-linkage-contract",
   "description": "DID linkage contract of Verida",
   "version": "0.0.1",
   "author": "Alex J <alex@verida.io, trust2ray@gmail.com>",
@@ -39,6 +39,7 @@
     "typescript": "^4.9.3"
   },
   "dependencies": {
-    "@openzeppelin/contracts-upgradeable": "^4.8.0"
+    "@openzeppelin/contracts-upgradeable": "^4.8.0",
+    "dotenv": "^16.0.3"
   }
 }
