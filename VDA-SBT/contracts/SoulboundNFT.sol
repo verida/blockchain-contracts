@@ -177,27 +177,27 @@ contract SoulboundNFT is VDAVerificationContract,
         {
             bytes memory params = abi.encodePacked(
                 did,
-                // "-",
                 sbtInfo.sbtType,
-                // "-",
                 sbtInfo.uniqueId,
-                // "-",
                 sbtInfo.sbtURI,
-                // "-",
                 sbtInfo.recipient);
 
             params = abi.encodePacked(
                 params,
-                // "-",
                 sbtInfo.signedData,
-                // "-",
                 sbtInfo.signedProof
-                // "-" 
             );
             
             verifyRequest(did, params, requestSignature, requestProof);
 
-            verifyData(bytes(sbtInfo.uniqueId), sbtInfo.signedData, sbtInfo.signedProof);
+            params = abi.encodePacked(
+                sbtInfo.sbtType,
+                "-",
+                sbtInfo.uniqueId,
+                "-",
+                did
+            );
+            verifyData(params, sbtInfo.signedData, sbtInfo.signedProof);
         }
 
         require(_userInfo[sbtInfo.recipient][sbtInfo.sbtType] == 0, "Already claimed type");

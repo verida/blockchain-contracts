@@ -1,7 +1,5 @@
 import chai, { expect } from "chai";
 import chaiAsPromised from "chai-as-promised";
-import { ContractTransaction } from "ethers";
-import { Block, Log } from "@ethersproject/providers";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 
 import hre, { ethers , upgrades } from "hardhat"
@@ -13,12 +11,6 @@ import EncryptionUtils from '@verida/encryption-utils'
 import { Keyring } from "@verida/keyring";
 
 chai.use(chaiAsPromised);
-
-const companyAccounts = [
-    Wallet.createRandom(),
-    Wallet.createRandom(),
-    Wallet.createRandom(),
-]
 
 const sbtTypes = [
     "twitter",
@@ -35,23 +27,6 @@ const tokenURIs = [
 export const zeroAddress = "0x0000000000000000000000000000000000000000"
 
 let contract: SoulboundNFT
-const createVeridaSign = async (rawMsg : any, privateKey: string, docDID: string) => {
-    if (contract === undefined)
-      return ''
-  
-    const nonce = (await contract.nonce(docDID)).toNumber()
-    rawMsg = ethers.utils.solidityPack(
-      ['bytes','uint256'],
-      [rawMsg, nonce]
-    )
-    const privateKeyArray = new Uint8Array(Buffer.from(privateKey.slice(2), 'hex'))
-    return EncryptionUtils.signData(rawMsg, privateKeyArray)
-}
-
-// const createProofSign = async (rawMsg : any, privateKey: String ) => {
-//     const privateKeyArray = new Uint8Array(Buffer.from(privateKey.slice(2), 'hex'))
-//     return EncryptionUtils.signData(rawMsg, privateKeyArray)
-// }
 
 describe("Verida Soulbound", () => {
     let veridians: SignerWithAddress[]
@@ -89,6 +64,12 @@ describe("Verida Soulbound", () => {
     })
 
     describe("Manage trusted address", () => {
+        const companyAccounts = [
+            Wallet.createRandom(),
+            Wallet.createRandom(),
+            Wallet.createRandom()
+        ]
+        
         before(async () => {
             contract = await deployContract()
         })
@@ -161,11 +142,6 @@ describe("Verida Soulbound", () => {
                 return ''
             const nonce = (await contract.nonce(did)).toNumber()
 
-            // const rawMsg = ethers.utils.solidityPack(
-            //     ['address', 'string', 'address', 'string', 'bytes', 'string', 'bytes', 'string', 'uint'],
-            //     [did, `-${sbtType}-${uniqueId}-${sbtURI}-`, recipient, '-', signdData, '-', signInfo.signerProof!, '-', nonce]
-            // );
-
             const rawMsg = ethers.utils.solidityPack(
                 ['address', 'string', 'address', 'bytes', 'bytes', 'uint'],
                 [did, `${sbtType}${uniqueId}${sbtURI}`, recipient, signData, signInfo.signerProof!, nonce]
@@ -183,7 +159,11 @@ describe("Verida Soulbound", () => {
                 generateProof()
             ])
 
-            signedData = await signInfo.signKeyring.sign(uniqueId)
+            const msg = ethers.utils.solidityPack(
+                ['string','address'],
+                [`${sbtType}-${uniqueId}-`, signInfo.userAddress]
+            )
+            signedData = await signInfo.signKeyring.sign(msg)
         })
 
         it("Failed : Invalid SBT Type", async () => {
@@ -329,7 +309,11 @@ describe("Verida Soulbound", () => {
 
         it("Failed : Already claimed type - same SBT type with different id",async () => {
             const diffId = "-diffId";
-            const signedData = await signInfo.signKeyring.sign(diffId)
+            const msg = ethers.utils.solidityPack(
+                ['string','address'],
+                [`${sbtType}-${diffId}-`, signInfo.userAddress]
+            )
+            const signedData = await signInfo.signKeyring.sign(msg)
 
             const requestSignature = await getClaimSBTSignature(
                 signInfo.userAddress, 
