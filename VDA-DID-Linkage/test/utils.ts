@@ -123,11 +123,9 @@ export interface SignInfo {
     signKeyring : Keyring
     signerAddress: string
     signerProof?: string
-    signerDID?: string
     userKeyring: Keyring
     userAddress: string
     userProof?:  string
-    userDID?: string
 }
 
 export async function generateProof() : Promise<SignInfo> {
@@ -158,10 +156,10 @@ export async function generateProof() : Promise<SignInfo> {
 
     return {
         signKeyring,
-        signerAddress: signWallet.address,
+        signerAddress: signWallet.address.toLowerCase(),
         signerProof,
         userKeyring,
-        userAddress: userWallet.address,
-        userProof
+        userAddress: userWallet.address.toLowerCase(),
+        userProof,
     }
 }

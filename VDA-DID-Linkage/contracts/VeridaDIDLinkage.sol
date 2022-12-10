@@ -75,7 +75,7 @@ contract VeridaDIDLinkage is VDAVerificationContract,
         require(bytes(_identifierType[kind]).length > 0, "Invalid identifier type");
 
         string memory strDID = StringsUpgradeable.toHexString(uint256(uint160(didAddr)));
-        strDID = string(abi.encodePacked("did:vda", strDID));
+        strDID = string(abi.encodePacked("did:vda:", strDID));
 
         require(bytes(_identifierController[info.identifier]).length == 0, "Controller existing");
 
@@ -126,7 +126,9 @@ contract VeridaDIDLinkage is VDAVerificationContract,
         bytes calldata requestProof
     ) external override {
         string memory strDID = StringsUpgradeable.toHexString(uint256(uint160(didAddr)));
-        strDID = string(abi.encodePacked("did:vda", strDID));
+        strDID = string(abi.encodePacked("did:vda:", strDID));
+
+        require(_didIdentifiers[strDID].contains(identifier), "Unlinked identifier");
 
         // Verify request
         {
