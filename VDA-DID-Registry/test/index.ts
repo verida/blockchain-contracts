@@ -160,6 +160,64 @@ describe("Verida DIDRegistry", () => {
     })
   })
 
+  describe("Active DIDs", () => {
+    const testDIDs = [
+      Wallet.createRandom(),
+      Wallet.createRandom(),
+    ]
+
+    const testEndPoints = [
+      'https://C_1',
+      'https://C_2'
+    ]
+
+    it("Should increase active dids on Register success", async () => {
+      for (let i = 0; i < testDIDs.length; i++) {
+        const orgCount = (await didReg.activeDIDs()).toNumber();
+
+        const signature = await getRegisterSignature(testDIDs[i].address, testEndPoints, testDIDs[i].privateKey)
+        await expect(didReg.register(testDIDs[i].address, testEndPoints, signature)).to.emit(didReg, "Register");
+
+        const newCount = (await didReg.activeDIDs()).toNumber();
+        expect(newCount).equal(orgCount+1)
+      }
+    })
+
+    it("Should not updated on duplicate Register", async () => {
+      const orgCount = (await didReg.activeDIDs()).toNumber();
+
+      const signature = await getRegisterSignature(testDIDs[0].address, testEndPoints, testDIDs[0].privateKey)
+      await expect(didReg.register(testDIDs[0].address, testEndPoints, signature)).to.emit(didReg, "Register");
+
+      const newCount = (await didReg.activeDIDs()).toNumber();
+      expect(newCount).equal(orgCount)
+    })
+
+    it("Should not updated on Register failed", async () => {
+      const orgCount = (await didReg.activeDIDs()).toNumber();
+
+      const signature = await getRegisterSignature(testDIDs[0].address, testEndPoints, badSigner.privateKey)
+      await expect(didReg.register(testDIDs[0].address, testEndPoints, signature)).to.be.rejectedWith("Invalid signature");
+
+      const newCount = (await didReg.activeDIDs()).toNumber();
+      expect(newCount).equal(orgCount)
+    })
+
+    it("Should decrease on Revoke success", async () => {
+      for (let i = 0; i < testDIDs.length; i++) {
+        const orgCount = (await didReg.activeDIDs()).toNumber();
+
+        const signature = await getRevokeSignature(testDIDs[i].address, testDIDs[i].privateKey);
+        await expect(didReg.revoke(testDIDs[i].address, signature)).to
+          .emit(didReg, "Revoke")
+          .withArgs(testDIDs[i].address);
+
+        const newCount = (await didReg.activeDIDs()).toNumber();
+        expect(newCount).equal(orgCount-1)
+      }
+    })
+  })
+
   describe("Lookup", () => {
     it("Get endopints registered", async () => {
       const list = (await didReg.lookup(did))[1];
@@ -196,7 +254,7 @@ describe("Verida DIDRegistry", () => {
       await expect(didReg.lookup(testDID.address)).to.be.rejectedWith("Unregistered address");
     })
   })
-
+  
   describe("Set controller", () => {
     
     it("Should reject for unregistered address", async () => {

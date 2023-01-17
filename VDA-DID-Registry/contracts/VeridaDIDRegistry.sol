@@ -14,6 +14,11 @@ contract VeridaDIDRegistry is OwnableUpgradeable, IVeridaDIDRegistry {
   using EnumerableSet for EnumerableSet.StringSet;
 
   /**
+   * @notice Number of Active DIDs
+   */
+  uint public activeDIDs;
+
+  /**
    * @notice Map of controllers
    * @dev DID address => controller address
    */
@@ -71,7 +76,11 @@ contract VeridaDIDRegistry is OwnableUpgradeable, IVeridaDIDRegistry {
       list.add(endpoints[i]);
     }
 
-    _isRegistered[didAddress] = true;
+    // Increase activeDIDs for only new registers
+    if (!_isRegistered[didAddress]) {
+      _isRegistered[didAddress] = true;
+      activeDIDs++;
+    }
 
     emit Register(didAddress, endpoints);
   }
@@ -98,6 +107,7 @@ contract VeridaDIDRegistry is OwnableUpgradeable, IVeridaDIDRegistry {
     list.clear();
 
     _isRegistered[didAddress] = false;
+    activeDIDs--;
 
     emit Revoke(didAddress);
   }
