@@ -77,7 +77,7 @@ contract VeridaDIDLinkage is VDAVerificationContract,
         string memory strDID = StringsUpgradeable.toHexString(uint256(uint160(didAddr)));
         strDID = string(abi.encodePacked("did:vda:", strDID));
 
-        require(bytes(_identifierController[info.identifier]).length == 0, "Controller existing");
+        require(bytes(_identifierController[info.identifier]).length == 0, "Identity already exists");
 
         // Verify data
         {
@@ -88,6 +88,7 @@ contract VeridaDIDLinkage is VDAVerificationContract,
                 info.signedProof
             );
 
+            // Verify this request was signed by the DID creating the link
             verifyRequest(didAddr, params, requestSignature, requestProof);
 
             params = abi.encodePacked(
@@ -101,10 +102,11 @@ contract VeridaDIDLinkage is VDAVerificationContract,
                 address[] memory signers = new address[](1);
                 signers[0] = parseAddr(id);
 
+                // Verify `signedProof` is a valid signed proof by the DID for this link
                 verifyDataWithSigners(params, info.signedData, info.signedProof, signers);
 
             } else {
-                // SignatureProof should be signed by the trusted signers
+                // Verify `signedProof` is a valid signed proof by the trusted signer
                 verifyData(params, info.signedData, info.signedProof);
             }
         }
@@ -128,7 +130,7 @@ contract VeridaDIDLinkage is VDAVerificationContract,
         string memory strDID = StringsUpgradeable.toHexString(uint256(uint160(didAddr)));
         strDID = string(abi.encodePacked("did:vda:", strDID));
 
-        require(_didIdentifiers[strDID].contains(identifier), "Unlinked identifier");
+        require(_didIdentifiers[strDID].contains(identifier), "Identifier not linked");
 
         // Verify request
         {
