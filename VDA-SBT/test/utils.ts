@@ -5,7 +5,6 @@ import { Client, EnvironmentType } from "@verida/client-ts";
 // import { Wallet } from '@ethersproject/wallet'
 import { Wallet } from "ethers"
 import { JsonRpcProvider } from '@ethersproject/providers'
-import EncryptionUtils from "@verida/encryption-utils";
 
 import { Keyring } from "@verida/keyring";
 
@@ -42,9 +41,9 @@ export async function getDIDClient(veridaAccount: Wallet) {
             privateKey: '383b7ac8d2f4eb6693b2bc8de97d26c69a50f7b10520e11ea97b4f95dd219967'
         },
         [
-            `https://acacia-dev1.tn.verida.tech/did/`,
-            `https://acacia-dev2.tn.verida.tech/did`,
-            `https://acacia-dev3.tn.verida.tech/did/`
+            `https://node1-apse2.devnet.verida.tech/did/`,
+            `https://node1-apse2.devnet.verida.tech/did/`,
+            `https://node1-apse2.devnet.verida.techyarn /did/`
         ]
     )
 
