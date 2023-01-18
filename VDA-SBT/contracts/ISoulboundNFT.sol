@@ -4,8 +4,9 @@ pragma solidity ^0.8.7;
 interface ISoulboundNFT {
     /**
      * @notice SBT information
+     * @dev Used for input data types on claiming SBT
      * @param sbtType Existing SBT type
-     * @param uniqueId Unique id of SBT. Forexample twitter account id.
+     * @param uniqueId Unique id of SBT. For example twitter account id.
      * @param sbtURI Token URI to be set
      * @param recipient Token receiver
      * @param signedData Signature of `uniqueId`. Signed by the trusted signer
@@ -18,6 +19,17 @@ interface ISoulboundNFT {
         address recipient;
         bytes signedData;
         bytes signedProof;
+    }
+
+    /**
+     * @notice TokenId information
+     * @dev Used to keep token information
+     * @param sbtType Existing SBT type
+     * @param uniqueId Unique id of SBT. For example twitter account id.
+     */
+    struct TokenInfo {
+        string sbtType;
+        string uniqueId;
     }
 
     /**
@@ -67,24 +79,26 @@ interface ISoulboundNFT {
     ) external returns(uint);
 
     /**
-     * @notice Get claimed SBT type list of user
+     * @notice Get claimed SBT list of user
      * @dev Get the list of msg.sender
-     * @return string[] SBT types array
+     * @return uint[] Claimed token Id list
      */
-    function getClaimedSBTList() external view returns(string[] memory);
+    function getClaimedSBTList() external view returns(uint[] memory);
 
     /**
      * @notice Check whether user claimed the sbtType
      * @dev Check for msg.sender
      * @param sbtType existing SBT type
+     * @param uniqueId Unique id of SBT. For example twitter account id.
      * @return bool true if claimed, otherwise false
      */
-    function isSBTClaimed(string calldata sbtType) external view returns(bool);
+    function isSBTClaimed(string calldata sbtType, string calldata uniqueId) external view returns(bool);
     
     /**
-     * @notice Get the SBT type of tokenId
+     * @notice Get the SBT type & uniqueID from a tokenId
      * @param tokenId minted token ID
-     * @return string SBT type assigned to tokenId
+     * @return string SBT type of tokenId
+     * @return string UniqueId of tokenId 
      */
-    function tokenSBTType(uint tokenId) external view returns(string memory);
+    function tokenInfo(uint tokenId) external view returns(string memory, string memory);
 }

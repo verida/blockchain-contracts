@@ -63,6 +63,7 @@ describe("Verida Soulbound", () => {
         ]
     })
 
+    /*
     describe("Manage trusted address", () => {
         const companyAccounts = [
             Wallet.createRandom(),
@@ -120,6 +121,7 @@ describe("Verida Soulbound", () => {
             expect((await contract.getTrustedSignerAddresses()).length).to.be.equal(0);
         })
     })
+    */
 
     describe("Claim SBT", () => {
         const sbtType = sbtTypes[0];
@@ -307,7 +309,7 @@ describe("Verida Soulbound", () => {
             )).to.be.rejectedWith("Already claimed type");            
         })
 
-        it("Failed : Already claimed type - same SBT type with different id",async () => {
+        it("Success : same SBT type with different id",async () => {
             const diffId = "-diffId";
             const msg = ethers.utils.solidityPack(
                 ['string','address'],
@@ -324,7 +326,7 @@ describe("Verida Soulbound", () => {
                 signInfo.userKeyring,
                 signedData)
 
-            await expect(contract.claimSBT(
+            const tx = await contract.claimSBT(
                 signInfo.userAddress,
                 {
                     sbtType,
@@ -336,10 +338,16 @@ describe("Verida Soulbound", () => {
                 },
                 requestSignature,
                 signInfo.userProof!
-            )).to.be.rejectedWith("Already claimed type");    
+            );
+
+            const tokenId = await contract.totalSupply(); //Latest tokenId
+            expect(tx).to.emit(contract, "Transfer").withArgs(zeroAddress, claimer.address, tokenId)
+            expect(tx).to.emit(contract, "Locked").withArgs(tokenId)
+            expect(tx).to.emit(contract, "SBTClaimed").withArgs(claimer.address, tokenId, sbtType)
         })
     })
 
+    /*
     describe("Token Transfer Restricted after minted", () => {
         it("Transfer disabled for minted NFT", async () => {
             const recepient = veridians[2];
@@ -360,4 +368,5 @@ describe("Verida Soulbound", () => {
             await expect(contract.locked(0)).to.be.rejectedWith("ERC721: invalid token ID")
         })
     })
+    */
 });

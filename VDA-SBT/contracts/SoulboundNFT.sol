@@ -21,6 +21,7 @@ contract SoulboundNFT is VDAVerificationContract,
     ISoulboundNFT {
     using CountersUpgradeable for CountersUpgradeable.Counter;
     using EnumerableSetUpgradeable for EnumerableSetUpgradeable.AddressSet;
+    using EnumerableSetUpgradeable for EnumerableSetUpgradeable.UintSet;
     using EnumerableSet for EnumerableSet.StringSet;
 
     /**
@@ -36,16 +37,22 @@ contract SoulboundNFT is VDAVerificationContract,
 
     /**
      * @notice Claimed SBT info by users
-     * @dev mapping of User => (SBTType => tokenId)
+     * @dev mapping of User => SBTType => UniqueId => tokenId
      */
-    mapping(address => mapping(string => uint)) private _userInfo;
+    mapping(address => mapping(string => mapping(string => uint))) private _userInfo;
 
     /** 
      * @notice SBT type of tokenId
+     * @dev mapping of tokenId => TokenInfo
      */
-    mapping(uint => string) private _tokenSBTType;
+    mapping(uint => TokenInfo) private _tokenIdInfo;
 
-    
+    /**
+     * @notice Claimed tokenId list of users
+     * @dev mapping of user's address to tokenId list
+     * SBT tokens can't be transferred to other users. It can be transferred to 0x0 for burning
+     */
+    mapping(address => EnumerableSetUpgradeable.UintSet) _userTokenIds;
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -200,7 +207,7 @@ contract SoulboundNFT is VDAVerificationContract,
             verifyData(params, sbtInfo.signedData, sbtInfo.signedProof);
         }
 
-        require(_userInfo[sbtInfo.recipient][sbtInfo.sbtType] == 0, "Already claimed type");
+        require(_userInfo[sbtInfo.recipient][sbtInfo.sbtType][sbtInfo.uniqueId] == 0, "Already claimed type");
 
         _tokenIdCounter.increment();
         uint256 tokenId = _tokenIdCounter.current();
@@ -209,10 +216,15 @@ contract SoulboundNFT is VDAVerificationContract,
         // SetTokenURI
         _setTokenURI(tokenId, sbtInfo.sbtURI);
 
-        _userInfo[sbtInfo.recipient][sbtInfo.sbtType] = tokenId;
-        _tokenSBTType[tokenId] = sbtInfo.sbtType;
+        _userInfo[sbtInfo.recipient][sbtInfo.sbtType][sbtInfo.uniqueId] = tokenId;
+
+        _tokenIdInfo[tokenId].sbtType = sbtInfo.sbtType;
+        _tokenIdInfo[tokenId].uniqueId = sbtInfo.uniqueId;
 
         emit SBTClaimed(sbtInfo.recipient, tokenId, sbtInfo.sbtType);
+
+        // Add to user' tokenId list
+        _userTokenIds[sbtInfo.recipient].add(tokenId);
 
         // Register SBTType
         addSBTType(sbtInfo.sbtType);
@@ -223,18 +235,12 @@ contract SoulboundNFT is VDAVerificationContract,
     /**
      * @dev See {IsoulboundNFT}
      */
-    function getClaimedSBTList() external view override returns(string[] memory) {
+    function getClaimedSBTList() external view override returns(uint[] memory) {
         uint length = balanceOf(msg.sender);
-        string[] memory sbtList = new string[](length);
+        uint[] memory sbtList = new uint[](length);
 
-        uint index = 0;
-        string memory sbtType;
-        for (uint i = 0; i < _sbtTypes.length(); i++) {
-            sbtType = _sbtTypes.at(i);
-            if (_userInfo[msg.sender][sbtType] != 0) {
-                sbtList[index] = sbtType;
-                index++;
-            }
+        for (uint i = 0; i < length; i++) {
+            sbtList[i] = _userTokenIds[msg.sender].at(i);
         }
         return sbtList;
     }
@@ -242,17 +248,17 @@ contract SoulboundNFT is VDAVerificationContract,
     /**
      * @dev See {IsoulboundNFT}
      */
-    function isSBTClaimed(string calldata sbtType) external view override returns(bool) {
-        return _userInfo[msg.sender][sbtType] > 0;
+    function isSBTClaimed(string calldata sbtType, string calldata uniqueId) external view override returns(bool) {
+        return _userInfo[msg.sender][sbtType][uniqueId] > 0;
     }
 
     /**
      * @dev See {IsoulboundNFT}
      */
-    function tokenSBTType(uint tokenId) external view override returns(string memory) {
+    function tokenInfo(uint tokenId) external view override returns(string memory, string memory) {
         _requireMinted(tokenId);
 
-        return _tokenSBTType[tokenId];
+        return (_tokenIdInfo[tokenId].sbtType, _tokenIdInfo[tokenId].uniqueId);
     }
 
 }
