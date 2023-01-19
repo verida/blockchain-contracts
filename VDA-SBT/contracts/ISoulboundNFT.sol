@@ -41,6 +41,13 @@ interface ISoulboundNFT {
     event SBTClaimed(address indexed to, uint tokenId, string sbtType);
 
     /**
+     * @notice emitted whan a SBT is burnt
+     * @param who address that burn the SBT. This can the token owner or contract owner
+     * @param tokenId Burnt SBT id
+     */
+    event SBTBurnt(address indexed who, uint tokenId);
+
+    /**
      * @notice Get total supply of token
      * @dev Only owner can see this
      * @return uint Total supplyf of SBT tokens
@@ -77,6 +84,16 @@ interface ISoulboundNFT {
         bytes calldata requestSignature,
         bytes calldata requestProof
     ) external returns(uint);
+
+    /**
+     * @notice SBT owner burn their claimed token or Contract owner burn a specific SBT
+     * @dev SBT owner('recipient' wallet in the SBTInfo) can burn it.
+     * Contract owner burn a specific SBT when it's against policy
+     * @param tokenId Claimed token Id
+     */
+    function burnSBT(
+        uint tokenId
+    ) external;
 
     /**
      * @notice Get claimed SBT list of user

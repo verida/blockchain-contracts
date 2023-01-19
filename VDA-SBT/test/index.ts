@@ -3,7 +3,7 @@ import chaiAsPromised from "chai-as-promised";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 
 import hre, { ethers , upgrades } from "hardhat"
-import { Wallet } from 'ethers'
+import { BigNumber, Wallet } from 'ethers'
 import { SoulboundNFT } from "../typechain-types";
 
 import { generateProof, SignInfo } from "./utils"
@@ -63,7 +63,6 @@ describe("Verida Soulbound", () => {
         ]
     })
 
-    /*
     describe("Manage trusted address", () => {
         const companyAccounts = [
             Wallet.createRandom(),
@@ -121,7 +120,6 @@ describe("Verida Soulbound", () => {
             expect((await contract.getTrustedSignerAddresses()).length).to.be.equal(0);
         })
     })
-    */
 
     describe("Claim SBT", () => {
         const sbtType = sbtTypes[0];
@@ -347,7 +345,39 @@ describe("Verida Soulbound", () => {
         })
     })
 
-    /*
+    describe("Get Claimed SBT list", () => {
+        it("Should return tokenId list for the claimer", async () => {
+            const idList = await contract.connect(claimer).getClaimedSBTList()
+            expect(idList.length).to.equal(2)
+        })
+
+        it("Should return empty array for users who has no SBT", async () => {
+            const idList = await contract.connect(veridians[2]).getClaimedSBTList()
+            expect(idList.length).to.equal(0)
+        })
+    })
+
+    describe("Get tokenInfo from claimed token Id", async () => {
+        it("Should return SBT type & uniqueId for claimed tokenIDs",async () => {
+            const requestedTokenInfo = [
+                [ 'twitter', '-testId' ],
+                [ 'twitter', '-diffId' ]
+            ]
+            const idList = await contract.connect(claimer).getClaimedSBTList()
+
+            for(let i = 0; i < idList.length; i++) {
+                const info = await contract.tokenInfo(idList[i].toNumber())
+                expect(info).deep.equal(requestedTokenInfo[i])
+            }
+        })
+
+        it("Should reject for unclaimed token ID", async () => {
+            const invalidId = (await contract.totalSupply()).toNumber() + 1
+
+            await expect(contract.tokenInfo(invalidId)).to.be.rejectedWith("ERC721: invalid token ID")
+        })
+    })
+
     describe("Token Transfer Restricted after minted", () => {
         it("Transfer disabled for minted NFT", async () => {
             const recepient = veridians[2];
@@ -368,5 +398,74 @@ describe("Verida Soulbound", () => {
             await expect(contract.locked(0)).to.be.rejectedWith("ERC721: invalid token ID")
         })
     })
-    */
+
+    describe("Burn SBT", () => {
+        let bunrtIdList : BigNumber[] = []
+
+        it("Should failed for invalid tokenId", async () => {
+            await expect(contract.burnSBT(0)).to.be.rejectedWith("ERC721: invalid token ID");
+
+            const invalidTokenId = (await contract.totalSupply()).toNumber() + 1
+            await expect(contract.burnSBT(invalidTokenId)).to.be.rejectedWith("ERC721: invalid token ID");
+        })
+
+        it("Should failed for invalid caller",async () => {
+            const idList = await contract.connect(claimer).getClaimedSBTList()
+            expect(idList.length).to.be.greaterThan(0)
+
+            const badCaller = veridians[2]
+
+            expect(badCaller.address).not.equal(claimer.address)
+            expect(badCaller.address).not.equal(owner.address)
+
+            await expect(
+                contract
+                .connect(badCaller)
+                .burnSBT(idList[0].toNumber())
+            ).to.be.rejectedWith("Invalid operation")
+        })
+
+        it("Token owner burn successfully", async () => {
+            const idList = await contract.connect(claimer).getClaimedSBTList()
+            expect(idList.length).to.be.greaterThan(0)
+
+            const tx = await contract.connect(claimer).burnSBT(idList[0].toNumber())
+            expect(tx).to.emit(contract, "SBTBurnt").withArgs(claimer.address, idList[0])
+
+            const updatedIdList = await contract.connect(claimer).getClaimedSBTList()
+            expect(updatedIdList.length).to.equal(idList.length - 1)
+
+            bunrtIdList.push(idList[0])
+        })
+
+        it("Contract owner burn successfully",async () => {
+            const idList = await contract.connect(claimer).getClaimedSBTList()
+            expect(idList.length).to.be.greaterThan(0)
+
+            const tx = await contract.burnSBT(idList[0].toNumber())
+            expect(tx).to.emit(contract, "SBTBurnt").withArgs(owner.address, idList[0])
+
+            const updatedIdList = await contract.connect(claimer).getClaimedSBTList()
+            expect(updatedIdList.length).to.equal(idList.length - 1)
+
+            bunrtIdList.push(idList[0])
+        })
+
+        it("Should failed for already burnt ids",async () => {
+            for (let i = 0; i < bunrtIdList.length; i++) {
+                // Previous owner failed
+                await expect(
+                    contract
+                    .connect(claimer)
+                    .burnSBT(bunrtIdList[i].toNumber())
+                ).to.be.rejectedWith("ERC721: invalid token ID")
+
+                // Contract owner failed
+                await expect(
+                    contract
+                    .burnSBT(bunrtIdList[i].toNumber())
+                ).to.be.rejectedWith("ERC721: invalid token ID")
+            }
+        })
+    })
 });

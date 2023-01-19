@@ -90,7 +90,7 @@ contract SoulboundNFT is VDAVerificationContract,
         address to, 
         uint256 tokenId
         ) internal override virtual {
-        require(from == address(0), "Err: token transfer is BLOCKED");
+        require(from == address(0) || to == address(0), "Err: token transfer is BLOCKED");
         super._beforeTokenTransfer(from, to, tokenId);
     }
 
@@ -108,6 +108,7 @@ contract SoulboundNFT is VDAVerificationContract,
         } else if (to != address(0xdead)) {
             emit Locked(tokenId);
         }
+        super._afterTokenTransfer(from, to, tokenId);
     }
 
     /**
@@ -172,7 +173,7 @@ contract SoulboundNFT is VDAVerificationContract,
     }
 
     /**
-     * @dev See {IsoulboundNFT}
+     * @dev See {ISoulboundNFT}
      */
     function claimSBT(
         address did,
@@ -233,7 +234,7 @@ contract SoulboundNFT is VDAVerificationContract,
     }
 
     /**
-     * @dev See {IsoulboundNFT}
+     * @dev See {ISoulboundNFT}
      */
     function getClaimedSBTList() external view override returns(uint[] memory) {
         uint length = balanceOf(msg.sender);
@@ -246,19 +247,39 @@ contract SoulboundNFT is VDAVerificationContract,
     }
 
     /**
-     * @dev See {IsoulboundNFT}
+     * @dev See {ISoulboundNFT}
      */
     function isSBTClaimed(string calldata sbtType, string calldata uniqueId) external view override returns(bool) {
         return _userInfo[msg.sender][sbtType][uniqueId] > 0;
     }
 
     /**
-     * @dev See {IsoulboundNFT}
+     * @dev See {ISoulboundNFT}
      */
     function tokenInfo(uint tokenId) external view override returns(string memory, string memory) {
         _requireMinted(tokenId);
 
         return (_tokenIdInfo[tokenId].sbtType, _tokenIdInfo[tokenId].uniqueId);
+    }
+
+    /**
+     * @dev See {ISoulboundNFT}
+     */
+    function burnSBT(uint tokenId) external override {
+        address tokenOwner = ERC721Upgradeable.ownerOf(tokenId);
+        require(msg.sender == tokenOwner || msg.sender == owner(), "Invalid operation");
+
+        _burn(tokenId);
+
+        TokenInfo storage info = _tokenIdInfo[tokenId];
+
+        // Remove from user' tokenId list
+        _userTokenIds[tokenOwner].remove(tokenId);
+
+        delete _userInfo[tokenOwner][info.sbtType][info.uniqueId];
+        delete _tokenIdInfo[tokenId];
+
+        emit SBTBurnt(msg.sender, tokenId);
     }
 
 }
