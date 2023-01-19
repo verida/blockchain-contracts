@@ -215,7 +215,7 @@ describe("Verida DID Linkage", () => {
 
             await expect(
                 callLink(identifier, signedData, signedProof)
-            ).to.be.rejectedWith("Controller existing");
+            ).to.be.rejectedWith("Identity already exists");
         })
     })
 
@@ -288,7 +288,7 @@ describe("Verida DID Linkage", () => {
                 unlinkedIdentifier,
                 "0x12",
                 "0x12")
-            ).to.be.rejectedWith("Unlinked identifier")
+            ).to.be.rejectedWith("Identifier not linked")
         })
 
         it("Successfully unlink", async () => {
