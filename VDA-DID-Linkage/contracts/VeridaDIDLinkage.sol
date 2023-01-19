@@ -8,7 +8,6 @@ import "@openzeppelin/contracts-upgradeable/utils/StringsUpgradeable.sol";
 import "@verida/vda-verification-contract/contracts/VDAVerificationContract.sol";
 
 import "./IVeridaDIDLinkage.sol";
-import "./StringUtils.sol";
 import "./EnumerableSet.sol";
 
 contract VeridaDIDLinkage is VDAVerificationContract,
@@ -22,7 +21,7 @@ contract VeridaDIDLinkage is VDAVerificationContract,
      * @notice Signer type for each identifier type
      * @dev mapping of identifier type => signer type
      */
-    mapping(string => string) private _identifierType;
+    mapping(string => SignerType) private _identifierType;
 
     /**
      * @notice Mapping of identifier & it's controller did
@@ -37,6 +36,15 @@ contract VeridaDIDLinkage is VDAVerificationContract,
     mapping(string => EnumerableSet.StringSet) private _didIdentifiers;
 
     /**
+     * @notice Enum representing Signer types
+     */
+    enum SignerType {
+        Unregistered,
+        Self,
+        Trusted
+    }
+
+    /**
      * @notice Initialize
      */
     function initialize() public initializer {
@@ -46,11 +54,10 @@ contract VeridaDIDLinkage is VDAVerificationContract,
     /**
      * @dev See {IVeridaDIDLinkage}
      */
-    function addIdentifierType(string calldata identifierTypeId, string calldata signerType) external onlyOwner {
-        require(bytes(_identifierType[identifierTypeId]).length == 0, "Registered type");
-        require(StringUtils.equal(signerType, "Self") || StringUtils.equal(signerType,"Trusted"), "Invalid signer type");
-
-        _identifierType[identifierTypeId] = signerType;
+    function addIdentifierType(string calldata identifierTypeId, bool isSelfSigner) external onlyOwner {
+        require(_identifierType[identifierTypeId] == SignerType.Unregistered, "Registered type");
+        
+        _identifierType[identifierTypeId] = isSelfSigner ? SignerType.Self : SignerType.Trusted;
     }
 
     /**
@@ -72,7 +79,7 @@ contract VeridaDIDLinkage is VDAVerificationContract,
         string memory kind;
         string memory id;
         (kind, id) = parseIdentifier(info.identifier);
-        require(bytes(_identifierType[kind]).length > 0, "Invalid identifier type");
+        require(_identifierType[kind] != SignerType.Unregistered, "Invalid identifier type");
 
         string memory strDID = StringsUpgradeable.toHexString(uint256(uint160(didAddr)));
         strDID = string(abi.encodePacked("did:vda:", strDID));
@@ -97,7 +104,7 @@ contract VeridaDIDLinkage is VDAVerificationContract,
                 info.identifier
             );
 
-            if (StringUtils.equal(_identifierType[kind], "Self")) {
+            if (_identifierType[kind] == SignerType.Self) {
                 // SignatureProof should be signed by the id of identifier
                 address[] memory signers = new address[](1);
                 signers[0] = parseAddr(id);
@@ -159,14 +166,14 @@ contract VeridaDIDLinkage is VDAVerificationContract,
     /**
      * @dev See {IVeridaDIDLinkage}
      */
-    function getController(string calldata identifier) external view override returns(string memory) {
+    function lookup(string calldata identifier) external view override returns(string memory) {
         return _identifierController[identifier];
     }
 
     /**
      * @dev See {IVeridaDIDLinkage}
      */
-    function getIdentifierList(string calldata did) external view override returns(string[] memory) {
+    function getLinks(string calldata did) external view override returns(string[] memory) {
         EnumerableSet.StringSet storage list = _didIdentifiers[did];
 
         uint length = list.length();

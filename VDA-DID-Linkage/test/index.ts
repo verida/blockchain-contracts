@@ -19,12 +19,12 @@ let contract: VeridaDIDLinkage
 
 interface IdentifierTypeInfo {
     name: string
-    signerType: "Self" | "Trusted"
+    isSelfSigner: boolean
 }
 const identifierTypes : IdentifierTypeInfo[] = [
-    { name: "facebook", signerType: "Trusted" },
-    { name: "twitter", signerType: "Trusted" },
-    { name: "blockchain:eip155", signerType: "Self" },
+    { name: "facebook", isSelfSigner: false },
+    { name: "twitter", isSelfSigner: false },
+    { name: "blockchain:eip155", isSelfSigner: true },
 ]
 
 describe("Verida DID Linkage", () => {
@@ -75,30 +75,24 @@ describe("Verida DID Linkage", () => {
         it("Failed : non-owner", async () => {
             await expect(contract
                 .connect(accountList[1])
-                .addIdentifierType(identifierTypes[0].name, identifierTypes[0].signerType)
+                .addIdentifierType(identifierTypes[0].name, identifierTypes[0].isSelfSigner)
             ).to.be.rejectedWith("Ownable: caller is not the owner")
-        })
-
-        it("Failed : Invalid signer type", async () => {
-            await expect(contract
-                .addIdentifierType(identifierTypes[0].name, "CustomSignerType")
-            ).to.be.rejectedWith("Invalid signer type")
         })
 
         it("Success : Add identifier types", async () => {
             for (const item of identifierTypes) {
-                await contract.addIdentifierType(item.name, item.signerType)
+                await contract.addIdentifierType(item.name, item.isSelfSigner)
             }
         })
 
         it("Failed: Registered type", async () => {
             await expect(contract
-                .addIdentifierType(identifierTypes[0].name, identifierTypes[0].signerType)
+                .addIdentifierType(identifierTypes[0].name, identifierTypes[0].isSelfSigner)
             ).to.be.rejectedWith("Registered type")
         })
     })
 
-    describe("Link", () => {
+    describe("link", () => {
         
         const getSelfSignedData = (didAddr: string, signWallet : Wallet) => {
             const contextSigner = Wallet.createRandom()
@@ -236,29 +230,29 @@ describe("Verida DID Linkage", () => {
         })
     })
 
-    describe("getController", () => {
+    describe("lookup", () => {
         it("Should return controller for linked identifiers", async () => {
             const did = `did:vda:${signInfo.userAddress}`
 
             for(const identifier of identifiers) {
-                expect(await contract.getController(identifier)).to.equal(did)
+                expect(await contract.lookup(identifier)).to.equal(did)
             }
         })
 
         it("No controller for unlinked identifiers", async () => {
-            expect(await contract.getController(unlinkedIdentifier)).to.be.eq('')
+            expect(await contract.lookup(unlinkedIdentifier)).to.be.eq('')
         })
     })
     
-    describe("getIdentifierList", () => {
+    describe("getLinks", () => {
         it("Should return identifier list of linked did", async () => {
             const did = `did:vda:${signInfo.userAddress.toLowerCase()}`
-            expect(await contract.getIdentifierList(did)).to.deep.equal(identifiers)
+            expect(await contract.getLinks(did)).to.deep.equal(identifiers)
         })
 
         it("Should return empty array for unlinked did", async () => {
             const did = `did:vda:${Wallet.createRandom().address.toLowerCase()}`
-            expect(await contract.getIdentifierList(did)).to.deep.equal([])
+            expect(await contract.getLinks(did)).to.deep.equal([])
         })
     })
 

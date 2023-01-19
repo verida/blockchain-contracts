@@ -56,21 +56,21 @@ interface IVeridaDIDLinkage {
      * @param identifier Identifier
      * @return string Controller DID
      */
-    function getController(string calldata identifier) external view returns(string memory);
+    function lookup(string calldata identifier) external view returns(string memory);
 
     /**
      * @notice Get the identifier list that is being controlled by inputed DID
      * @param did DID
      */
-    function getIdentifierList(string calldata did) external view returns(string[] memory);
+    function getLinks(string calldata did) external view returns(string[] memory);
 
     /**
      * @notice Add a identifierType
      * @dev Only the owner of contract is allowed
      * @param identifierTypeId Type of identifier to be added
-     * @param signerType Signer type of identifier type
+     * @param isSelfSigner If true, signer type is self signed, otherwise trusted signer
      */
-    function addIdentifierType(string calldata identifierTypeId, string calldata signerType) external;
+    function addIdentifierType(string calldata identifierTypeId, bool isSelfSigner) external;
 
     /**
      * @notice Check whether an address is trusted
