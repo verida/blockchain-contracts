@@ -46,5 +46,11 @@
   "dependencies": {
     "@openzeppelin/contracts-upgradeable": "^4.8.0",
     "dotenv": "^16.0.3"
+  },
+  "scripts": {
+    "build": "npx hardhat compile",
+    "test": "npx hardhat test",
+    "deploy": "npx hardhat run scripts/deploy.ts",
+    "verify": "npx hardhat verify"
   }
 }

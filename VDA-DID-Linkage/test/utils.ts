@@ -38,11 +38,11 @@ export async function getDIDClient(veridaAccount: Wallet) {
         veridaAccount.privateKey,
         'web3',
         {
-            privateKey: ''
+            privateKey
         },
         [
             `https://node1-apse2.devnet.verida.tech/did/`,
-            `https://node2-apse2.devnet.verida.tech/did/`,
+            // `https://node1-apse2.devnet.verida.tech/did/`,
             `https://node3-apse2.devnet.verida.tech/did/`,
         ]
     )
@@ -72,7 +72,11 @@ export async function getDIDClient(veridaAccount: Wallet) {
     return didClient
 }
 
-const DEFAULT_ENDPOINTS = ['https://node1-apse2.devnet.verida.tech/did/', 'https://node2-apse2.devnet.verida.tech/did/', 'https://node3-apse2.devnet.verida.tech/did/']
+const DEFAULT_ENDPOINTS = [
+    'https://node1-apse2.devnet.verida.tech/did/', 
+    // 'https://node1-apse2.devnet.verida.tech/did/', 
+    'https://node3-apse2.devnet.verida.tech/did/'
+]
 
 export async function initVerida(didwallet: Wallet, CONTEXT_NAME: string) {
     const account = new AutoAccount({
