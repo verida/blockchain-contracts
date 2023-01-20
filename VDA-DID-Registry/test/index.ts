@@ -173,46 +173,46 @@ describe("Verida DIDRegistry", () => {
 
     it("Should increase active dids on Register success", async () => {
       for (let i = 0; i < testDIDs.length; i++) {
-        const orgCount = (await didReg.activeDIDs()).toNumber();
+        const orgCount = (await didReg.activeDIDCount()).toNumber();
 
         const signature = await getRegisterSignature(testDIDs[i].address, testEndPoints, testDIDs[i].privateKey)
         await expect(didReg.register(testDIDs[i].address, testEndPoints, signature)).to.emit(didReg, "Register");
 
-        const newCount = (await didReg.activeDIDs()).toNumber();
+        const newCount = (await didReg.activeDIDCount()).toNumber();
         expect(newCount).equal(orgCount+1)
       }
     })
 
     it("Should not updated on duplicate Register", async () => {
-      const orgCount = (await didReg.activeDIDs()).toNumber();
+      const orgCount = (await didReg.activeDIDCount()).toNumber();
 
       const signature = await getRegisterSignature(testDIDs[0].address, testEndPoints, testDIDs[0].privateKey)
       await expect(didReg.register(testDIDs[0].address, testEndPoints, signature)).to.emit(didReg, "Register");
 
-      const newCount = (await didReg.activeDIDs()).toNumber();
+      const newCount = (await didReg.activeDIDCount()).toNumber();
       expect(newCount).equal(orgCount)
     })
 
     it("Should not updated on Register failed", async () => {
-      const orgCount = (await didReg.activeDIDs()).toNumber();
+      const orgCount = (await didReg.activeDIDCount()).toNumber();
 
       const signature = await getRegisterSignature(testDIDs[0].address, testEndPoints, badSigner.privateKey)
       await expect(didReg.register(testDIDs[0].address, testEndPoints, signature)).to.be.rejectedWith("Invalid signature");
 
-      const newCount = (await didReg.activeDIDs()).toNumber();
+      const newCount = (await didReg.activeDIDCount()).toNumber();
       expect(newCount).equal(orgCount)
     })
 
     it("Should decrease on Revoke success", async () => {
       for (let i = 0; i < testDIDs.length; i++) {
-        const orgCount = (await didReg.activeDIDs()).toNumber();
+        const orgCount = (await didReg.activeDIDCount()).toNumber();
 
         const signature = await getRevokeSignature(testDIDs[i].address, testDIDs[i].privateKey);
         await expect(didReg.revoke(testDIDs[i].address, signature)).to
           .emit(didReg, "Revoke")
           .withArgs(testDIDs[i].address);
 
-        const newCount = (await didReg.activeDIDs()).toNumber();
+        const newCount = (await didReg.activeDIDCount()).toNumber();
         expect(newCount).equal(orgCount-1)
       }
     })

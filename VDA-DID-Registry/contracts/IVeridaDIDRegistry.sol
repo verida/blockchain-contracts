@@ -70,5 +70,12 @@ interface IVeridaDIDRegistry {
      */
     function nonce(address didAddress) external view returns(uint);
 
+    /**
+     * @notice Return the number of active DIDs
+     * @dev Active DIDs doesn't include revoked ones.
+     * @return uint Number of active DIDs
+     */
+    function activeDIDCount() external view returns(uint);
+
 
 }
