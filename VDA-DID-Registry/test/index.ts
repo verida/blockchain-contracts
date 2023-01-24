@@ -16,6 +16,7 @@ import { Wallet } from 'ethers'
 chai.use(chaiAsPromised);
 
 let didReg: VeridaDIDRegistry;
+let accounts: SignerWithAddress[]
 const identity = Wallet.createRandom()
 const badSigner = Wallet.createRandom()
 
@@ -78,7 +79,6 @@ const getRevokeSignature = async(did: string, signKey: string) => {
   return  await createVeridaSign(rawMsg, signKey, did);
 }
 
-
 describe("Verida DIDRegistry", () => {
   
   before(async () => {
@@ -91,6 +91,8 @@ describe("Verida DIDRegistry", () => {
           params: []
       }
     );
+
+    accounts = await hre.ethers.getSigners()
 
     /*
     ///// Need to link library if library contains public functions
@@ -171,7 +173,7 @@ describe("Verida DIDRegistry", () => {
       'https://C_2'
     ]
 
-    it("Should increase active dids on Register success", async () => {
+    it("Should increase active dids' count on Register success", async () => {
       for (let i = 0; i < testDIDs.length; i++) {
         const orgCount = (await didReg.activeDIDCount()).toNumber();
 
@@ -183,14 +185,40 @@ describe("Verida DIDRegistry", () => {
       }
     })
 
+    it("Get active DIDs",async () => {
+      // Get active DIDs successfully
+      expect(await didReg.getDIDs(0,1)).deep.equal([did])
+      expect(await didReg.getDIDs(1,2)).deep.equal([
+        testDIDs[0].address,
+        testDIDs[1].address
+      ])
+
+      // Should reject for non contract owners
+      await expect(didReg.connect(accounts[1]).getDIDs(0,1)).to.be.rejectedWith("Ownable: caller is not the owner")
+
+      // Should reject for invalid ranges
+      await expect(didReg.getDIDs(0,0)).to.be.rejectedWith("Out of range")
+      await expect(didReg.getDIDs(0,4)).to.be.rejectedWith("Out of range")
+      await expect(didReg.getDIDs(2,2)).to.be.rejectedWith("Out of range")
+      await expect(didReg.getDIDs(3,1)).to.be.rejectedWith("Out of range")
+    })
+
     it("Should not updated on duplicate Register", async () => {
       const orgCount = (await didReg.activeDIDCount()).toNumber();
 
       const signature = await getRegisterSignature(testDIDs[0].address, testEndPoints, testDIDs[0].privateKey)
       await expect(didReg.register(testDIDs[0].address, testEndPoints, signature)).to.emit(didReg, "Register");
 
+      // DIDs' count not updated
       const newCount = (await didReg.activeDIDCount()).toNumber();
       expect(newCount).equal(orgCount)
+
+      // DIDs not updated
+      expect(await didReg.getDIDs(0,3)).deep.equal([
+        did,
+        testDIDs[0].address,
+        testDIDs[1].address
+      ])
     })
 
     it("Should not updated on Register failed", async () => {
@@ -215,6 +243,9 @@ describe("Verida DIDRegistry", () => {
         const newCount = (await didReg.activeDIDCount()).toNumber();
         expect(newCount).equal(orgCount-1)
       }
+
+      // DIDs updated
+      expect(await didReg.getDIDs(0,1)).deep.equal([did])
     })
   })
 
