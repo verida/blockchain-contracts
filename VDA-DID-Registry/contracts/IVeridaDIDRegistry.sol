@@ -70,5 +70,19 @@ interface IVeridaDIDRegistry {
      */
     function nonce(address didAddress) external view returns(uint);
 
+    /**
+     * @notice Return the number of active DIDs
+     * @dev Active DIDs doesn't include revoked ones.
+     * @return uint Number of active DIDs
+     */
+    function activeDIDCount() external view returns(uint);
 
+    /**
+     * @notice Get the registered did list by starting index & count
+     * @dev Only owner can see it
+     * @param startIndex Start index in the registered DID array. Index started from 0
+     * @param count Number of DIDs to be retrieved
+     * @return address[] Address list of Registered DIDs
+     */
+    function getDIDs(uint startIndex, uint count) external view returns(address[] memory);
 }

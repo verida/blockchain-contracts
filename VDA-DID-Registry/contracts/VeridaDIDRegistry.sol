@@ -1,29 +1,31 @@
 /* SPDX-License-Identifier: MIT */
 pragma solidity ^0.8.6;
 
-// import "hardhat/console.sol";
 import { VeridaDataVerificationLib } from "./VeridaDataVerificationLib.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/structs/EnumerableSetUpgradeable.sol";
 
 import "./IVeridaDIDRegistry.sol";
 import "./EnumerableSet.sol";
+
+// import "hardhat/console.sol";
 
 /** @title VeridaDIDRegistry */
 contract VeridaDIDRegistry is OwnableUpgradeable, IVeridaDIDRegistry {
 
   using EnumerableSet for EnumerableSet.StringSet;
+  using EnumerableSetUpgradeable for EnumerableSetUpgradeable.AddressSet;
 
   /**
-   * @notice Map of controllers
-   * @dev DID address => controller address
+   * @notice List of registered DIDs
    */
-  mapping (address => address) private _controllers;
+  EnumerableSetUpgradeable.AddressSet private _registeredDIDs;
 
   /**
-   * @notice Flags for registered status
-   * @dev DID address => bool
+   * @notice Map of registered DID info
+   * @dev DID address => DIDInfo
    */
-  mapping (address => bool) private _isRegistered;
+  mapping(address => DIDInfo) private _DIDInfo;
 
   /**
    * @notice Next nonce of DID
@@ -32,16 +34,26 @@ contract VeridaDIDRegistry is OwnableUpgradeable, IVeridaDIDRegistry {
   mapping(address => uint) private _nonce;
 
   /**
-   * @notice Map of endpoints
-   * @dev DID address => List of endpoints
+   * @notice Struct representing the DID info
    */
-  mapping (address => EnumerableSet.StringSet) private _endpoints;
-
+  struct DIDInfo {
+    address controller;
+    EnumerableSet.StringSet endpoints;
+  }
+  
   /**
    * @notice Initialize
    */
   function initialize() public initializer {
     __Ownable_init();
+  }
+
+  /**
+   * @notice Check whether the DID is registered
+   * @dev Revoked DIDs are not registered ones
+   */
+  function isRegistered(address didAddress) internal view returns(bool) {
+    return _registeredDIDs.contains(didAddress);
   }
   
   /**
@@ -49,7 +61,7 @@ contract VeridaDIDRegistry is OwnableUpgradeable, IVeridaDIDRegistry {
    */
   function register(address didAddress, string[] calldata endpoints, bytes calldata signature ) external override {
     if (_nonce[didAddress] != 0) {
-      require(_isRegistered[didAddress], "Revoked DID address");
+      require(isRegistered(didAddress), "Revoked DID address");
     }
 
     {
@@ -64,14 +76,17 @@ contract VeridaDIDRegistry is OwnableUpgradeable, IVeridaDIDRegistry {
       _nonce[didAddress]++;
     }
 
-    EnumerableSet.StringSet storage list = _endpoints[didAddress];
+    EnumerableSet.StringSet storage list = _DIDInfo[didAddress].endpoints;
     list.clear();
     
     for (uint i = 0; i < endpoints.length; i++ ) {
       list.add(endpoints[i]);
     }
 
-    _isRegistered[didAddress] = true;
+    // Add didAddress for only new registers
+    if (!isRegistered(didAddress)) {
+      _registeredDIDs.add(didAddress);
+    }
 
     emit Register(didAddress, endpoints);
   }
@@ -80,7 +95,7 @@ contract VeridaDIDRegistry is OwnableUpgradeable, IVeridaDIDRegistry {
    * @dev See {IVeridaDIDRegistry}
    */
   function revoke(address didAddress, bytes calldata signature) external override {
-    require(_isRegistered[didAddress], "Unregistered address");
+    require(isRegistered(didAddress), "Unregistered address");
     {
       address controller = _getController(didAddress);
       bytes memory rawMsg = abi.encodePacked(
@@ -92,12 +107,8 @@ contract VeridaDIDRegistry is OwnableUpgradeable, IVeridaDIDRegistry {
       _nonce[didAddress]++;
     }
 
-    delete _controllers[didAddress];
-
-    EnumerableSet.StringSet storage list = _endpoints[didAddress];
-    list.clear();
-
-    _isRegistered[didAddress] = false;
+    delete _DIDInfo[didAddress];
+    _registeredDIDs.remove(didAddress);
 
     emit Revoke(didAddress);
   }
@@ -109,9 +120,9 @@ contract VeridaDIDRegistry is OwnableUpgradeable, IVeridaDIDRegistry {
    * @return address Controller of DID address
    */
   function _getController(address didAddress) internal view returns(address) {
-    if (_controllers[didAddress] == address(0x0))
+    if (_DIDInfo[didAddress].controller == address(0x0))
       return didAddress;
-    return _controllers[didAddress];
+    return _DIDInfo[didAddress].controller;
   }
 
   /**
@@ -125,7 +136,7 @@ contract VeridaDIDRegistry is OwnableUpgradeable, IVeridaDIDRegistry {
    * @dev See {IVeridaDIDRegistry}
    */
   function setController(address didAddress, address controller, bytes calldata signature) external override {
-    require(_isRegistered[didAddress], "Unregistered address");
+    require(isRegistered(didAddress), "Unregistered address");
     {
       address oldController = _getController(didAddress);
       bytes memory rawMsg = abi.encodePacked(
@@ -139,7 +150,7 @@ contract VeridaDIDRegistry is OwnableUpgradeable, IVeridaDIDRegistry {
       _nonce[didAddress]++;
     }
 
-    _controllers[didAddress] = controller;
+    _DIDInfo[didAddress].controller = controller;
 
     emit SetController(didAddress, controller);
   }
@@ -148,9 +159,9 @@ contract VeridaDIDRegistry is OwnableUpgradeable, IVeridaDIDRegistry {
    * @dev See {IVeridaDIDRegistry}
    */
   function lookup(address didAddress) external view override returns(address, string[] memory) {
-    require(_isRegistered[didAddress], "Unregistered address");
+    require(isRegistered(didAddress), "Unregistered address");
 
-    EnumerableSet.StringSet storage list = _endpoints[didAddress];
+    EnumerableSet.StringSet storage list = _DIDInfo[didAddress].endpoints;
     uint length = list.length();
 
     string[] memory ret = new string[](length);
@@ -167,5 +178,27 @@ contract VeridaDIDRegistry is OwnableUpgradeable, IVeridaDIDRegistry {
    */
   function nonce(address didAddress) external view override returns(uint) {
     return _nonce[didAddress];
+  }
+
+  /**
+   * @dev See {IVeridaDIDRegistry}
+   */
+  function activeDIDCount() external view override returns(uint) {
+    return _registeredDIDs.length();
+  }
+
+  /**
+   * @dev See {IVeridaDIDRegistry}
+   */
+  function getDIDs(uint startIndex, uint count) external view onlyOwner override returns(address[] memory) {
+    require(count > 0 && (startIndex + count) <= _registeredDIDs.length(), "Out of range");
+
+    address[] memory ret = new address[](count);
+
+    for (uint i = 0; i < count; i++) {
+      ret[i] = _registeredDIDs.at(startIndex + i);
+    }
+
+    return ret;
   }
 }
