@@ -1,18 +1,29 @@
-import { ethers } from "hardhat";
+// We require the Hardhat Runtime Environment explicitly here. This is optional
+// but useful for running the script in a standalone fashion through `node <script>`.
+//
+// When running the script with `npx hardhat run <script>` you'll find the Hardhat
+// Runtime Environment's members available in the global scope.
+import hre, { ethers, upgrades } from "hardhat";
+import { saveDeployedAddress } from "./utils";
 
 async function main() {
-  const currentTimestampInSeconds = Math.round(Date.now() / 1000);
-  const ONE_YEAR_IN_SECS = 365 * 24 * 60 * 60;
-  const unlockTime = currentTimestampInSeconds + ONE_YEAR_IN_SECS;
+  const contractFactory = await ethers.getContractFactory("SoulboundNFT");
+  const contract = await upgrades.deployProxy(contractFactory, {
+    initializer: "initialize",
+    timeout: 0,
+    pollingInterval: 5000,
+  });
 
-  const lockedAmount = ethers.utils.parseEther("1");
+  await contract.deployed();
 
-  const Lock = await ethers.getContractFactory("Lock");
-  const lock = await Lock.deploy(unlockTime, { value: lockedAmount });
+  const proxyAddr = contract.address;
+  const adminAddr = await hre.upgrades.erc1967.getAdminAddress(proxyAddr);
+  const implAddr = await hre.upgrades.erc1967.getImplementationAddress(
+    proxyAddr
+  );
 
-  await lock.deployed();
-
-  console.log(`Lock with 1 ETH and unlock timestamp ${unlockTime} deployed to ${lock.address}`);
+  await saveDeployedAddress(hre.network.name, proxyAddr, adminAddr, implAddr);
+  console.log("NameRegistry deployed to: ", contract.address);
 }
 
 // We recommend this pattern to be able to use async/await everywhere

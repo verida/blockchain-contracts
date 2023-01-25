@@ -1,24 +1,16 @@
 import chai, { expect } from "chai";
 import chaiAsPromised from "chai-as-promised";
-import { ContractTransaction } from "ethers";
-import { Block, Log } from "@ethersproject/providers";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 
 import hre, { ethers , upgrades } from "hardhat"
-import { Wallet } from 'ethers'
+import { BigNumber, Wallet } from 'ethers'
 import { SoulboundNFT } from "../typechain-types";
-import { TransferEvent } from "../typechain-types/@openzeppelin/contracts-upgradeable/token/ERC721/ERC721Upgradeable";
-import { LockedEvent } from "../typechain-types/contracts/IERC5192";
 
+import { generateProof, SignInfo } from "./utils"
 import EncryptionUtils from '@verida/encryption-utils'
+import { Keyring } from "@verida/keyring";
 
 chai.use(chaiAsPromised);
-
-const companyAccounts = [
-    Wallet.createRandom(),
-    Wallet.createRandom(),
-    Wallet.createRandom(),
-]
 
 const sbtTypes = [
     "twitter",
@@ -35,23 +27,6 @@ const tokenURIs = [
 export const zeroAddress = "0x0000000000000000000000000000000000000000"
 
 let contract: SoulboundNFT
-const createVeridaSign = async (rawMsg : any, privateKey: string, docDID: string) => {
-    if (contract === undefined)
-      return ''
-  
-    const nonce = (await contract.getNonce(docDID)).toNumber()
-    rawMsg = ethers.utils.solidityPack(
-      ['bytes','uint256'],
-      [rawMsg, nonce]
-    )
-    const privateKeyArray = new Uint8Array(Buffer.from(privateKey.slice(2), 'hex'))
-    return EncryptionUtils.signData(rawMsg, privateKeyArray)
-}
-
-const createProofSign = async (rawMsg : any, privateKey: String ) => {
-    const privateKeyArray = new Uint8Array(Buffer.from(privateKey.slice(2), 'hex'))
-    return EncryptionUtils.signData(rawMsg, privateKeyArray)
-}
 
 describe("Verida Soulbound", () => {
     let veridians: SignerWithAddress[]
@@ -59,10 +34,14 @@ describe("Verida Soulbound", () => {
 
     let claimer : SignerWithAddress // Claimer of SBT
 
-    before(async () => {
-        const accountList = await ethers.getSigners();
+    const deployContract = async (isReset = false) : Promise<SoulboundNFT> => {
+        if (isReset) {
+            // reset chain before every test
+            await hre.network.provider.send("hardhat_reset");
+        }
+
         const contractFactory = await ethers.getContractFactory("SoulboundNFT")
-        contract = (await upgrades.deployProxy(
+        const contract = (await upgrades.deployProxy(
             contractFactory,
             {
                 initializer: "initialize"
@@ -70,7 +49,13 @@ describe("Verida Soulbound", () => {
         )) as SoulboundNFT;
         await contract.deployed();
 
+        return contract
+    }
+
+    before(async () => {
+        const accountList = await ethers.getSigners();
         owner = accountList[0];
+
         veridians = [
             accountList[1],
             accountList[2],
@@ -79,23 +64,26 @@ describe("Verida Soulbound", () => {
     })
 
     describe("Manage trusted address", () => {
+        const companyAccounts = [
+            Wallet.createRandom(),
+            Wallet.createRandom(),
+            Wallet.createRandom()
+        ]
+        
+        before(async () => {
+            contract = await deployContract()
+        })
+
         describe("Add trusted address", () => {
             it("Failed : non-owner", async () => {
                 await expect(contract
                     .connect(veridians[0])
-                    .addTrustedAddress(companyAccounts[0].address))
+                    .addTrustedSigner(companyAccounts[0].address))
                 .to.be.rejectedWith("Ownable: caller is not the owner");
             })
 
             it("Success", async () => {
-                await expect(contract.addTrustedAddress(companyAccounts[0].address))
-                    .to.emit(contract, "AddTrustedAddress")
-                    .withArgs(companyAccounts[0].address);
-            })
-
-            it("Failed : Existing account", async () => {
-                await expect(contract.addTrustedAddress(companyAccounts[0].address))
-                    .to.be.rejectedWith("Existing account");
+                await expect(contract.addTrustedSigner(companyAccounts[0].address))
             })
         })
 
@@ -103,47 +91,42 @@ describe("Verida Soulbound", () => {
             it("Failed : non-owner", async () => {
                 await expect(contract
                     .connect(veridians[0])
-                    .removeTrustedAddress(companyAccounts[0].address))
+                    .removeTrustedSigner(companyAccounts[0].address))
                 .to.be.rejectedWith("Ownable: caller is not the owner");
             })
 
             it("Success", async () => {
-                await expect(contract.removeTrustedAddress(companyAccounts[0].address))
-                    .to.emit(contract, "RemoveTrustedAddress")
-                    .withArgs(companyAccounts[0].address);
+                await expect(contract.removeTrustedSigner(companyAccounts[0].address))
             })
 
-            it("Failed : Invalid account", async () => {
+            it("Failed : Unregistered address", async () => {
                 // Not registered account
-                await expect(contract.removeTrustedAddress(companyAccounts[1].address))
-                    .to.be.rejectedWith("Invalid account");
+                await expect(contract.removeTrustedSigner(companyAccounts[1].address))
+                    .to.be.rejectedWith("Unregistered address");
 
                 // Already removed account
-                await expect(contract.removeTrustedAddress(companyAccounts[0].address))
-                    .to.be.rejectedWith("Invalid account");
+                await expect(contract.removeTrustedSigner(companyAccounts[0].address))
+                    .to.be.rejectedWith("Unregistered address");
             })
         })
 
         it("List trusted address", async () => {
-            expect((await contract.getTrustedAddresses()).length).to.be.equal(0);
+            expect((await contract.getTrustedSignerAddresses()).length).to.be.equal(0);
 
-            await contract.addTrustedAddress(companyAccounts[0].address);
-            expect((await contract.getTrustedAddresses()).length).to.be.equal(1);
+            await contract.addTrustedSigner(companyAccounts[0].address);
+            expect((await contract.getTrustedSignerAddresses()).length).to.be.equal(1);
 
-            await contract.removeTrustedAddress(companyAccounts[0].address);
-            expect((await contract.getTrustedAddresses()).length).to.be.equal(0);
+            await contract.removeTrustedSigner(companyAccounts[0].address);
+            expect((await contract.getTrustedSignerAddresses()).length).to.be.equal(0);
         })
     })
 
     describe("Claim SBT", () => {
-        const companyAccount = companyAccounts[0];
-        const badCompanyAccount = companyAccounts[1];
-
-        const did = Wallet.createRandom()
-
         const sbtType = sbtTypes[0];
         const uniqueId = "-testId";
-        let proof : string
+
+        let signInfo : SignInfo
+        let signedData : string
 
         const getClaimSBTSignature = async (
             did: string,
@@ -151,36 +134,36 @@ describe("Verida Soulbound", () => {
             uniqueId: string,
             sbtURI: string,
             recipient: string,
-            signKey: string
+
+            userKeyring: Keyring,
+            signData = signedData
         ) => {
+            if (contract === undefined)
+                return ''
+            const nonce = (await contract.nonce(did)).toNumber()
+
             const rawMsg = ethers.utils.solidityPack(
-                ['address', 'string', 'address', 'string'],
-                [did, `-${sbtType}-${uniqueId}-${sbtURI}-`, recipient, '-']
+                ['address', 'string', 'address', 'bytes', 'bytes', 'uint'],
+                [did, `${sbtType}${uniqueId}${sbtURI}`, recipient, signData, signInfo.signerProof!, nonce]
             );
-            return await createVeridaSign(rawMsg, signKey, did)
+            
+            return await userKeyring.sign(rawMsg)
         }
 
         before(async () => {
 
             claimer = veridians[1];
-            // reset chain before every test
-            await hre.network.provider.send("hardhat_reset");
+            
+            [contract, signInfo] = await Promise.all([
+                deployContract(true),
+                generateProof()
+            ])
 
-            // re-deploy contract
-            const contractFactory = await ethers.getContractFactory("SoulboundNFT")
-            contract = (await upgrades.deployProxy(
-                contractFactory,
-                {
-                    initializer: "initialize"
-                }
-            )) as SoulboundNFT;
-            await contract.deployed();
-
-            const rawProof = ethers.utils.solidityPack(
-                ['address', 'string', 'address'],
-                [companyAccount.address, '-', did.address]
+            const msg = ethers.utils.solidityPack(
+                ['string','address'],
+                [`${sbtType}-${uniqueId}-`, signInfo.userAddress]
             )
-            proof = await createProofSign(rawProof, companyAccount.privateKey)
+            signedData = await signInfo.signKeyring.sign(msg)
         })
 
         it("Failed : Invalid SBT Type", async () => {
@@ -192,11 +175,15 @@ describe("Verida Soulbound", () => {
 
             for (let i = 0; i < invalidSBTTypes.length; i++) {
                 await expect(contract.claimSBT(
-                    did.address,
-                    invalidSBTTypes[i],
-                    uniqueId,
-                    "TempURI",
-                    claimer.address,
+                    signInfo.userAddress,
+                    {
+                        sbtType: invalidSBTTypes[i],
+                        uniqueId,
+                        sbtURI: "TempURI",
+                        recipient: claimer.address,
+                        signedData,
+                        signedProof: signInfo.signerProof!
+                    },
                     "0x12", // signature not checked 
                     "0x12" // proof not checked
                 )).to.be.rejectedWith("Invalid SBT type")
@@ -204,57 +191,90 @@ describe("Verida Soulbound", () => {
             
         })
 
-        it("Failed : VerifyRequest - No signers available in contract", async () => {
-            expect((await contract.getTrustedAddresses()).length).to.be.eq(0);
-            await expect(contract.claimSBT(
-                did.address,
-                sbtType,
-                uniqueId,
-                "https://TokenURI-Test",
+        it("Failed : VerifyRequest - No signers provided in contract", async () => {
+            expect((await contract.getTrustedSignerAddresses()).length).to.be.eq(0);
+
+            const requestSignature = await getClaimSBTSignature(
+                signInfo.userAddress, 
+                sbtType, 
+                uniqueId, 
+                tokenURIs[0], 
                 claimer.address,
-                "0x12", // signature not checked 
-                "0x12" // proof not checked
-            )).to.be.rejectedWith("No signers available");
-        })
-
-        it("Add trusted address to contract", async () => {
-            for (let i = 0; i < companyAccounts.length; i++) {
-                await contract.addTrustedAddress(companyAccounts[i].address);
-            }
-            expect((await contract.getTrustedAddresses()).length).to.be.eq(companyAccounts.length);
-        })
-
-        it("Failed : VerifyRequest - Invalid proof", async () => {
-            const signature = await getClaimSBTSignature(did.address, sbtType, uniqueId, tokenURIs[0], claimer.address, did.privateKey);
-
-            const rawProof = ethers.utils.solidityPack(
-                ['address', 'string', 'address'],
-                [companyAccount.address, '-', did.address]
-            )
-            const badProof = await createProofSign(rawProof, badCompanyAccount.privateKey)
+                signInfo.userKeyring)
 
             await expect(contract.claimSBT(
-                did.address,
-                sbtType,
-                uniqueId,
-                tokenURIs[0],
+                signInfo.userAddress,
+                {
+                    sbtType,
+                    uniqueId,
+                    sbtURI: tokenURIs[0],
+                    recipient: claimer.address,
+                    signedData,
+                    signedProof: signInfo.signerProof!
+                },
+                requestSignature,
+                signInfo.userProof!
+            )).to.be.rejectedWith("No signers provided");
+        })
+
+        it("Failed : VerifyRequest - Invalid Request Proof", async () => {
+            contract.addTrustedSigner(signInfo.signerAddress)
+
+            const invalidUser = Wallet.createRandom()
+            const invalidUserKeyring = new Keyring(invalidUser.mnemonic.phrase)
+            const keys = await invalidUserKeyring.getKeys()
+            
+            const proofString = `${signInfo.userAddress}${keys.signPublicAddress}`.toLowerCase()
+            const privateKeyBuffer = new Uint8Array(Buffer.from(invalidUser.privateKey.slice(2), 'hex'))
+            const userProof = EncryptionUtils.signData(proofString, privateKeyBuffer)
+
+            const requestSignature = await getClaimSBTSignature(
+                signInfo.userAddress, 
+                sbtType, 
+                uniqueId, 
+                tokenURIs[0], 
                 claimer.address,
-                signature,
-                badProof
-            )).to.be.rejectedWith("Invalid proof");
+                invalidUserKeyring)
+
+                await expect(contract.claimSBT(
+                signInfo.userAddress,
+                {
+                    sbtType,
+                    uniqueId,
+                    sbtURI: tokenURIs[0],
+                    recipient: claimer.address,
+                    signedData,
+                    signedProof: signInfo.signerProof!
+                },
+                requestSignature,
+                userProof
+            )).to.be.rejectedWith("Data is not signed by a valid signing DID");
+
+            contract.removeTrustedSigner(signInfo.signerAddress)
         })
 
         it("Success : Claimed one SBT", async () => {
-            const signature = await getClaimSBTSignature(did.address, sbtType, uniqueId, tokenURIs[0], claimer.address, did.privateKey)
+            contract.addTrustedSigner(signInfo.signerAddress)
+            const requestSignature = await getClaimSBTSignature(
+                signInfo.userAddress, 
+                sbtType, 
+                uniqueId, 
+                tokenURIs[0], 
+                claimer.address,
+                signInfo.userKeyring)
 
             const tx = await contract.connect(claimer).claimSBT(
-                did.address,
-                sbtType,
-                uniqueId,
-                tokenURIs[0],
-                claimer.address,
-                signature,
-                proof
+                signInfo.userAddress,
+                {
+                    sbtType,
+                    uniqueId,
+                    sbtURI: tokenURIs[0],
+                    recipient: claimer.address,
+                    signedData,
+                    signedProof: signInfo.signerProof!
+                },
+                requestSignature,
+                signInfo.userProof!
             );
 
             const tokenId = await contract.totalSupply(); //Latest tokenId
@@ -264,31 +284,97 @@ describe("Verida Soulbound", () => {
         })
 
         it("Failed : Already claimed type - duplication of claimed request ", async () => {
-            const signature = await getClaimSBTSignature(did.address, sbtType, uniqueId, tokenURIs[0], claimer.address, did.privateKey)
-            await expect(contract.connect(claimer).claimSBT(
-                did.address,
-                sbtType,
-                uniqueId,
-                tokenURIs[0],
+            const requestSignature = await getClaimSBTSignature(
+                signInfo.userAddress, 
+                sbtType, 
+                uniqueId, 
+                tokenURIs[0], 
                 claimer.address,
-                signature,
-                proof
+                signInfo.userKeyring)
+
+            await expect(contract.claimSBT(
+                signInfo.userAddress,
+                {
+                    sbtType,
+                    uniqueId,
+                    sbtURI: tokenURIs[0],
+                    recipient: claimer.address,
+                    signedData,
+                    signedProof: signInfo.signerProof!
+                },
+                requestSignature,
+                signInfo.userProof!
             )).to.be.rejectedWith("Already claimed type");            
         })
 
-        it("Failed : Already claimed type - same SBT type with different id",async () => {
+        it("Success : same SBT type with different id",async () => {
             const diffId = "-diffId";
-            const signature = await getClaimSBTSignature(did.address, sbtType, diffId, tokenURIs[0], claimer.address, did.privateKey)
+            const msg = ethers.utils.solidityPack(
+                ['string','address'],
+                [`${sbtType}-${diffId}-`, signInfo.userAddress]
+            )
+            const signedData = await signInfo.signKeyring.sign(msg)
 
-            await expect(contract.connect(claimer).claimSBT(
-                did.address,
-                sbtType,
-                diffId,
-                tokenURIs[0],
+            const requestSignature = await getClaimSBTSignature(
+                signInfo.userAddress, 
+                sbtType, 
+                diffId, 
+                tokenURIs[0], 
                 claimer.address,
-                signature,
-                proof
-            )).to.be.rejectedWith("Already claimed type");
+                signInfo.userKeyring,
+                signedData)
+
+            const tx = await contract.claimSBT(
+                signInfo.userAddress,
+                {
+                    sbtType,
+                    uniqueId: diffId,
+                    sbtURI: tokenURIs[0],
+                    recipient: claimer.address,
+                    signedData,
+                    signedProof: signInfo.signerProof!
+                },
+                requestSignature,
+                signInfo.userProof!
+            );
+
+            const tokenId = await contract.totalSupply(); //Latest tokenId
+            expect(tx).to.emit(contract, "Transfer").withArgs(zeroAddress, claimer.address, tokenId)
+            expect(tx).to.emit(contract, "Locked").withArgs(tokenId)
+            expect(tx).to.emit(contract, "SBTClaimed").withArgs(claimer.address, tokenId, sbtType)
+        })
+    })
+
+    describe("Get Claimed SBT list", () => {
+        it("Should return tokenId list for the claimer", async () => {
+            const idList = await contract.connect(claimer).getClaimedSBTList()
+            expect(idList.length).to.equal(2)
+        })
+
+        it("Should return empty array for users who has no SBT", async () => {
+            const idList = await contract.connect(veridians[2]).getClaimedSBTList()
+            expect(idList.length).to.equal(0)
+        })
+    })
+
+    describe("Get tokenInfo from claimed token Id", async () => {
+        it("Should return SBT type & uniqueId for claimed tokenIDs",async () => {
+            const requestedTokenInfo = [
+                [ 'twitter', '-testId' ],
+                [ 'twitter', '-diffId' ]
+            ]
+            const idList = await contract.connect(claimer).getClaimedSBTList()
+
+            for(let i = 0; i < idList.length; i++) {
+                const info = await contract.tokenInfo(idList[i].toNumber())
+                expect(info).deep.equal(requestedTokenInfo[i])
+            }
+        })
+
+        it("Should reject for unclaimed token ID", async () => {
+            const invalidId = (await contract.totalSupply()).toNumber() + 1
+
+            await expect(contract.tokenInfo(invalidId)).to.be.rejectedWith("ERC721: invalid token ID")
         })
     })
 
@@ -310,6 +396,76 @@ describe("Verida Soulbound", () => {
             expect(await contract.locked(1)).to.equal(true)
 
             await expect(contract.locked(0)).to.be.rejectedWith("ERC721: invalid token ID")
+        })
+    })
+
+    describe("Burn SBT", () => {
+        let bunrtIdList : BigNumber[] = []
+
+        it("Should failed for invalid tokenId", async () => {
+            await expect(contract.burnSBT(0)).to.be.rejectedWith("ERC721: invalid token ID");
+
+            const invalidTokenId = (await contract.totalSupply()).toNumber() + 1
+            await expect(contract.burnSBT(invalidTokenId)).to.be.rejectedWith("ERC721: invalid token ID");
+        })
+
+        it("Should failed for invalid caller",async () => {
+            const idList = await contract.connect(claimer).getClaimedSBTList()
+            expect(idList.length).to.be.greaterThan(0)
+
+            const badCaller = veridians[2]
+
+            expect(badCaller.address).not.equal(claimer.address)
+            expect(badCaller.address).not.equal(owner.address)
+
+            await expect(
+                contract
+                .connect(badCaller)
+                .burnSBT(idList[0].toNumber())
+            ).to.be.rejectedWith("Invalid operation")
+        })
+
+        it("Token owner burn successfully", async () => {
+            const idList = await contract.connect(claimer).getClaimedSBTList()
+            expect(idList.length).to.be.greaterThan(0)
+
+            const tx = await contract.connect(claimer).burnSBT(idList[0].toNumber())
+            expect(tx).to.emit(contract, "SBTBurnt").withArgs(claimer.address, idList[0])
+
+            const updatedIdList = await contract.connect(claimer).getClaimedSBTList()
+            expect(updatedIdList.length).to.equal(idList.length - 1)
+
+            bunrtIdList.push(idList[0])
+        })
+
+        it("Contract owner burn successfully",async () => {
+            const idList = await contract.connect(claimer).getClaimedSBTList()
+            expect(idList.length).to.be.greaterThan(0)
+
+            const tx = await contract.burnSBT(idList[0].toNumber())
+            expect(tx).to.emit(contract, "SBTBurnt").withArgs(owner.address, idList[0])
+
+            const updatedIdList = await contract.connect(claimer).getClaimedSBTList()
+            expect(updatedIdList.length).to.equal(idList.length - 1)
+
+            bunrtIdList.push(idList[0])
+        })
+
+        it("Should failed for already burnt ids",async () => {
+            for (let i = 0; i < bunrtIdList.length; i++) {
+                // Previous owner failed
+                await expect(
+                    contract
+                    .connect(claimer)
+                    .burnSBT(bunrtIdList[i].toNumber())
+                ).to.be.rejectedWith("ERC721: invalid token ID")
+
+                // Contract owner failed
+                await expect(
+                    contract
+                    .burnSBT(bunrtIdList[i].toNumber())
+                ).to.be.rejectedWith("ERC721: invalid token ID")
+            }
         })
     })
 });

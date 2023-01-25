@@ -21,13 +21,8 @@ contract SoulboundNFT is VDAVerificationContract,
     ISoulboundNFT {
     using CountersUpgradeable for CountersUpgradeable.Counter;
     using EnumerableSetUpgradeable for EnumerableSetUpgradeable.AddressSet;
+    using EnumerableSetUpgradeable for EnumerableSetUpgradeable.UintSet;
     using EnumerableSet for EnumerableSet.StringSet;
-
-    /**
-     * @notice Verida wallets that provide proof
-     * @dev Only owner can mange this list
-     */
-    EnumerableSetUpgradeable.AddressSet private _trustedAddresses;
 
     /**
      * @notice tokenId counter
@@ -42,16 +37,22 @@ contract SoulboundNFT is VDAVerificationContract,
 
     /**
      * @notice Claimed SBT info by users
-     * @dev mapping of User => (SBTType => tokenId)
+     * @dev mapping of User => SBTType => UniqueId => tokenId
      */
-    mapping(address => mapping(string => uint)) private _userInfo;
+    mapping(address => mapping(string => mapping(string => uint))) private _userInfo;
 
     /** 
      * @notice SBT type of tokenId
+     * @dev mapping of tokenId => TokenInfo
      */
-    mapping(uint => string) private _tokenSBTType;
+    mapping(uint => TokenInfo) private _tokenIdInfo;
 
-    
+    /**
+     * @notice Claimed tokenId list of users
+     * @dev mapping of user's address to tokenId list
+     * SBT tokens can't be transferred to other users. It can be transferred to 0x0 for burning
+     */
+    mapping(address => EnumerableSetUpgradeable.UintSet) _userTokenIds;
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -89,7 +90,7 @@ contract SoulboundNFT is VDAVerificationContract,
         address to, 
         uint256 tokenId
         ) internal override virtual {
-        require(from == address(0), "Err: token transfer is BLOCKED");
+        require(from == address(0) || to == address(0), "Err: token transfer is BLOCKED");
         super._beforeTokenTransfer(from, to, tokenId);
     }
 
@@ -107,6 +108,7 @@ contract SoulboundNFT is VDAVerificationContract,
         } else if (to != address(0xdead)) {
             emit Locked(tokenId);
         }
+        super._afterTokenTransfer(from, to, tokenId);
     }
 
     /**
@@ -126,35 +128,15 @@ contract SoulboundNFT is VDAVerificationContract,
     function totalSupply() external view onlyOwner override returns(uint){
         return _tokenIdCounter.current();
     }
-
+    
     /**
      * @dev See {ISoulboundNFT}
      */
-    function addTrustedAddress(address account) external onlyOwner override {
-        require(!_trustedAddresses.contains(account), "Existing account");
-        _trustedAddresses.add(account);
-
-        emit AddTrustedAddress(account);
-    }
-
-    /**
-     * @dev See {ISoulboundNFT}
-     */
-    function removeTrustedAddress(address account) external onlyOwner override {
-        require(_trustedAddresses.contains(account), "Invalid account");
-        _trustedAddresses.remove(account);
-
-        emit RemoveTrustedAddress(account);
-    }
-
-    /**
-     * @dev See {ISoulboundNFT}
-     */
-    function getTrustedAddresses() external view override returns(address[] memory) {
-        uint length = _trustedAddresses.length();
+    function getTrustedSignerAddresses() external view override returns(address[] memory) {
+        uint length = _trustedSigners.length();
         address[] memory list = new address[](length);
         for (uint i = 0; i < length; i++) {
-            list[i] = _trustedAddresses.at(i);
+            list[i] = _trustedSigners.at(i);
         }
 
         return list;
@@ -190,94 +172,114 @@ contract SoulboundNFT is VDAVerificationContract,
 
     }
 
-
     /**
-     * @dev See {IsoulboundNFT}
+     * @dev See {ISoulboundNFT}
      */
     function claimSBT(
         address did,
-        string calldata sbtType,
-        string calldata uniqueId,
-        string calldata sbtURI,
-        address recipient,
-        bytes calldata signature,
-        bytes calldata proof
+        SBTInfo calldata sbtInfo,
+        bytes calldata requestSignature,
+        bytes calldata requestProof
     ) external override returns(uint) {
-
-        require(isValidSBTType(sbtType), "Invalid SBT type");
+        require(isValidSBTType(sbtInfo.sbtType), "Invalid SBT type");
         {
             bytes memory params = abi.encodePacked(
                 did,
-                "-",
-                sbtType,
-                "-",
-                uniqueId,
-                "-");
+                sbtInfo.sbtType,
+                sbtInfo.uniqueId,
+                sbtInfo.sbtURI,
+                sbtInfo.recipient);
+
             params = abi.encodePacked(
                 params,
-                sbtURI,
-                "-",
-                recipient,
-                "-");
+                sbtInfo.signedData,
+                sbtInfo.signedProof
+            );
+            
+            verifyRequest(did, params, requestSignature, requestProof);
+
             params = abi.encodePacked(
-                params,
-                getNonce(did));
-            verifyRequest(did, _trustedAddresses, params, signature, proof);
+                sbtInfo.sbtType,
+                "-",
+                sbtInfo.uniqueId,
+                "-",
+                did
+            );
+            verifyData(params, sbtInfo.signedData, sbtInfo.signedProof);
         }
 
-        require(_userInfo[recipient][sbtType] == 0, "Already claimed type");
+        require(_userInfo[sbtInfo.recipient][sbtInfo.sbtType][sbtInfo.uniqueId] == 0, "Already claimed type");
 
         _tokenIdCounter.increment();
         uint256 tokenId = _tokenIdCounter.current();
-        _safeMint(recipient, tokenId);
+        _safeMint(sbtInfo.recipient, tokenId);
 
         // SetTokenURI
-        _setTokenURI(tokenId, sbtURI);
+        _setTokenURI(tokenId, sbtInfo.sbtURI);
 
-        _userInfo[recipient][sbtType] = tokenId;
-        _tokenSBTType[tokenId] = sbtType;
+        _userInfo[sbtInfo.recipient][sbtInfo.sbtType][sbtInfo.uniqueId] = tokenId;
 
-        emit SBTClaimed(recipient, tokenId, sbtType);
+        _tokenIdInfo[tokenId].sbtType = sbtInfo.sbtType;
+        _tokenIdInfo[tokenId].uniqueId = sbtInfo.uniqueId;
+
+        emit SBTClaimed(sbtInfo.recipient, tokenId, sbtInfo.sbtType);
+
+        // Add to user' tokenId list
+        _userTokenIds[sbtInfo.recipient].add(tokenId);
 
         // Register SBTType
-        addSBTType(sbtType);
+        addSBTType(sbtInfo.sbtType);
 
         return tokenId;
     }
 
     /**
-     * @dev See {IsoulboundNFT}
+     * @dev See {ISoulboundNFT}
      */
-    function getClaimedSBTList() external view override returns(string[] memory) {
+    function getClaimedSBTList() external view override returns(uint[] memory) {
         uint length = balanceOf(msg.sender);
-        string[] memory sbtList = new string[](length);
+        uint[] memory sbtList = new uint[](length);
 
-        uint index = 0;
-        string memory sbtType;
-        for (uint i = 0; i < _sbtTypes.length(); i++) {
-            sbtType = _sbtTypes.at(i);
-            if (_userInfo[msg.sender][sbtType] != 0) {
-                sbtList[index] = sbtType;
-                index++;
-            }
+        for (uint i = 0; i < length; i++) {
+            sbtList[i] = _userTokenIds[msg.sender].at(i);
         }
         return sbtList;
     }
 
     /**
-     * @dev See {IsoulboundNFT}
+     * @dev See {ISoulboundNFT}
      */
-    function isSBTClaimed(string calldata sbtType) external view override returns(bool) {
-        return _userInfo[msg.sender][sbtType] > 0;
+    function isSBTClaimed(string calldata sbtType, string calldata uniqueId) external view override returns(bool) {
+        return _userInfo[msg.sender][sbtType][uniqueId] > 0;
     }
 
     /**
-     * @dev See {IsoulboundNFT}
+     * @dev See {ISoulboundNFT}
      */
-    function tokenSBTType(uint tokenId) external view override returns(string memory) {
+    function tokenInfo(uint tokenId) external view override returns(string memory, string memory) {
         _requireMinted(tokenId);
 
-        return _tokenSBTType[tokenId];
+        return (_tokenIdInfo[tokenId].sbtType, _tokenIdInfo[tokenId].uniqueId);
+    }
+
+    /**
+     * @dev See {ISoulboundNFT}
+     */
+    function burnSBT(uint tokenId) external override {
+        address tokenOwner = ERC721Upgradeable.ownerOf(tokenId);
+        require(msg.sender == tokenOwner || msg.sender == owner(), "Invalid operation");
+
+        _burn(tokenId);
+
+        TokenInfo storage info = _tokenIdInfo[tokenId];
+
+        // Remove from user' tokenId list
+        _userTokenIds[tokenOwner].remove(tokenId);
+
+        delete _userInfo[tokenOwner][info.sbtType][info.uniqueId];
+        delete _tokenIdInfo[tokenId];
+
+        emit SBTBurnt(msg.sender, tokenId);
     }
 
 }

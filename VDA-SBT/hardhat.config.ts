@@ -63,6 +63,9 @@ const config: HardhatUserConfig = {
   etherscan: {
     apiKey: POLYGONSCAN_API_KEY,
   },
+  mocha: {
+    timeout: 0,
+  }
 };
 
 export default config;

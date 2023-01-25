@@ -24,6 +24,11 @@
     "@types/chai-as-promised": "^7.1.5",
     "@types/mocha": "^9.1.1",
     "@types/node": "^18.11.7",
+    "@verida/account-node": "^2.0.0",
+    "@verida/client-ts": "^2.0.1",
+    "@verida/did-client": "^2.0.0",
+    "@verida/encryption-utils": "^2.0.0",
+    "@verida/keyring": "^2.0.0",
     "chai": "^4.3.6",
     "chai-as-promised": "^7.1.1",
     "dotenv": "^16.0.3",
@@ -37,5 +42,11 @@
   },
   "dependencies": {
     "@openzeppelin/contracts-upgradeable": "^4.7.3"
+  },
+  "scripts": {
+    "build": "npx hardhat compile",
+    "test": "npx hardhat test",
+    "deploy": "npx hardhat run scripts/deploy.ts",
+    "verify": "npx hardhat verify"
   }
 }
