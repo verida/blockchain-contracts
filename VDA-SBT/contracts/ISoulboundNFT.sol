@@ -48,6 +48,14 @@ interface ISoulboundNFT {
     event SBTBurnt(address indexed who, uint tokenId);
 
     /**
+     * @notice Freeze metadata
+     * @dev This events is from docs.opensea.io/docs/metadata-standards
+     * @param _value token URI - SBT URI
+     * @param _id token ID - SBT ID
+     */
+    event PermanentURI(string _value, uint256 indexed _id);
+
+    /**
      * @notice Get total supply of token
      * @dev Only owner can see this
      * @return uint Total supplyf of SBT tokens

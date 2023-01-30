@@ -402,14 +402,14 @@ describe("Verida Soulbound", () => {
     describe("Burn SBT", () => {
         let bunrtIdList : BigNumber[] = []
 
-        it("Should failed for invalid tokenId", async () => {
+        it("Should fail for invalid tokenId", async () => {
             await expect(contract.burnSBT(0)).to.be.rejectedWith("ERC721: invalid token ID");
 
             const invalidTokenId = (await contract.totalSupply()).toNumber() + 1
             await expect(contract.burnSBT(invalidTokenId)).to.be.rejectedWith("ERC721: invalid token ID");
         })
 
-        it("Should failed for invalid caller",async () => {
+        it("Should fail for invalid caller",async () => {
             const idList = await contract.connect(claimer).getClaimedSBTList()
             expect(idList.length).to.be.greaterThan(0)
 
@@ -451,7 +451,7 @@ describe("Verida Soulbound", () => {
             bunrtIdList.push(idList[0])
         })
 
-        it("Should failed for already burnt ids",async () => {
+        it("Should fail for already burnt ids",async () => {
             for (let i = 0; i < bunrtIdList.length; i++) {
                 // Previous owner failed
                 await expect(
