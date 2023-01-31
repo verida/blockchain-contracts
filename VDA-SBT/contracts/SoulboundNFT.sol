@@ -125,7 +125,7 @@ contract SoulboundNFT is VDAVerificationContract,
     /**
      * @dev See {ISoulboundNFT}
      */
-    function totalSupply() external view onlyOwner override returns(uint){
+    function totalSupply() external view override returns(uint){
         return _tokenIdCounter.current();
     }
     
@@ -229,6 +229,9 @@ contract SoulboundNFT is VDAVerificationContract,
 
         // Register SBTType
         addSBTType(sbtInfo.sbtType);
+
+        // Freeze Metadata
+        emit PermanentURI(sbtInfo.sbtURI, tokenId);
 
         return tokenId;
     }
