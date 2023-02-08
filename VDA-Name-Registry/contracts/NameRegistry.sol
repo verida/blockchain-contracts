@@ -51,7 +51,7 @@ contract NameRegistry is  OwnableUpgradeable {
      */
     function initialize() public initializer {
         __Ownable_init();
-        suffixList.add("verida");
+        suffixList.add("vda");
         maxNamesPerDID = 1;
     }
 
@@ -64,7 +64,8 @@ contract NameRegistry is  OwnableUpgradeable {
     }
 
     /**
-     * @dev register name & DID
+     * @notice register name & DID
+     * @dev Check validity of name inside the isValidSuffix() function
      * @param name user name. Duplication not allowed
      * @param did DID address.
      * @param signature - Signature provided by transaction creator
@@ -189,6 +190,7 @@ contract NameRegistry is  OwnableUpgradeable {
 
     /**
      * @notice Check whether name has valid suffix
+     * @dev Check all the letters of name inside getSuffix() function
      * @param name - name to check
      * @return result
      */
@@ -199,7 +201,7 @@ contract NameRegistry is  OwnableUpgradeable {
 
     /**
      * @notice Get Suffix from name
-     * @dev Rejected if not found suffix
+     * @dev Rejected if name contains invalid characters or not found suffix.
      * @param name - Input name
      * @return suffix - return suffix in bytes32
      */
