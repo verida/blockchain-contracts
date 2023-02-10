@@ -17,7 +17,7 @@ const {PRIVATE_KEY, ETHERSCAN_API_KEY, POLYGONSCAN_API_KEY, POLYGON_TESTNET_RPC,
 
 const config: HardhatUserConfig = {
   solidity: {
-    version: "0.8.7",
+    version: "0.8.9",
     settings: {
       optimizer: {
         enabled: true,
@@ -35,7 +35,7 @@ const config: HardhatUserConfig = {
     goerli: {
       url: "https://eth-goerli.public.blastapi.io", //https://goerli.infura.io/v3/
       chainId: 5,
-      accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
+      accounts: PRIVATE_KEY !== undefined ? [PRIVATE_KEY] : [],
     },
     polygonmainnet: {
       url: POLYGON_MAINNET_RPC !== undefined ? POLYGON_MAINNET_RPC : "https://polygon-rpc.com/",
