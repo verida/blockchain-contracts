@@ -5,11 +5,6 @@ import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20Pausable
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/AccessControlEnumerableUpgradeable.sol";
 
-import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Factory.sol";
-import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Pair.sol";
-// import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router01.sol";
-import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
-
 import "./IVDA.sol";
 
 // import "hardhat/console.sol";
@@ -38,36 +33,22 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
 
     bool public isMaxAmountPerWalletEnabled;
     bool public isMaxAmountPerSellEnabled;
+    bool public isTransferEnabled;
 
     mapping(address => bool) public isExcludedFromSellAmountLimit;
     mapping(address => bool) public isExcludedFromWalletAmountLimit;
     
-
-    /** @dev Token publish time */
-    uint256 public tokenPublishTime;
 
     /**
      * Store addresses that a automatic market make pairs.
      * Any transfers to these addresses could be subject to a maximum transfer amount
      */
     mapping(address => bool) public automatedMarketMakerPairs;
-    /**
-     * @dev Uniswap Router
-     */
-    IUniswapV2Router02 public uniswapV2Router;
-
-    /** @dev Current automatic market maker pair */
-    address public uniswapV2Pair;
-
+    
     modifier validMint(uint256 amount) {
         require((totalSupply() + amount) <= MAX_SUPPLY, "Max supply limit");
         _;
     }
-
-    event UpdateUniswapV2Router(
-        address indexed newAddress,
-        address indexed oldAddress
-    );
 
     event SetAutomatedMarketMakerPair(address indexed pair, bool indexed value);
 
@@ -92,8 +73,6 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
         _grantRole(DEFAULT_ADMIN_ROLE, owner());
         grantRole(MINT_ROLE, owner());
 
-        tokenPublishTime = 1672531200; //2023-1-1 0:0:0 UTC
-
         maxAmountPerSellRate = 100; //100 / RATE_DENOMINATOR = 0.1%
         maxAmountPerWalletRate = 20 * RATE_DENOMINATOR; // 20%
         _updateMaxAmountPerWallet();
@@ -101,39 +80,12 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
 
         isExcludedFromSellAmountLimit[owner()] = true;
         isExcludedFromWalletAmountLimit[owner()] = true;
-
-        // _initSwap();
-    }
-
-    /**
-     * @dev Initialize Uniswap features
-     */
-    function _initSwap() internal {
-        address routerAddress = 
-            0x1Ed675D5e63314B760162A3D1Cae1803DCFC87C7 // BSC TestNet (ME)
-            // 0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3 //TestNet (John)
-            // 0x10ED43C718714eb63d5aA57B78B54704E256024E // BSC Mainnet
-        ;
-
-        uniswapV2Router = IUniswapV2Router02(
-            routerAddress
-        );
-
-        uniswapV2Pair = IUniswapV2Factory(uniswapV2Router.factory()).createPair(
-            address(this),
-            uniswapV2Router.WETH()
-        );
-
-        _setAutomatedMarketMakerPair(uniswapV2Pair, true);
+        isTransferEnabled = false;
     }
 
     /** @dev Decimals of Verida token */
     function decimals() public view virtual override returns (uint8) {
         return DECIMAL;
-    }
-
-    function getTokenPublishTime() external view override returns(uint256){
-        return tokenPublishTime;
     }
 
     /**
@@ -211,6 +163,9 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
         uint256 amount
     ) internal override {
 
+        // Allow if isTransferEnabled or Minting operation
+        require(isTransferEnabled || sender == address(0), "Token transfer not allowed");
+
         if (isMaxAmountPerWalletEnabled && !isExcludedFromWalletAmountLimit[recipient]) {
             require((balanceOf(recipient) + amount) <= maxAmountPerWallet, 
                 "Receiver amount limit");
@@ -227,28 +182,13 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
         super._transfer(sender, recipient, amount);
     }
     
-    /**
-     * @dev Update uniswapV2Router.
-     */
-    function updateUniswapV2Router(address newAddress) external onlyOwner {
-        require(newAddress != address(uniswapV2Router));
-        emit UpdateUniswapV2Router(newAddress, address(uniswapV2Router));
-        uniswapV2Router = IUniswapV2Router02(newAddress);
-    }
-
+    
     /**
      * @dev enable/disable AutomatedMarkertMakerPair
      */
     function setAutomatedMarketMakerPair(address pair, bool value) external onlyOwner
     {
-        require(pair != uniswapV2Pair);
-        _setAutomatedMarketMakerPair(pair, value);
-    }
-
-    /**
-     * @dev internal function to set automated market maker pair.
-     */
-    function _setAutomatedMarketMakerPair(address pair, bool value) private {
+        require(automatedMarketMakerPairs[pair] != value, "Already set");
         automatedMarketMakerPairs[pair] = value;
 
         emit SetAutomatedMarketMakerPair(pair, value);
@@ -317,7 +257,7 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
     /**
      * @dev enable/disable MaxAmountPerSell
      */
-    function enableMaxAmountPerSell(bool isEnabled) external {
+    function enableMaxAmountPerSell(bool isEnabled) external onlyOwner {
         require(isMaxAmountPerSellEnabled != isEnabled);
         isMaxAmountPerSellEnabled = isEnabled;
         emit EnableMaxAmountPerSell(isEnabled);        
@@ -326,9 +266,18 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
     /**
      * @dev enable/disable MaxAmountPerWallet
      */
-    function enableMaxAmountPerWallet(bool isEnabled) external {
+    function enableMaxAmountPerWallet(bool isEnabled) external onlyOwner {
         require(isMaxAmountPerWalletEnabled != isEnabled);
         isMaxAmountPerWalletEnabled = isEnabled;
         emit EnableMaxAmountPerWallet(isEnabled);
+    }
+
+    /**
+     * See {IVDA.sol}
+     */
+    function enableTransfer() external onlyOwner override {
+        require(!isTransferEnabled, "Transfer enabled");
+
+        isTransferEnabled = true;
     }
 }

@@ -7,28 +7,13 @@ import "@typechain/hardhat";
 import "hardhat-gas-reporter";
 import "solidity-coverage";
 
-import "@nomiclabs/hardhat-ethers";
-
-dotenv.config();
-
 // For upgradeable - deploy
 import "@openzeppelin/hardhat-upgrades";
 // For verify 
 import "@nomiclabs/hardhat-ethers"
 
-
-// This is a sample Hardhat task. To learn how to create your own go to
-// https://hardhat.org/guides/create-task.html
-task("accounts", "Prints the list of accounts", async (taskArgs, hre) => {
-  const accounts = await hre.ethers.getSigners();
-
-  for (const account of accounts) {
-    console.log(account.address);
-  }
-});
-
-// You need to export an object to set up your config
-// Go to https://hardhat.org/config/ to learn more
+dotenv.config({path: __dirname + '/.env'});
+const {PRIVATE_KEY, ETHERSCAN_API_KEY, POLYGONSCAN_API_KEY, POLYGON_TESTNET_RPC, POLYGON_MAINNET_RPC} = process.env;
 
 const config: HardhatUserConfig = {
   solidity: {
@@ -41,17 +26,26 @@ const config: HardhatUserConfig = {
     }
   },
   networks: {
-    hardhat: {
-      forking: {
-        url: "https://eth-mainnet.alchemyapi.io/v2/8083RqnyKiUZRjMqH28dBbb6BDhEjcm8",
-        // blockNumber : 100
-      }
+    // hardhat: {
+    //   forking: {
+    //     url: "https://eth-mainnet.alchemyapi.io/v2/8083RqnyKiUZRjMqH28dBbb6BDhEjcm8",
+    //     // blockNumber : 100
+    //   }
+    // },
+    goerli: {
+      url: "https://eth-goerli.public.blastapi.io", //https://goerli.infura.io/v3/
+      chainId: 5,
+      accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
     },
-
-    ropsten: {
-      url: process.env.ROPSTEN_URL || "",
-      accounts:
-        process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
+    polygonmainnet: {
+      url: POLYGON_MAINNET_RPC !== undefined ? POLYGON_MAINNET_RPC : "https://polygon-rpc.com/",
+      chainId: 137,
+      accounts: PRIVATE_KEY !== undefined ? [PRIVATE_KEY] : [],
+    },
+    polygontestnet: {
+      url: POLYGON_TESTNET_RPC !== undefined ? POLYGON_TESTNET_RPC : "https://matic-mumbai.chainstacklabs.com",
+      chainId: 80001,
+      accounts: PRIVATE_KEY !== undefined ? [PRIVATE_KEY] : [], 
     },
   },
   gasReporter: {
