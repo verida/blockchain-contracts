@@ -40,7 +40,6 @@ describe("MVP-Verida Test", () => {
         })) as VeridaToken;
 
         await vda.deployed();
-
     }
 
     before(async () => {
@@ -57,6 +56,115 @@ describe("MVP-Verida Test", () => {
         MAX_SUPPLY = await vda.MAX_SUPPLY();
         RATE_DENOMINATOR = await vda.RATE_DENOMINATOR();
     });
+
+    describe("Mint & burn", () => {
+        before(async () => {
+            await deployContract()
+        })
+
+        it("Should mint & burn from contract owner", async () => {
+            const owner = accountList[0]
+
+            // Mint
+            expect((await vda.balanceOf(owner.address)).toNumber()).to.be.equal(0)
+            await vda.mint(owner.address, 100)
+            expect((await vda.balanceOf(owner.address)).toNumber()).to.be.equal(100)
+
+            // Burn
+            await vda.burn(100)
+            expect((await vda.balanceOf(owner.address)).toNumber()).to.be.equal(0)
+        })
+
+        it("Add & revoke minter", async () => {
+            const minter = accountList[1]
+
+            await expect(
+                vda.connect(minter).mint(minter.address, 100)
+            ).to.be.rejectedWith("Not a minter")
+
+            // Add a minter
+            await vda.addMinter(minter.address)
+
+            // Mint from new minter
+            expect(await vda.balanceOf(minter.address)).to.be.eq(0)
+            await vda.connect(minter).mint(minter.address, 100)
+            expect(await vda.balanceOf(minter.address)).to.be.eq(100)
+
+            // Burn
+            await vda.connect(minter).burn(100)
+
+            // Revoke a minter
+            await vda.revokeMinter(minter.address)
+        })
+
+        it("Transfer ownership", async () => {
+            const oldOwner = accountList[0]
+            const newOwner = accountList[1]
+            const minter = accountList[2]
+
+            // Transfer ownership
+            await vda.transferOwnership(newOwner.address)
+
+            // Old owner has no permission to mint
+            await expect(
+                vda.connect(oldOwner).mint(oldOwner.address, 100)
+            ).to.be.rejectedWith("Not a minter")
+
+            // Old owner has no permission to add/revoke minters
+            await expect(
+                vda.connect(oldOwner).addMinter(minter.address)
+            ).to.be.rejectedWith()
+            
+            // New owner has permission to mint
+            expect(await vda.balanceOf(newOwner.address)).to.be.eq(0)
+            await vda.connect(newOwner).mint(newOwner.address, 100)
+            expect(await vda.balanceOf(newOwner.address)).to.be.eq(100)
+
+            await vda.connect(newOwner).burn(100)
+            expect(await vda.balanceOf(newOwner.address)).to.be.eq(0)
+            
+            // New owenr has permission to add a minter
+            await expect(
+                vda.connect(minter).mint(minter.address, 100)
+            ).to.be.rejectedWith("Not a minter")
+            await vda.connect(newOwner).addMinter(minter.address)
+            
+            // Mint from new minter
+            expect(await vda.balanceOf(minter.address)).to.be.eq(0)
+            await vda.connect(minter).mint(minter.address, 100)
+            expect(await vda.balanceOf(minter.address)).to.be.eq(100)
+
+            await vda.connect(minter).burn(100)
+            expect(await vda.balanceOf(minter.address)).to.be.eq(0)
+
+            // New owner has permission to revoke a minter
+            await vda.connect(newOwner).revokeMinter(minter.address)
+            await expect(
+                vda.connect(minter).mint(minter.address, 100)
+            ).to.be.rejectedWith("Not a minter")
+        })
+
+        it("Renounce ownership", async () => {
+            await hardhatReset()
+            await deployContract()
+
+            const oldOwner = accountList[0]
+            const minter = accountList[2]
+
+            // Renounce ownership
+            await vda.renounceOwnership()
+
+            // Old owner has no permission to mint
+            await expect(
+                vda.connect(oldOwner).mint(oldOwner.address, 100)
+            ).to.be.rejectedWith("Not a minter")
+
+            // Old owner has no permission to add/revoke minters
+            await expect(
+                vda.connect(oldOwner).addMinter(minter.address)
+            ).to.be.rejectedWith()
+        })
+    })
 
     describe("Token Transfer", () => {
         let receiver : SignerWithAddress

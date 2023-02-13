@@ -31,7 +31,7 @@ interface IVeridaToken {
     /**
      * @dev Burn `amount` tokens from `to`.
      */
-    function burn(address from, uint256 amount) external;
+    function burn(uint256 amount) external;
 
     /**
      * @notice Enable token transfer
