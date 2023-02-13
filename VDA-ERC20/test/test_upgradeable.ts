@@ -8,7 +8,6 @@ import hre, { ethers , upgrades } from "hardhat"
 import { VeridaToken } from "../typechain/VeridaToken"
 import { VeridaTokenV2 } from "../typechain/VeridaTokenV2"
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers"
-import { ERC20Upgradeable, IERC20Upgradeable, ITestUpgradeable } from "../typechain"
 
 chai.use(solidity)
 chai.use(chaiAsPromised)

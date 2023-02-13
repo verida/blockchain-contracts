@@ -1,13 +1,8 @@
 //SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.9;
 
 /** @title Verida Token */
 interface IVeridaToken {
-    /**
-     * @dev get TokenPublishTime
-     */
-    function getTokenPublishTime() external view returns(uint256);
-
     /**
      * @dev Allow token mint for 'to'.
      */
@@ -37,6 +32,12 @@ interface IVeridaToken {
      * @dev Burn `amount` tokens from `to`.
      */
     function burn(address from, uint256 amount) external;
+
+    /**
+     * @notice Enable token transfer
+     * @dev Only the contract owner enables. Once enabled, not able to disable.
+     */
+    function enableTransfer() external;
 
     /**
      * @dev Emitted when MINT_ROLE is added to 'to' address
