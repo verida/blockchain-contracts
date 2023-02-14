@@ -99,9 +99,8 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
     /**
      * @dev Burn `amount` tokens from `to`.
      */
-    function burn(address from, uint256 amount) external override {
-        require(hasRole(MINT_ROLE, _msgSender()), 'Not a minter');
-        _burn(from, amount);
+    function burn(uint256 amount) external override {
+        _burn(_msgSender(), amount);
     }
 
     /**
@@ -163,8 +162,8 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
         uint256 amount
     ) internal override {
 
-        // Allow if isTransferEnabled or Minting operation
-        require(isTransferEnabled || sender == address(0), "Token transfer not allowed");
+        // Allow if isTransferEnabled or Minting & burning operation
+        require(isTransferEnabled || sender == address(0) || recipient == address(0), "Token transfer not allowed");
 
         if (isMaxAmountPerWalletEnabled && !isExcludedFromWalletAmountLimit[recipient]) {
             require((balanceOf(recipient) + amount) <= maxAmountPerWallet, 
@@ -279,5 +278,24 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
         require(!isTransferEnabled, "Transfer enabled");
 
         isTransferEnabled = true;
+    }
+
+    /**
+     * See {OwnableUpgradeable.sol}
+     * @dev give `mint` role to the new owner
+     */
+    function _transferOwnership(address newOwner) internal virtual override {
+        if (newOwner != address(0x0)) {
+            // Give roles to the new owner if this is not `renounceOwnership`
+            _grantRole(DEFAULT_ADMIN_ROLE, newOwner);
+            grantRole(MINT_ROLE, newOwner);
+        }
+
+        // Revoke roles from the previous owner
+        address oldOwner = owner();
+        revokeRole(MINT_ROLE, oldOwner);
+        _revokeRole(DEFAULT_ADMIN_ROLE, oldOwner);
+
+        super._transferOwnership(newOwner);
     }
 }
