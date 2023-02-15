@@ -1,5 +1,14 @@
 {
-  "name": "hardhat-project",
+  "name": "@verida/erc20-contract",
+  "description": "Verida Token Contract",
+  "version": "0.0.1",
+  "author": "Alex J <alex@verida.io, trust2ray@gmail.com>",
+  "license": "MIT",
+  "files": [
+    "artifacts",
+    "contracts",
+    "typechain"
+  ],
   "devDependencies": {
     "@nomiclabs/hardhat-ethers": "^2.0.4",
     "@nomiclabs/hardhat-etherscan": "^2.1.8",

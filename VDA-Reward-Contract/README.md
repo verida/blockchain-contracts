@@ -1,3 +1,8 @@
+# Dependency
+## Contract
+- @verida/vda-verification-contract : VDA-Verification-Base contract
+- @verida/reward-token-contract : VDA-Reward-Token
+
 # Verida Reward Contract
 
 This contract receive signed off chain data and use that to provide a reward to the address making the request.

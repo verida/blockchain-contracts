@@ -1,14 +1,14 @@
 //SPDX-License-Identifier: MIT
 pragma solidity ^0.8.9;
 
-import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/utils/structs/EnumerableSetUpgradeable.sol";
+// import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+// import "@openzeppelin/contracts-upgradeable/utils/structs/EnumerableSetUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
 import "./IVDARewardContract.sol";
-import { VeridaDataVerificationLib } from "./VeridaDataVerificationLib.sol";
 
-contract VDARewardContract is OwnableUpgradeable, IVDARewardContract {
-    using EnumerableSetUpgradeable for EnumerableSetUpgradeable.AddressSet;
+import "@verida/vda-verification-contract/contracts/VDAVerificationContract.sol";
+
+contract VDARewardContract is IVDARewardContract, VDAVerificationContract {
 
     /** ReardToken : ERC20 contract */
     IERC20Upgradeable rewardToken;
@@ -18,9 +18,6 @@ contract VDARewardContract is OwnableUpgradeable, IVDARewardContract {
 
     /** Mapping of claim ID => Verida account */
     mapping(bytes => bool) private claims;
-
-    /** Trusted address */
-    EnumerableSetUpgradeable.AddressSet private trustedAddressList;
 
     modifier onlyExistingClaimType(string calldata typeId) {
         ClaimType storage claimType = claimTypes[typeId];
@@ -82,54 +79,29 @@ contract VDARewardContract is OwnableUpgradeable, IVDARewardContract {
     }
 
     /**
-     * @dev see {IVDARewardContract-addTrustedAddress}
-     */
-    function addTrustedAddress(address did) external onlyOwner {
-        require(!trustedAddressList.contains(did), "Already existing");
-        trustedAddressList.add(did);
-
-        emit AddTrustedAddress(did);
-    }
-
-    /**
-     * @dev see {IVDARewardContract-removeTrustedAddress}
-     */
-    function removeTrustedAddress(address did) external onlyOwner {
-        require(trustedAddressList.contains(did), "Not existing");
-        trustedAddressList.remove(did);
-
-        emit RemoveTrustedAddress(did);
-    }
-
-    /**
-     * @dev Check whether address is in trustedAddressList. Only owner can call.
-     * @param did - DID address to check
-     */
-    function isTrustedAddress(address did) external view onlyOwner returns(bool) {
-        return trustedAddressList.contains(did);
-    }
-
-    /**
      * @dev see {IVDARewardContract-claim}
      */
-    function claim(string calldata typeId, string calldata hash, bytes calldata proof, address to) external onlyExistingClaimType(typeId) {
+    function claim(
+        string calldata typeId, 
+        string calldata hash, 
+        address to,
+        bytes calldata signature,
+        bytes calldata proof
+    ) external onlyExistingClaimType(typeId) {
+
         ClaimType storage claimType = claimTypes[typeId];
-        bytes memory proofMessage = abi.encodePacked(
+        bytes memory rawMsg = abi.encodePacked(
             hash,
             "|",
             claimType.schema
         );
-        require(!claims[proofMessage], "Already claimed");
+        require(!claims[rawMsg], "Already claimed");
 
-        address signer = VeridaDataVerificationLib.getSignerAddress(
-            proofMessage,
-            proof
-        );
-        require(trustedAddressList.contains(signer), "Invalid signer");
-
+        verifyData(rawMsg, signature, proof);
+        
         require(rewardToken.balanceOf(address(this)) >= claimType.reward, "Insufficient token in contract");
 
-        claims[proofMessage] = true;
+        claims[rawMsg] = true;
         rewardToken.transfer(to, claimType.reward);
     }
 } 

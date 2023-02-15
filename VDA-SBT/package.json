@@ -1,11 +1,10 @@
 {
-  "name": "@verida/SBT",
+  "name": "@verida/sbt-contract",
   "version": "0.0.1",
   "files": [
     "artifacts",
     "contracts",
-    "dist",
-    "typechain"
+    "typechain-types"
   ],
   "author": "Alex J <alex@verida.io, trust2ray@gmail.com>",
   "license": "MIT",

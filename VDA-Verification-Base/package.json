@@ -1,15 +1,8 @@
 {
   "name": "@verida/vda-verification-contract",
   "description": "Verification base contract of Verida",
-  "version": "0.0.2",
-  "scripts": {
-    "test": "npx hardhat test"
-  },
-  "files": [
-    "**/*.sol",
-    ""
-  ],
-  "author": "Alex@verida",
+  "version": "0.1.1",
+  "author": "Alex J <alex@verida.io, trust2ray@gmail.com>",
   "license": "MIT",
   "devDependencies": {
     "@ethersproject/abi": "^5.4.7",
@@ -41,5 +34,19 @@
   "dependencies": {
     "@verida/account-node": "^2.0.0-rc4",
     "@verida/client-ts": "^2.0.0-rc4"
-  }
+  },
+  "scripts": {
+    "build-contracts": "sol-merger \"./contracts/*.sol\" ./build",
+    "build": "npx hardhat compile",
+    "test": "npx hardhat test",
+    "deploy": "npx hardhat run scripts/deploy_v1.ts",
+    "verify": "npx hardhat verify"
+  },
+  "files": [
+    "artifacts",
+    "contracts",
+    "dist",
+    "typechain-types",
+    "scripts/*.json"
+  ]
 }
