@@ -12,8 +12,16 @@ import "@nomiclabs/hardhat-ethers";
 // For upgradeable - deploy
 import "@openzeppelin/hardhat-upgrades";
 
+// For defender
+import "@openzeppelin/hardhat-defender";
+
 dotenv.config({ path: __dirname + "/.env" });
-const { PRIVATE_KEY, POLYGONSCAN_API_KEY, POLYGON_RPC_PRIVATE_NO_AUTH } = process.env;
+const {
+  PRIVATE_KEY,
+  ETHERSCAN_API_KEY,
+  POLYGONSCAN_API_KEY,
+  POLYGON_RPC_PRIVATE_NO_AUTH,
+} = process.env;
 
 // This is a sample Hardhat task. To learn how to create your own go to
 // https://hardhat.org/guides/create-task.html
@@ -29,6 +37,10 @@ task("accounts", "Prints the list of accounts", async (taskArgs, hre) => {
 // Go to https://hardhat.org/config/ to learn more
 
 const config: HardhatUserConfig = {
+  defender: {
+    apiKey: process.env.DEFENDER_TEAM_API_KEY,
+    apiSecret: process.env.DEFENDER_TEAM_API_SECRET_KEY,
+  },
   solidity: {
     compilers: [
       {
@@ -76,13 +88,18 @@ const config: HardhatUserConfig = {
       chainId: 80001,
       accounts: [PRIVATE_KEY!],
     },
+    goerli: {
+      url: "https://eth-goerli.public.blastapi.io", //https://goerli.infura.io/v3/
+      chainId: 5,
+      accounts: PRIVATE_KEY !== undefined ? [PRIVATE_KEY] : [],
+    },
   },
   gasReporter: {
     enabled: process.env.REPORT_GAS !== undefined,
     currency: "USD",
   },
   etherscan: {
-    apiKey: POLYGONSCAN_API_KEY,
+    apiKey: ETHERSCAN_API_KEY,
   },
 };
 

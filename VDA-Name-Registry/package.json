@@ -1,7 +1,7 @@
 {
   "name": "@verida/name-registry",
   "description": "Verida name registry contract",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "author": "Alex J <alex@verida.io, trust2ray@gmail.com>",
   "license": "MIT",
   "repository": {
@@ -17,6 +17,7 @@
     "@nomiclabs/hardhat-ethers": "^2.0.4",
     "@nomiclabs/hardhat-etherscan": "^3.0.4",
     "@nomiclabs/hardhat-waffle": "^2.0.1",
+    "@openzeppelin/hardhat-defender": "^1.8.2",
     "@openzeppelin/hardhat-upgrades": "^1.18.0",
     "@typechain/ethers-v5": "^7.2.0",
     "@typechain/hardhat": "^2.3.1",
@@ -57,7 +58,7 @@
     "build-contracts": "sol-merger \"./contracts/*.sol\" ./build",
     "build": "npx hardhat compile",
     "test": "npx hardhat test",
-    "deploy": "npx hardhat run scripts/deploy_v1.ts",
+    "deploy": "npx hardhat run scripts/deploy.ts",
     "verify": "npx hardhat verify"
   }
 }
