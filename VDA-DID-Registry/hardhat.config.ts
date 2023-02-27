@@ -15,7 +15,7 @@ import { ethers } from "hardhat";
 
 // dotenv.config();
 dotenv.config({path: __dirname + '/.env'});
-const {PRIVATE_KEY, BSCSCAN_API_KEY, POLYGONSCAN_API_KEY} = process.env;
+const {PRIVATE_KEY, ETHERSCAN_API_KEY, POLYGONSCAN_API_KEY} = process.env;
 
 // This is a sample Hardhat task. To learn how to create your own go to
 // https://hardhat.org/guides/create-task.html
@@ -82,14 +82,19 @@ const config: HardhatUserConfig = {
       accounts: PRIVATE_KEY !== undefined ? [PRIVATE_KEY] : [],
       gas: 2100000,
       gasPrice: 10000000000
-    }
+    },
+    goerli: {
+      url: "https://eth-goerli.public.blastapi.io", //https://goerli.infura.io/v3/
+      chainId: 5,
+      accounts: PRIVATE_KEY !== undefined ? [PRIVATE_KEY] : [],
+    },
   },
   gasReporter: {
     enabled: process.env.REPORT_GAS !== undefined,
     currency: "USD",
   },
   etherscan: {
-    apiKey: POLYGONSCAN_API_KEY,
+    apiKey: ETHERSCAN_API_KEY,
   },
   mocha: {
     timeout: 0,
