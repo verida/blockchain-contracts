@@ -111,3 +111,9 @@ Contract owner can exclude specific addresses from the **Sell amount limit** fea
 function excludeFromSellAmountLimit(address account, bool excluded) external;
 ```
 By default, this feature is disabled.
+
+# Token Audit
+
+See details of audit:
+
+https://www.hashlock.com.au/verida-token-audit
