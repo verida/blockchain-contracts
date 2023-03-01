@@ -11,7 +11,7 @@
   "files": [
     "artifacts",
     "contracts",
-    "typechain"
+    "typechain-types"
   ],
   "devDependencies": {
     "@ethersproject/abi": "^5.7.0",

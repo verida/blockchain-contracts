@@ -36,26 +36,22 @@ interface IVDARewardContract {
      */
     event UpdateClaimTypeReward(string typeId, uint amount);
 
-    /**
-     * @dev Emitted when owner added an address to trustedAddressList
-     * @param did - Added DID address
-     */
-    event AddTrustedAddress(address did);
-
-    /**
-     * @dev Emitted when owner removed an address from trustedAddressList
-     * @param did - Removed DID address
-     */
-    event RemoveTrustedAddress(address did);
     
     /**
      * @dev User claim a token reward (VDAR)
      * @param typeId - Unique ID of the ClaimType (ie: facebook)
      * @param hash - Uique hash from the credential (ie: 09c247n5t089247n90812798c14)
-     * @param proof - Signature from the credential that signed a combination of the hash and credential schema
+     * @param signature - Signature from the credential that signed a combination of the hash and credential schema
+     * @param proof - Proof that signature was verified by the trusted address
      * @param to - Reward token receiving address
      */
-    function claim(string calldata typeId, string calldata hash, bytes calldata proof, address to) external;
+    function claim(
+        string calldata typeId, 
+        string calldata hash, 
+        address to,
+        bytes calldata signature,
+        bytes calldata proof        
+    ) external;
 
     /**
      * @dev Returns a ClaimType info
@@ -85,20 +81,4 @@ interface IVDARewardContract {
      * @param amount - The amount of VDAR tokens to be rewarded for successful claim.
      */
     function updateClaimTypeReward(string calldata typeId, uint amount) external;
-
-    /**
-     * @dev Add a trusted address. Only owner can add.
-     * @param did - address of DID.
-     */
-    function addTrustedAddress(address did) external;
-
-    /**
-     * @dev Remove a trusted address. Only owner can remove.
-     * @param did - address of DID.
-     */
-    function removeTrustedAddress(address did) external;
-
-    
-
-
 }

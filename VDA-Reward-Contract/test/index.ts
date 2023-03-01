@@ -4,8 +4,11 @@ import chaiAsPromised from "chai-as-promised";
 import { BigNumber, Wallet } from "ethers";
 
 import hre, { ethers , upgrades } from "hardhat"
-import { RewardToken, VDARewardContract } from "../typechain-types";
+import { VDARewardContract } from "../typechain-types";
+import { VeridaToken } from "@verida/erc20-contract/typechain";
 import EncryptionUtils from '@verida/encryption-utils'
+
+import { abi as TokenABI, bytecode as TokenByteCode } from "@verida/erc20-contract/artifacts/contracts/VDA-V1.sol/VeridaToken.json";
 
 chai.use(chaiAsPromised);
 
@@ -13,28 +16,20 @@ let accountList: SignerWithAddress[];
 let owner: SignerWithAddress;
 let user: SignerWithAddress
 
-const veridaAccounts = [
-    Wallet.createRandom(),
-    Wallet.createRandom(),
+const trustedSigners = [
     Wallet.createRandom(),
     Wallet.createRandom(),
     Wallet.createRandom(),
 ]
 
-// This should be matched to above veridaAccounts
-// Contains hashes of each account
 const credentials = [
     '09c247n5t089247n90812798c14',
     '09c247n5t089247n90812798c15',
     '09c247n5t089247n90812798c16',
-    '09c247n5t089247n90812798c17',
-    '09c247n5t089247n90812798c18',
 ]
 
 // Reward receives address
 const receiverAddress = [
-    Wallet.createRandom().address,
-    Wallet.createRandom().address,
     Wallet.createRandom().address,
     Wallet.createRandom().address,
     Wallet.createRandom().address,
@@ -61,18 +56,15 @@ const claimTypes : ClaimType[] = [
 
 describe("VeridaRewardContract", () => {
     let contract: VDARewardContract
-    let token: RewardToken
+    let token: VeridaToken
 
     const deployContracts = async() => {
-        const tokenFactory = await ethers.getContractFactory("RewardToken")
-        token = (await upgrades.deployProxy(
-            tokenFactory,
-            [],
-            {
-                initializer: '__RewardToken_init'
-            }
-        )) as RewardToken
+        const tokenFactory = await ethers.getContractFactory(TokenABI, TokenByteCode)
+        token = await tokenFactory.deploy() as VeridaToken
         await token.deployed()
+        await token.initialize();
+
+        await token.enableTransfer();
 
         const contractFactory = await ethers.getContractFactory("VDARewardContract")
         contract = (await upgrades.deployProxy(
@@ -91,13 +83,6 @@ describe("VeridaRewardContract", () => {
         user = accountList[1]
         
         await deployContracts()
-    })
-
-    it ("Mint reward token to RewardContract", async () => {
-        const mintAmount = ethers.utils.parseEther('100000')
-        expect(await token.balanceOf(contract.address)).to.equal(0);
-        await token.mint(contract.address, mintAmount)
-        expect(await token.balanceOf(contract.address)).to.equal(mintAmount)
     })
 
     describe("ClaimTypes", () => {
@@ -238,52 +223,46 @@ describe("VeridaRewardContract", () => {
         })
     })
 
-    describe("TrustedAddress", () => {
+    describe("TrustedSigners", () => {
         describe("Add an address", () => {
             it("Failed from non-owner transaction", async () => {
-                await expect(contract.connect(user).addTrustedAddress(
-                    veridaAccounts[0].address
+                await expect(contract.connect(user).addTrustedSigner(
+                    trustedSigners[0].address
                 )).to.be.rejectedWith('Ownable: caller is not the owner')
             })
 
             it("Add an address successfully", async () => {
-                expect(await contract.isTrustedAddress(veridaAccounts[0].address)).to.be.eq(false)
-
-                await contract.addTrustedAddress(veridaAccounts[0].address)
-
-                expect(await contract.isTrustedAddress(veridaAccounts[0].address)).to.be.eq(true)
+                await contract.addTrustedSigner(trustedSigners[0].address)
             })
 
             it("Failed for already added address", async () => {
-                await expect(contract.addTrustedAddress(
-                    veridaAccounts[0].address)
-                ).to.be.rejectedWith('Already existing')
+                await expect(contract.addTrustedSigner(
+                    trustedSigners[0].address)
+                ).to.be.rejectedWith('Already registered')
             })
         })
 
         describe("Remove an address", () => {
             it("Failed from non-owner transaction", async () => {
-                await expect(contract.connect(user).removeTrustedAddress(
-                    veridaAccounts[0].address
+                await expect(contract.connect(user).removeTrustedSigner(
+                    trustedSigners[0].address
                 )).to.be.rejectedWith('Ownable: caller is not the owner')
             })
 
             it("Failed for non-existing address", async () => {
-                await expect(contract.removeTrustedAddress(
-                    veridaAccounts[1].address
-                )).to.be.rejectedWith('Not existing')
+                await expect(contract.removeTrustedSigner(
+                    trustedSigners[1].address
+                )).to.be.rejectedWith('Unregistered address')
             })
 
             it("Remove an address successfully", async () => {
-                expect (await contract.isTrustedAddress(veridaAccounts[0].address)).to.equal(true)
-                await contract.removeTrustedAddress(veridaAccounts[0].address)
-                expect (await contract.isTrustedAddress(veridaAccounts[0].address)).to.equal(false)
+                await contract.removeTrustedSigner(trustedSigners[0].address)
             })
 
             it("Failed for removed address", async () => {
-                await expect(contract.removeTrustedAddress(
-                    veridaAccounts[0].address)
-                ).to.be.rejectedWith('Not existing')
+                await expect(contract.removeTrustedSigner(
+                    trustedSigners[0].address)
+                ).to.be.rejectedWith('Unregistered address')
             })
         })
     })
@@ -291,13 +270,27 @@ describe("VeridaRewardContract", () => {
     describe("Claim", () => {
         const mintAmount = ethers.utils.parseEther('100000')
 
-        const getProof = (hash: string, schema: string, privateKey: string) => {
+        const contextSigner = Wallet.createRandom()
+
+        const getSignature = (
+            hash: string, 
+            schema: string,
+            // receiver: string,
+            contextSigner: Wallet, 
+            proofSigner : Wallet
+        ) => {
             const rawMsg = ethers.utils.solidityPack(
                 ['string', 'string', 'string'],
                 [hash, "|", schema]
             )
-            const privateKeyArray = new Uint8Array(Buffer.from(privateKey.slice(2), 'hex'))
-            return EncryptionUtils.signData(rawMsg, privateKeyArray)
+            let privateKeyArray = new Uint8Array(Buffer.from(contextSigner.privateKey.slice(2), 'hex'))
+            const signature = EncryptionUtils.signData(rawMsg, privateKeyArray)
+
+            const proofMsg = `${proofSigner.address}${contextSigner.address}`.toLowerCase()
+            privateKeyArray = new Uint8Array(Buffer.from(proofSigner.privateKey.slice(2), 'hex'))
+            const proof = EncryptionUtils.signData(proofMsg, privateKeyArray)
+
+            return [signature, proof]
         }
 
         before(async () => {
@@ -309,8 +302,8 @@ describe("VeridaRewardContract", () => {
             // await token.mint(contract.address, mintAmount)
 
             // Add trusted address
-            veridaAccounts.forEach(async account => {
-                await contract.addTrustedAddress(account.address)
+            trustedSigners.forEach(async account => {
+                await contract.addTrustedSigner(account.address)
             })
 
             // Add Claim Types
@@ -324,46 +317,54 @@ describe("VeridaRewardContract", () => {
         })
 
         it("Failed for non-existing claim types", async () => {
-            const proof = getProof(
-                credentials[0], 
-                claimTypes[0].schema, 
-                veridaAccounts[0].privateKey)
+            const [signature, proof] = await getSignature(
+                credentials[0],
+                claimTypes[0].schema,
+                contextSigner,
+                trustedSigners[0]
+            )
             await expect(contract.claim(
                 "Invalid ClaimID",
                 credentials[0],
-                proof,
-                receiverAddress[0]
+                receiverAddress[0],
+                signature,
+                proof
             )).to.be.rejectedWith('Non existing CalimType')
         })
 
         it("Failed for Invalid signer", async () => {
             const badSigner = Wallet.createRandom()
-            const proof = getProof(
+            const [signature, proof] = await getSignature(
                 credentials[0],
                 claimTypes[0].schema,
-                badSigner.privateKey
+                contextSigner,
+                badSigner
             )
             await expect(contract.claim(
                 claimTypes[0].id,
                 credentials[0],
-                proof,
-                receiverAddress[0]
-            )).to.be.rejectedWith('Invalid signer')
+                receiverAddress[0],
+                signature,
+                proof
+            )).to.be.rejectedWith('Data is not signed by a valid signing DID')
         })
 
         it("Failed for Insufficient reward token in contract", async () => {
             expect(await token.balanceOf(contract.address)).to.be.equal(0)
 
-            const proof = getProof(
+            const [signature, proof] = await getSignature(
                 credentials[0],
                 claimTypes[0].schema,
-                veridaAccounts[0].privateKey
+                contextSigner,
+                trustedSigners[0]
             )
+
             await expect(contract.claim(
                 claimTypes[0].id,
                 credentials[0],
-                proof,
-                receiverAddress[0]
+                receiverAddress[0],
+                signature,
+                proof                
             )).to.be.rejectedWith('Insufficient token in contract')
         })
 
@@ -375,16 +376,19 @@ describe("VeridaRewardContract", () => {
             expect(orgContractBalance).to.be.greaterThan(claimTypes[0].reward)
             expect(await token.balanceOf(receiverAddress[0])).to.be.equal(0)
 
-            const proof = getProof(
+            const [signature, proof] = await getSignature(
                 credentials[0],
                 claimTypes[0].schema,
-                veridaAccounts[0].privateKey
+                contextSigner,
+                trustedSigners[0]
             )
+
             await contract.claim(
                 claimTypes[0].id,
                 credentials[0],
-                proof,
-                receiverAddress[0]
+                receiverAddress[0],
+                signature,
+                proof                
             )
 
             expect(await token.balanceOf(receiverAddress[0])).to.be.equal(claimTypes[0].reward)
@@ -395,16 +399,19 @@ describe("VeridaRewardContract", () => {
             const orgContractBalance = await token.balanceOf(contract.address)
             expect(orgContractBalance).to.be.greaterThan(claimTypes[0].reward)
 
-            const proof = getProof(
+            const [signature, proof] = await getSignature(
                 credentials[0],
                 claimTypes[0].schema,
-                veridaAccounts[0].privateKey
+                contextSigner,
+                trustedSigners[0]
             )
+
             await expect(contract.claim(
                 claimTypes[0].id,
                 credentials[0],
-                proof,
-                receiverAddress[0]
+                receiverAddress[0],
+                signature,
+                proof                
             )).to.be.rejectedWith('Already claimed')
         })
     })

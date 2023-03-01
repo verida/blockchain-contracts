@@ -41,9 +41,8 @@ contract VDAVerificationContract is OwnableUpgradeable {
      * @param didAddress Trusted signer address
      */
     function addTrustedSigner(address didAddress) external onlyOwner {
-        if (!_trustedSigners.contains(didAddress)) {
-            _trustedSigners.add(didAddress);
-        }
+        require(!_trustedSigners.contains(didAddress), "Already registered");
+        _trustedSigners.add(didAddress);
     }
 
     /**

@@ -51,14 +51,10 @@
     "uint8arrays": "^3.0.0"
   },
   "scripts": {
-    "build:js": "tsc",
-    "build:sol": "hardhat compile",
-    "build": "yarn build:sol && yarn build:js",
-    "test": "hardhat test",
-    "lint:js": "npx eslint '**/*.{js,ts}' --fix",
-    "lint:sol": "npx solhint 'contracts/**/*.sol' --fix",
-    "lint": "yarn lint:sol && yarn lint:js",
-    "prettier": "prettier -w '**/*.{ts,js,json,md}'"
+    "build": "npx hardhat compile",
+    "test": "npx hardhat test",
+    "deploy": "npx hardhat run scripts/deploy.ts",
+    "verify": "npx hardhat verify"
   },
   "author": "Alex J <alex@verida.io, trust2ray@gmail.com>",
   "license": "MIT",
@@ -69,8 +65,6 @@
   "files": [
     "artifacts",
     "contracts",
-    "dist",
-    "typechain",
-    "scripts/*.json"
+    "typechain"
   ]
 }
