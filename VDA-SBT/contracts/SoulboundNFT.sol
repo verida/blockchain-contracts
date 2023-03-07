@@ -36,10 +36,10 @@ contract SoulboundNFT is VDAVerificationContract,
     EnumerableSet.StringSet private _sbtTypes;
 
     /**
-     * @notice Claimed SBT info by users
-     * @dev mapping of User => SBTType => UniqueId => tokenId
+     * @notice Claimed token id for SBTType & UniqueId
+     * @dev mapping SBTType => UniqueId => tokenId
      */
-    mapping(address => mapping(string => mapping(string => uint))) private _userInfo;
+    mapping(string => mapping(string=> uint)) private _sbtID;
 
     /** 
      * @notice SBT type of tokenId
@@ -208,7 +208,7 @@ contract SoulboundNFT is VDAVerificationContract,
             verifyData(params, sbtInfo.signedData, sbtInfo.signedProof);
         }
 
-        require(_userInfo[sbtInfo.recipient][sbtInfo.sbtType][sbtInfo.uniqueId] == 0, "Already claimed type");
+        require(_sbtID[sbtInfo.sbtType][sbtInfo.uniqueId] == 0, "Already claimed type");
 
         _tokenIdCounter.increment();
         uint256 tokenId = _tokenIdCounter.current();
@@ -217,7 +217,7 @@ contract SoulboundNFT is VDAVerificationContract,
         // SetTokenURI
         _setTokenURI(tokenId, sbtInfo.sbtURI);
 
-        _userInfo[sbtInfo.recipient][sbtInfo.sbtType][sbtInfo.uniqueId] = tokenId;
+        _sbtID[sbtInfo.sbtType][sbtInfo.uniqueId] = tokenId;
 
         _tokenIdInfo[tokenId].sbtType = sbtInfo.sbtType;
         _tokenIdInfo[tokenId].uniqueId = sbtInfo.uniqueId;
@@ -253,7 +253,7 @@ contract SoulboundNFT is VDAVerificationContract,
      * @dev See {ISoulboundNFT}
      */
     function isSBTClaimed(string calldata sbtType, string calldata uniqueId) external view override returns(bool) {
-        return _userInfo[msg.sender][sbtType][uniqueId] > 0;
+        return _sbtID[sbtType][uniqueId] > 0;
     }
 
     /**
@@ -279,7 +279,7 @@ contract SoulboundNFT is VDAVerificationContract,
         // Remove from user' tokenId list
         _userTokenIds[tokenOwner].remove(tokenId);
 
-        delete _userInfo[tokenOwner][info.sbtType][info.uniqueId];
+        delete _sbtID[info.sbtType][info.uniqueId];
         delete _tokenIdInfo[tokenId];
 
         emit SBTBurnt(msg.sender, tokenId);
