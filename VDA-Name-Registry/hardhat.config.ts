@@ -38,8 +38,8 @@ task("accounts", "Prints the list of accounts", async (taskArgs, hre) => {
 
 const config: HardhatUserConfig = {
   defender: {
-    apiKey: process.env.DEFENDER_TEAM_API_KEY,
-    apiSecret: process.env.DEFENDER_TEAM_API_SECRET_KEY,
+    apiKey: process.env.DEFENDER_TEAM_API_KEY!,
+    apiSecret: process.env.DEFENDER_TEAM_API_SECRET_KEY!,
   },
   solidity: {
     compilers: [
