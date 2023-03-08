@@ -347,12 +347,12 @@ describe("Verida Soulbound", () => {
 
     describe("Get Claimed SBT list", () => {
         it("Should return tokenId list for the claimer", async () => {
-            const idList = await contract.connect(claimer).getClaimedSBTList()
+            const idList = await contract.getClaimedSBTList(claimer.address)
             expect(idList.length).to.equal(2)
         })
 
         it("Should return empty array for users who has no SBT", async () => {
-            const idList = await contract.connect(veridians[2]).getClaimedSBTList()
+            const idList = await contract.getClaimedSBTList(veridians[2].address)
             expect(idList.length).to.equal(0)
         })
     })
@@ -363,7 +363,7 @@ describe("Verida Soulbound", () => {
                 [ 'twitter', '-testId' ],
                 [ 'twitter', '-diffId' ]
             ]
-            const idList = await contract.connect(claimer).getClaimedSBTList()
+            const idList = await contract.getClaimedSBTList(claimer.address)
 
             for(let i = 0; i < idList.length; i++) {
                 const info = await contract.tokenInfo(idList[i].toNumber())
@@ -410,7 +410,7 @@ describe("Verida Soulbound", () => {
         })
 
         it("Should fail for invalid caller",async () => {
-            const idList = await contract.connect(claimer).getClaimedSBTList()
+            const idList = await contract.getClaimedSBTList(claimer.address)
             expect(idList.length).to.be.greaterThan(0)
 
             const badCaller = veridians[2]
@@ -426,26 +426,26 @@ describe("Verida Soulbound", () => {
         })
 
         it("Token owner burn successfully", async () => {
-            const idList = await contract.connect(claimer).getClaimedSBTList()
+            const idList = await contract.getClaimedSBTList(claimer.address)
             expect(idList.length).to.be.greaterThan(0)
 
             const tx = await contract.connect(claimer).burnSBT(idList[0].toNumber())
             expect(tx).to.emit(contract, "SBTBurnt").withArgs(claimer.address, idList[0])
 
-            const updatedIdList = await contract.connect(claimer).getClaimedSBTList()
+            const updatedIdList = await contract.getClaimedSBTList(claimer.address)
             expect(updatedIdList.length).to.equal(idList.length - 1)
 
             bunrtIdList.push(idList[0])
         })
 
         it("Contract owner burn successfully",async () => {
-            const idList = await contract.connect(claimer).getClaimedSBTList()
+            const idList = await contract.getClaimedSBTList(claimer.address)
             expect(idList.length).to.be.greaterThan(0)
 
             const tx = await contract.burnSBT(idList[0].toNumber())
             expect(tx).to.emit(contract, "SBTBurnt").withArgs(owner.address, idList[0])
 
-            const updatedIdList = await contract.connect(claimer).getClaimedSBTList()
+            const updatedIdList = await contract.getClaimedSBTList(claimer.address)
             expect(updatedIdList.length).to.equal(idList.length - 1)
 
             bunrtIdList.push(idList[0])
