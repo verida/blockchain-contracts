@@ -1,6 +1,7 @@
-import { DIDClient, DIDClientConfig } from "@verida/did-client"
+import { DIDClient } from "@verida/did-client"
 import { AutoAccount } from "@verida/account-node";
-import { Client, EnvironmentType } from "@verida/client-ts";
+import { Client} from "@verida/client-ts";
+import { EnvironmentType, DIDClientConfig } from '@verida/types'
 
 // import { Wallet } from '@ethersproject/wallet'
 import { Wallet } from "ethers"
@@ -23,7 +24,7 @@ const txSigner = new Wallet(privateKey, provider)
 export async function getDIDClient(veridaAccount: Wallet) {
     
     const config: DIDClientConfig = {
-        network: 'testnet',
+        network: EnvironmentType.TESTNET,
         rpcUrl: rpcUrl
     }
 
@@ -70,7 +71,11 @@ export async function getDIDClient(veridaAccount: Wallet) {
     return didClient
 }
 
-const DEFAULT_ENDPOINTS = ['https://acacia-dev1.tn.verida.tech/did/', 'https://acacia-dev2.tn.verida.tech/did/', 'https://acacia-dev3.tn.verida.tech/did/']
+const DEFAULT_ENDPOINTS = [
+    'https://node1-apse2.devnet.verida.tech/did/', 
+    // 'https://node2-apse2.devnet.verida.tech/did/', 
+    'https://node3-apse2.devnet.verida.tech/did/'
+]
 
 export async function initVerida(didwallet: Wallet, CONTEXT_NAME: string) {
     const account = new AutoAccount({
@@ -98,6 +103,7 @@ export async function initVerida(didwallet: Wallet, CONTEXT_NAME: string) {
     const client = new Client({
         environment: EnvironmentType.TESTNET,
         didClientConfig: {
+            network: EnvironmentType.TESTNET,
             rpcUrl
         }
     })

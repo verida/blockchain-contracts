@@ -52,10 +52,10 @@ describe("NameRegistry", function () {
   let accountList: SignerWithAddress[];
 
   const testNames = [
-    "helloworld.verida",
-    "hello----world--.verida",
-    "hello_world-dave.verida",
-    "JerrySmith.verida",
+    "helloworld.vda",
+    "hello----world--.vda",
+    "hello_world-dave.vda",
+    "JerrySmith.vda",
 
     "JerrySmith.test",
     "Billy.test",
@@ -146,8 +146,8 @@ describe("NameRegistry", function () {
 
       it("Success on length 2 & 32", async () => {
         const names = [
-          "ab.verida", // length 2
-          "abcdefghijklmnopqrstuvwxyz012345.verida", // length 32
+          "ab.vda", // length 2
+          "abcdefghijklmnopqrstuvwxyz012345.vda", // length 32
         ];
         for (let i = 0; i < names.length; i++) {
           const did = Wallet.createRandom();

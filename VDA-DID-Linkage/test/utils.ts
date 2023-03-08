@@ -1,8 +1,8 @@
-import { DIDClient, DIDClientConfig } from "@verida/did-client"
+import { DIDClient } from "@verida/did-client"
 import { AutoAccount } from "@verida/account-node";
-import { Client, EnvironmentType } from "@verida/client-ts";
+import { Client} from "@verida/client-ts";
+import { EnvironmentType, DIDClientConfig } from '@verida/types'
 
-// import { Wallet } from '@ethersproject/wallet'
 import { Wallet } from "ethers"
 import { JsonRpcProvider } from '@ethersproject/providers'
 
@@ -25,7 +25,7 @@ const txSigner = new Wallet(privateKey, provider)
 export async function getDIDClient(veridaAccount: Wallet) {
     
     const config: DIDClientConfig = {
-        network: 'testnet',
+        network: EnvironmentType.TESTNET,
         rpcUrl: rpcUrl
     }
 
@@ -42,8 +42,8 @@ export async function getDIDClient(veridaAccount: Wallet) {
         },
         [
             `https://node1-apse2.devnet.verida.tech/did/`,
-            // `https://node1-apse2.devnet.verida.tech/did/`,
-            `https://node3-apse2.devnet.verida.tech/did/`,
+            // `https://node2-apse2.devnet.verida.tech/did/`,
+            `https://node3-apse2.devnet.verida.tech/did/`
         ]
     )
 
@@ -74,7 +74,7 @@ export async function getDIDClient(veridaAccount: Wallet) {
 
 const DEFAULT_ENDPOINTS = [
     'https://node1-apse2.devnet.verida.tech/did/', 
-    // 'https://node1-apse2.devnet.verida.tech/did/', 
+    // 'https://node2-apse2.devnet.verida.tech/did/', 
     'https://node3-apse2.devnet.verida.tech/did/'
 ]
 
@@ -104,6 +104,7 @@ export async function initVerida(didwallet: Wallet, CONTEXT_NAME: string) {
     const client = new Client({
         environment: EnvironmentType.TESTNET,
         didClientConfig: {
+            network: EnvironmentType.TESTNET,
             rpcUrl
         }
     })
@@ -133,13 +134,12 @@ export interface SignInfo {
 }
 
 export async function generateProof() : Promise<SignInfo> {
-    const signWallet = Wallet.createRandom()
-    // const signWallet = Wallet.fromMnemonic('devote biology pass disorder fit cherry grace polar wrist trash regret frame')
+    //const signWallet = Wallet.createRandom()
+    const signWallet = Wallet.fromMnemonic('devote biology pass disorder fit cherry grace polar wrist trash regret frame')
     const signVerida = await initVerida(signWallet, 'Facebook: FB Signing Context')
     const signAccount = signVerida.account
     const signerDid = await signAccount.did()
     const SIGN_CONTEXT_NAME = signVerida.CONTEXT_NAME
-    const signKeyring = await signAccount.keyring(SIGN_CONTEXT_NAME)
 
     // console.log("Signer: ", signWallet.address, " - ", signerDid)
 
@@ -150,11 +150,14 @@ export async function generateProof() : Promise<SignInfo> {
     const USER_CONTEXT_NAME = userVerida.CONTEXT_NAME
     const userKeyring = await userAccount.keyring(USER_CONTEXT_NAME)
 
+    // Build a keyring of the signing wallet
     const didClient = await signAccount.getDidClient()
+    const signKeyring = await signAccount.keyring(SIGN_CONTEXT_NAME)
 
     const signerDoc = await didClient.get(signerDid)
     const signerProof = signerDoc.locateContextProof(SIGN_CONTEXT_NAME)
 
+    // Get the keys of the signing wallet
     const userDoc = await didClient.get(userDid)
     const userProof = userDoc.locateContextProof(USER_CONTEXT_NAME)
 
