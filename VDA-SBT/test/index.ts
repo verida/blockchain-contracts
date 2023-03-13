@@ -340,14 +340,13 @@ describe("Verida Soulbound", () => {
             )).to.be.rejectedWith("Already claimed type");            
         })
 
-        it("Failed : same SBT type with different id",async () => {
+        it("Success : same SBT type with different id",async () => {
             const diffId = "-diffId";
             const msg = ethers.utils.solidityPack(
                 ['string','address'],
                 [`${sbtType}-${diffId}-`, signInfo.userAddress]
             )
             const signedData = await signInfo.signKeyring.sign(msg)
-
             const requestSignature = await getClaimSBTSignature(
                 signInfo.userAddress, 
                 sbtType, 
@@ -357,7 +356,7 @@ describe("Verida Soulbound", () => {
                 signInfo.userKeyring,
                 signedData)
 
-            await expect(contract.claimSBT(
+            const tx = await contract.claimSBT(
                 signInfo.userAddress,
                 {
                     sbtType,
@@ -369,14 +368,19 @@ describe("Verida Soulbound", () => {
                 },
                 requestSignature,
                 signInfo.userProof!
-            )).to.be.rejectedWith("Already claimed type");
+            );
+
+            const tokenId = await contract.totalSupply(); //Latest tokenId
+            expect(tx).to.emit(contract, "Transfer").withArgs(zeroAddress, claimer.address, tokenId)
+            expect(tx).to.emit(contract, "Locked").withArgs(tokenId)
+            expect(tx).to.emit(contract, "SBTClaimed").withArgs(claimer.address, tokenId, sbtType)
         })
     })
 
     describe("Get Claimed SBT list", () => {
         it("Should return tokenId list for the claimer", async () => {
             const idList = await contract.getClaimedSBTList(claimer.address)
-            expect(idList.length).to.equal(1)
+            expect(idList.length).to.equal(2)
         })
 
         it("Should return empty array for users who has no SBT", async () => {
@@ -467,7 +471,6 @@ describe("Verida Soulbound", () => {
         })
 
         it("Contract owner burn successfully",async () => {
-            const claimer = claimer_2
             const idList = await contract.getClaimedSBTList(claimer.address)
             expect(idList.length).to.be.greaterThan(0)
 

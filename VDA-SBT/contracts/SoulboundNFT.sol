@@ -36,10 +36,10 @@ contract SoulboundNFT is VDAVerificationContract,
     EnumerableSet.StringSet private _sbtTypes;
 
     /**
-     * @notice Claimed token id for SBTType & UniqueId
-     * @dev mapping User => SBTType => tokenId
+     * @notice Claimed SBT info by users
+     * @dev mapping of User => SBTType => UniqueId => tokenId
      */
-    mapping(address => mapping(string => uint)) private _userInfo;
+    mapping(address => mapping(string => mapping(string => uint))) private _userInfo;
 
     /** 
      * @notice SBT type of tokenId
@@ -208,7 +208,7 @@ contract SoulboundNFT is VDAVerificationContract,
             verifyData(params, sbtInfo.signedData, sbtInfo.signedProof);
         }
 
-        require(_userInfo[sbtInfo.recipient][sbtInfo.sbtType] == 0, "Already claimed type");
+        require(_userInfo[sbtInfo.recipient][sbtInfo.sbtType][sbtInfo.uniqueId] == 0, "Already claimed type");
 
         _tokenIdCounter.increment();
         uint256 tokenId = _tokenIdCounter.current();
@@ -217,7 +217,7 @@ contract SoulboundNFT is VDAVerificationContract,
         // SetTokenURI
         _setTokenURI(tokenId, sbtInfo.sbtURI);
 
-        _userInfo[sbtInfo.recipient][sbtInfo.sbtType] = tokenId;
+        _userInfo[sbtInfo.recipient][sbtInfo.sbtType][sbtInfo.uniqueId] = tokenId;
 
         _tokenIdInfo[tokenId].sbtType = sbtInfo.sbtType;
         _tokenIdInfo[tokenId].uniqueId = sbtInfo.uniqueId;
@@ -253,11 +253,7 @@ contract SoulboundNFT is VDAVerificationContract,
      * @dev See {ISoulboundNFT}
      */
     function isSBTClaimed(address claimer, string calldata sbtType, string calldata uniqueId) external view override returns(bool) {
-        uint tokenId = _userInfo[claimer][sbtType];
-        if (tokenId == 0)
-            return false;
-        return keccak256(bytes(_tokenIdInfo[tokenId].sbtType)) == keccak256(bytes(sbtType)) &&
-            keccak256(bytes(_tokenIdInfo[tokenId].uniqueId)) == keccak256(bytes(uniqueId));
+        return _userInfo[claimer][sbtType][uniqueId] > 0;
     }
 
     /**
@@ -283,7 +279,7 @@ contract SoulboundNFT is VDAVerificationContract,
         // Remove from user' tokenId list
         _userTokenIds[tokenOwner].remove(tokenId);
 
-        delete _userInfo[tokenOwner][info.sbtType];
+        delete _userInfo[tokenOwner][info.sbtType][info.uniqueId];
         delete _tokenIdInfo[tokenId];
 
         emit SBTBurnt(msg.sender, tokenId);
