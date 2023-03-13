@@ -1,6 +1,6 @@
 {
   "name": "@verida/sbt-contract",
-  "version": "0.0.2",
+  "version": "0.1.0",
   "files": [
     "artifacts",
     "contracts",
