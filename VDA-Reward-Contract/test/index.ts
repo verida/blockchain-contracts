@@ -5,10 +5,10 @@ import { BigNumber, Wallet } from "ethers";
 
 import hre, { ethers , upgrades } from "hardhat"
 import { VDARewardContract } from "../typechain-types";
-import { RewardToken } from "@verida/reward-token-contract/typechain-types";
+import { VeridaToken } from "@verida/erc20-contract/typechain";
 import EncryptionUtils from '@verida/encryption-utils'
 
-import { abi as TokenABI, bytecode as TokenByteCode } from "@verida/reward-token-contract/artifacts/contracts/RewardToken.sol/RewardToken.json";
+import { abi as TokenABI, bytecode as TokenByteCode } from "@verida/erc20-contract/artifacts/contracts/VDA-V1.sol/VeridaToken.json";
 
 chai.use(chaiAsPromised);
 
@@ -56,20 +56,15 @@ const claimTypes : ClaimType[] = [
 
 describe("VeridaRewardContract", () => {
     let contract: VDARewardContract
-    let token: RewardToken
+    let token: VeridaToken
 
     const deployContracts = async() => {
         const tokenFactory = await ethers.getContractFactory(TokenABI, TokenByteCode)
-        // token = (await upgrades.deployProxy(
-        //     tokenFactory,
-        //     [],
-        //     {
-        //         initializer: '__RewardToken_init'
-        //     }
-        // )) as RewardToken
-        token = await tokenFactory.deploy() as RewardToken
+        token = await tokenFactory.deploy() as VeridaToken
         await token.deployed()
-        await token.__RewardToken_init();
+        await token.initialize();
+
+        await token.enableTransfer();
 
         const contractFactory = await ethers.getContractFactory("VDARewardContract")
         contract = (await upgrades.deployProxy(
@@ -90,14 +85,6 @@ describe("VeridaRewardContract", () => {
         await deployContracts()
     })
 
-    // it ("Mint reward token to RewardContract", async () => {
-    //     const mintAmount = ethers.utils.parseEther('100000')
-    //     expect(await token.balanceOf(contract.address)).to.equal(0);
-    //     await token.mint(contract.address, mintAmount)
-    //     expect(await token.balanceOf(contract.address)).to.equal(mintAmount)
-    // })
-
-    /*
     describe("ClaimTypes", () => {
         describe("Add ClaimTypes", () => {
             it("Failed from non-owner transaction", async () => {
@@ -279,7 +266,6 @@ describe("VeridaRewardContract", () => {
             })
         })
     })
-    */
 
     describe("Claim", () => {
         const mintAmount = ethers.utils.parseEther('100000')
