@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: MIT
-pragma solidity ^0.8.7;
+pragma solidity ^0.8.18;
 
 import "./NameRegistry.sol";
 
@@ -8,7 +8,7 @@ import "./NameRegistry.sol";
  */
 contract NameRegistryV2 is  NameRegistry {
 
-    function getVersion() external returns(string memory) {
+    function getVersion() external pure returns(string memory) {
         return "2.0.0";
     }
 }
