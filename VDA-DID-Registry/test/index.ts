@@ -2,11 +2,9 @@
 
 import chai, { expect } from "chai";
 import chaiAsPromised from "chai-as-promised";
-import { ContractTransaction } from "ethers";
-import { Block, Log } from "@ethersproject/providers";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 
-import { VeridaDIDRegistry } from "../typechain";
+import { VeridaDIDRegistry } from "../typechain-types";
 
 import EncryptionUtils from '@verida/encryption-utils'
 
