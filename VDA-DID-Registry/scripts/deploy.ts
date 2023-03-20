@@ -1,8 +1,3 @@
-// We require the Hardhat Runtime Environment explicitly here. This is optional
-// but useful for running the script in a standalone fashion through `node <script>`.
-//
-// When running the script with `npx hardhat run <script>` you'll find the Hardhat
-// Runtime Environment's members available in the global scope.
 import { ethers, upgrades } from "hardhat";
 import hre from "hardhat";
 
@@ -63,13 +58,7 @@ async function main() {
   console.log("RegistryContract deployed to:", contract.address);
 }
 
-// We recommend this pattern to be able to use async/await everywhere
-// and properly handle errors.
 main().catch((error) => {
   console.error(error);
   process.exitCode = 1;
 });
-
-// 2022/9/4 : Version 0.0.6 - Minor updates
-// Mumbai : 0x0D10C68F52326C47Dfc3FDBFDCCb37e3b8C852Cb
-// BSC Test : 0x1a0A67467DB853486ae328cFdd2d7D51FaefC5E7

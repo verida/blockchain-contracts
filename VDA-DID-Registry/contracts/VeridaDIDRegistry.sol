@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: MIT */
-pragma solidity ^0.8.6;
+pragma solidity ^0.8.18;
 
 import { VeridaDataVerificationLib } from "./VeridaDataVerificationLib.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
