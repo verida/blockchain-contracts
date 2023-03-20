@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: MIT
-pragma solidity ^0.8.7;
+pragma solidity ^0.8.18;
 
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
@@ -7,7 +7,7 @@ import "./EnumerableSet.sol";
 import "./StringLib.sol";
 import "./VeridaDataVerificationLib.sol";
 
-import "hardhat/console.sol";
+// import "hardhat/console.sol";
 /**
  * @title Verida NameRegistry contract
  */

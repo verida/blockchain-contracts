@@ -32,9 +32,3 @@ main().catch((error) => {
   console.error(error);
   process.exitCode = 1;
 });
-
-// Deployed Address
-// 2022/10/24 : Version 0.2.0 - Mumbai
-// 0x248eea8D67D844fa565490B4c4a37B02191F1C01
-// BSC-Testnet
-// 0x8d8a1f363ACf13e3117bB854F4dC105374C3BF7d

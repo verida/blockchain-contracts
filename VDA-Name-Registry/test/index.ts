@@ -1,19 +1,15 @@
-import chai, { expect } from "chai";
-import chaiAsPromised from "chai-as-promised";
-import { solidity } from "ethereum-waffle";
+import { expect } from "chai";
 import hre, { ethers, upgrades } from "hardhat";
 
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 
-import { NameRegistry } from "../typechain";
+import { NameRegistry } from "../typechain-types";
 
 import { formatBytes32String } from "ethers/lib/utils";
 
 import EncryptionUtils from "@verida/encryption-utils";
 import { Wallet } from "ethers";
 
-chai.use(solidity);
-chai.use(chaiAsPromised);
 
 let contract: NameRegistry;
 
@@ -93,7 +89,7 @@ describe("NameRegistry", function () {
     });
 
     it("Failed : Invalid character specified in names", async () => {
-      const invalidnames = ["hello world.verida", "hello!world.verida"];
+      const invalidnames = ["hello world.vda", "hello!world.vda"];
       for (let i = 0; i < invalidnames.length; i++) {
         const name = invalidnames[i];
         const signature = await getRegisterSignature(name, dids[0]);
@@ -104,7 +100,7 @@ describe("NameRegistry", function () {
     });
 
     it("Failed : . not permitted", async () => {
-      const invalidnames = ["david.test.verida", "hello..verida"];
+      const invalidnames = ["david.test.vda", "hello..vda"];
       for (let i = 0; i < invalidnames.length; i++) {
         const name = invalidnames[i];
         const signature = await getRegisterSignature(name, dids[0]);
@@ -132,8 +128,8 @@ describe("NameRegistry", function () {
       it("Failed on length 1 & 33", async () => {
         const did = Wallet.createRandom();
         const invalidnames = [
-          "a.verida", // length 1
-          "abcdefghijklmnopqrstuvwxyz0123456.verida", // length 33
+          "a.vda", // length 1
+          "abcdefghijklmnopqrstuvwxyz0123456.vda", // length 33
         ];
         for (let i = 0; i < invalidnames.length; i++) {
           const name = invalidnames[i];
