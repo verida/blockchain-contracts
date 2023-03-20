@@ -1,6 +1,6 @@
 {
   "name": "@verida/sbt-contract",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "files": [
     "artifacts",
     "contracts",
@@ -28,6 +28,7 @@
     "@verida/did-client": "^2.0.0",
     "@verida/encryption-utils": "^2.0.0",
     "@verida/keyring": "^2.0.0",
+    "@verida/types": "^2.1.3",
     "chai": "^4.3.6",
     "chai-as-promised": "^7.1.1",
     "dotenv": "^16.0.3",

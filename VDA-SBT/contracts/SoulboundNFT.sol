@@ -239,12 +239,12 @@ contract SoulboundNFT is VDAVerificationContract,
     /**
      * @dev See {ISoulboundNFT}
      */
-    function getClaimedSBTList() external view override returns(uint[] memory) {
-        uint length = balanceOf(msg.sender);
+    function getClaimedSBTList(address didAddress) external view override returns(uint[] memory) {
+        uint length = balanceOf(didAddress);
         uint[] memory sbtList = new uint[](length);
 
         for (uint i = 0; i < length; i++) {
-            sbtList[i] = _userTokenIds[msg.sender].at(i);
+            sbtList[i] = _userTokenIds[didAddress].at(i);
         }
         return sbtList;
     }
@@ -252,8 +252,8 @@ contract SoulboundNFT is VDAVerificationContract,
     /**
      * @dev See {ISoulboundNFT}
      */
-    function isSBTClaimed(string calldata sbtType, string calldata uniqueId) external view override returns(bool) {
-        return _userInfo[msg.sender][sbtType][uniqueId] > 0;
+    function isSBTClaimed(address claimer, string calldata sbtType, string calldata uniqueId) external view override returns(bool) {
+        return _userInfo[claimer][sbtType][uniqueId] > 0;
     }
 
     /**
