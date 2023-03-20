@@ -114,11 +114,12 @@ interface ISoulboundNFT {
     /**
      * @notice Check whether user claimed the sbtType
      * @dev Check for msg.sender
+     * @param claimer address to check the claim information
      * @param sbtType existing SBT type
      * @param uniqueId Unique id of SBT. For example twitter account id.
      * @return bool true if claimed, otherwise false
      */
-    function isSBTClaimed(string calldata sbtType, string calldata uniqueId) external view returns(bool);
+    function isSBTClaimed(address claimer, string calldata sbtType, string calldata uniqueId) external view returns(bool);
     
     /**
      * @notice Get the SBT type & uniqueID from a tokenId

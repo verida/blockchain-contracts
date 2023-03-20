@@ -33,6 +33,7 @@ describe("Verida Soulbound", () => {
     let owner: SignerWithAddress
 
     let claimer : SignerWithAddress // Claimer of SBT
+    let claimer_2 : SignerWithAddress
 
     const deployContract = async (isReset = false) : Promise<SoulboundNFT> => {
         if (isReset) {
@@ -60,6 +61,7 @@ describe("Verida Soulbound", () => {
             accountList[1],
             accountList[2],
             accountList[3],
+            accountList[4]
         ]
     })
 
@@ -153,6 +155,7 @@ describe("Verida Soulbound", () => {
         before(async () => {
 
             claimer = veridians[1];
+            claimer_2 = veridians[3];
             
             [contract, signInfo] = await Promise.all([
                 deployContract(true),
@@ -283,6 +286,36 @@ describe("Verida Soulbound", () => {
             expect(tx).to.emit(contract, "SBTClaimed").withArgs(claimer.address, tokenId, sbtType)
         })
 
+        it("Succes : Claimed same SBT to different claimer",async () => {
+            const claimer = claimer_2;
+            const requestSignature = await getClaimSBTSignature(
+                signInfo.userAddress, 
+                sbtType, 
+                uniqueId, 
+                tokenURIs[0], 
+                claimer.address,
+                signInfo.userKeyring)
+
+            const tx = await contract.connect(claimer).claimSBT(
+                signInfo.userAddress,
+                {
+                    sbtType,
+                    uniqueId,
+                    sbtURI: tokenURIs[0],
+                    recipient: claimer.address,
+                    signedData,
+                    signedProof: signInfo.signerProof!
+                },
+                requestSignature,
+                signInfo.userProof!
+            );
+
+            const tokenId = await contract.totalSupply(); //Latest tokenId
+            expect(tx).to.emit(contract, "Transfer").withArgs(zeroAddress, claimer.address, tokenId)
+            expect(tx).to.emit(contract, "Locked").withArgs(tokenId)
+            expect(tx).to.emit(contract, "SBTClaimed").withArgs(claimer.address, tokenId, sbtType)
+        })
+
         it("Failed : Already claimed type - duplication of claimed request ", async () => {
             const requestSignature = await getClaimSBTSignature(
                 signInfo.userAddress, 
@@ -314,7 +347,6 @@ describe("Verida Soulbound", () => {
                 [`${sbtType}-${diffId}-`, signInfo.userAddress]
             )
             const signedData = await signInfo.signKeyring.sign(msg)
-
             const requestSignature = await getClaimSBTSignature(
                 signInfo.userAddress, 
                 sbtType, 
