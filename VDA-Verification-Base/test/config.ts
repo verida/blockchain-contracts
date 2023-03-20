@@ -1,5 +1,4 @@
-import { EnvironmentType } from "@verida/account"
-import { DIDClientConfig } from '@verida/account-node'
+import { EnvironmentType, DIDClientConfig } from "@verida/types"
 
 export default {
     ENVIRONMENT: EnvironmentType.TESTNET,
@@ -20,7 +19,7 @@ export default {
         },
     },
     DID_CLIENT_CONFIG: <DIDClientConfig> {
-        networkPrivateKey: '',
+        network: EnvironmentType.TESTNET,
         callType: 'web3',
         web3Config: {},
     },

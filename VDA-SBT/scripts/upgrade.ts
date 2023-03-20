@@ -1,18 +1,15 @@
-// We require the Hardhat Runtime Environment explicitly here. This is optional
-// but useful for running the script in a standalone fashion through `node <script>`.
-//
-// When running the script with `npx hardhat run <script>` you'll find the Hardhat
-// Runtime Environment's members available in the global scope.
 import hre, { ethers, upgrades } from "hardhat";
 import { saveDeployedAddress } from "./utils";
 
 async function main() {
-  const contractFactory = await ethers.getContractFactory("SoulboundNFT");
-  const contract = await upgrades.deployProxy(contractFactory, {
-    initializer: "initialize",
-    timeout: 0,
-    pollingInterval: 5000,
-  });
+  
+  // We get the contract to deploy
+  const contractFactory = await ethers.getContractFactory('SoulboundNFT');
+
+  const contract = await upgrades.upgradeProxy(
+    '0x7201189556bAF5B58b74FDf99C1957A064B87548',
+    contractFactory
+  );
 
   await contract.deployed();
 
@@ -23,7 +20,7 @@ async function main() {
   );
 
   await saveDeployedAddress(hre.network.name, proxyAddr, adminAddr, implAddr);
-  console.log("SBT contract deployed to: ", contract.address);
+  console.log("SBT contract upgraded to: ", contract.address);
 }
 
 // We recommend this pattern to be able to use async/await everywhere
