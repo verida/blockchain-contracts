@@ -4,10 +4,8 @@ import chaiAsPromised from "chai-as-promised";
 
 import EncryptionUtils from '@verida/encryption-utils'
 
-import hre, { ethers , upgrades } from "hardhat"
+import { ethers , upgrades } from "hardhat"
 import { TestContract } from "../typechain-types";
-import { Keyring } from "@verida/keyring";
-import { Wallet } from "ethers";
 
 chai.use(chaiAsPromised);
 

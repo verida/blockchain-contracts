@@ -1,8 +1,8 @@
-import { DIDClient, DIDClientConfig } from "@verida/did-client"
+import { DIDClient } from "@verida/did-client"
 import { AutoAccount } from "@verida/account-node";
-import { Client, EnvironmentType } from "@verida/client-ts";
+import { Client} from "@verida/client-ts";
+import { EnvironmentType, DIDClientConfig } from '@verida/types'
 
-// import { Wallet } from '@ethersproject/wallet'
 import { Wallet } from "ethers"
 import { JsonRpcProvider } from '@ethersproject/providers'
 
@@ -25,7 +25,7 @@ const txSigner = new Wallet(privateKey, provider)
 export async function getDIDClient(veridaAccount: Wallet) {
     
     const config: DIDClientConfig = {
-        network: 'testnet',
+        network: EnvironmentType.TESTNET,
         rpcUrl: rpcUrl
     }
 
@@ -104,6 +104,7 @@ export async function initVerida(didwallet: Wallet, CONTEXT_NAME: string) {
     const client = new Client({
         environment: EnvironmentType.TESTNET,
         didClientConfig: {
+            network: EnvironmentType.TESTNET,
             rpcUrl
         }
     })

@@ -106,18 +106,20 @@ interface ISoulboundNFT {
     /**
      * @notice Get claimed SBT list of user
      * @dev Get the list of msg.sender
+     * @param didAddress address to get the claimed SBT list
      * @return uint[] Claimed token Id list
      */
-    function getClaimedSBTList() external view returns(uint[] memory);
+    function getClaimedSBTList(address didAddress) external view returns(uint[] memory);
 
     /**
      * @notice Check whether user claimed the sbtType
      * @dev Check for msg.sender
+     * @param claimer address to check the claim information
      * @param sbtType existing SBT type
      * @param uniqueId Unique id of SBT. For example twitter account id.
      * @return bool true if claimed, otherwise false
      */
-    function isSBTClaimed(string calldata sbtType, string calldata uniqueId) external view returns(bool);
+    function isSBTClaimed(address claimer, string calldata sbtType, string calldata uniqueId) external view returns(bool);
     
     /**
      * @notice Get the SBT type & uniqueID from a tokenId

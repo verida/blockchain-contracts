@@ -1,7 +1,7 @@
 {
   "name": "@verida/did-linkage-contract",
   "description": "DID linkage contract of Verida",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "author": "Alex J <alex@verida.io, trust2ray@gmail.com>",
   "license": "MIT",
   "repository": {
@@ -33,6 +33,7 @@
     "@verida/did-client": "^2.0.0",
     "@verida/encryption-utils": "^2.0.0",
     "@verida/keyring": "^2.0.0",
+    "@verida/types": "^2.1.3",
     "chai": "^4.3.7",
     "chai-as-promised": "^7.1.1",
     "ethers": "^5.7.2",
