@@ -20,6 +20,8 @@
     "@types/chai-as-promised": "^7.1.5",
     "@types/mocha": "^9.1.0",
     "@types/node": "^18.7.18",
+    "@verida/account-node": "^2.2.0",
+    "@verida/client-ts": "^2.2.0",
     "@verida/types": "^2.1.3",
     "chai": "^4.2.0",
     "chai-as-promised": "^7.1.1",
@@ -32,10 +34,7 @@
     "typechain": "^8.1.0",
     "typescript": "^4.8.3"
   },
-  "dependencies": {
-    "@verida/account-node": "^2.0.0-rc4",
-    "@verida/client-ts": "^2.0.0-rc4"
-  },
+  "dependencies": {},
   "scripts": {
     "build-contracts": "sol-merger \"./contracts/*.sol\" ./build",
     "build": "npx hardhat compile",
