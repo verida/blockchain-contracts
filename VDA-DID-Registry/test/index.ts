@@ -1,7 +1,6 @@
 // noinspection DuplicatedCode
 
-import chai, { expect } from "chai";
-import chaiAsPromised from "chai-as-promised";
+import { expect } from "chai";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 
 import { VeridaDIDRegistry } from "../typechain-types";
@@ -10,8 +9,6 @@ import EncryptionUtils from '@verida/encryption-utils'
 
 import hre, { ethers , upgrades } from "hardhat"
 import { Wallet } from 'ethers'
-
-chai.use(chaiAsPromised);
 
 let didReg: VeridaDIDRegistry;
 let accounts: SignerWithAddress[]

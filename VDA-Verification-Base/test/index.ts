@@ -1,13 +1,10 @@
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
-import chai, { expect } from "chai";
-import chaiAsPromised from "chai-as-promised";
+import { expect } from "chai";
 
 import EncryptionUtils from '@verida/encryption-utils'
 
 import { ethers , upgrades } from "hardhat"
 import { TestContract } from "../typechain-types";
-
-chai.use(chaiAsPromised);
 
 let accountList : SignerWithAddress[];
 

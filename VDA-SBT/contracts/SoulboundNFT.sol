@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.7;
+pragma solidity ^0.8.18;
 
 import "@openzeppelin/contracts-upgradeable/token/ERC721/extensions/IERC721MetadataUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC721/extensions/ERC721URIStorageUpgradeable.sol";
@@ -12,7 +12,7 @@ import "@verida/name-registry/contracts/EnumerableSet.sol";
 import "./IERC5192.sol";
 import "./ISoulboundNFT.sol";
 
-import "hardhat/console.sol";
+// import "hardhat/console.sol";
 
 contract SoulboundNFT is VDAVerificationContract, 
     IERC721MetadataUpgradeable,
@@ -36,11 +36,10 @@ contract SoulboundNFT is VDAVerificationContract,
     EnumerableSet.StringSet private _sbtTypes;
 
     /**
-     * @notice Claimed token id for SBTType & UniqueId
-     * @dev mapping SBTType => UniqueId => tokenId
+     * @notice Claimed SBT info by users
+     * @dev mapping of User => SBTType => UniqueId => tokenId
      */
-    mapping(string => mapping(string=> uint)) private _sbtID;
-
+    mapping(address => mapping(string => mapping(string => uint))) private _userInfo;
     /** 
      * @notice SBT type of tokenId
      * @dev mapping of tokenId => TokenInfo
@@ -86,12 +85,13 @@ contract SoulboundNFT is VDAVerificationContract,
      * See {IERC721Upgradeable}
      */
     function _beforeTokenTransfer(
-        address from, 
-        address to, 
-        uint256 tokenId
+        address from,
+        address to,
+        uint256 firstTokenId,
+        uint256 batchSize
         ) internal override virtual {
         require(from == address(0) || to == address(0), "Err: token transfer is BLOCKED");
-        super._beforeTokenTransfer(from, to, tokenId);
+        super._beforeTokenTransfer(from, to, firstTokenId, batchSize);
     }
 
     /**
@@ -101,14 +101,15 @@ contract SoulboundNFT is VDAVerificationContract,
     function _afterTokenTransfer(
         address from,
         address to,
-        uint256 tokenId
+        uint256 firstTokenId,
+        uint256 batchSize
     ) internal override virtual {
         if (to == address(0x0)) {
-            emit Unlocked(tokenId);
+            emit Unlocked(firstTokenId);
         } else if (to != address(0xdead)) {
-            emit Locked(tokenId);
+            emit Locked(firstTokenId);
         }
-        super._afterTokenTransfer(from, to, tokenId);
+        super._afterTokenTransfer(from, to, firstTokenId, batchSize);
     }
 
     /**
@@ -208,7 +209,7 @@ contract SoulboundNFT is VDAVerificationContract,
             verifyData(params, sbtInfo.signedData, sbtInfo.signedProof);
         }
 
-        require(_sbtID[sbtInfo.sbtType][sbtInfo.uniqueId] == 0, "Already claimed type");
+        require(_userInfo[sbtInfo.recipient][sbtInfo.sbtType][sbtInfo.uniqueId] == 0, "Already claimed type");
 
         _tokenIdCounter.increment();
         uint256 tokenId = _tokenIdCounter.current();
@@ -217,7 +218,7 @@ contract SoulboundNFT is VDAVerificationContract,
         // SetTokenURI
         _setTokenURI(tokenId, sbtInfo.sbtURI);
 
-        _sbtID[sbtInfo.sbtType][sbtInfo.uniqueId] = tokenId;
+        _userInfo[sbtInfo.recipient][sbtInfo.sbtType][sbtInfo.uniqueId] = tokenId;
 
         _tokenIdInfo[tokenId].sbtType = sbtInfo.sbtType;
         _tokenIdInfo[tokenId].uniqueId = sbtInfo.uniqueId;
@@ -252,8 +253,8 @@ contract SoulboundNFT is VDAVerificationContract,
     /**
      * @dev See {ISoulboundNFT}
      */
-    function isSBTClaimed(string calldata sbtType, string calldata uniqueId) external view override returns(bool) {
-        return _sbtID[sbtType][uniqueId] > 0;
+    function isSBTClaimed(address claimer, string calldata sbtType, string calldata uniqueId) external view override returns(bool) {
+        return _userInfo[claimer][sbtType][uniqueId] > 0;
     }
 
     /**
@@ -279,7 +280,7 @@ contract SoulboundNFT is VDAVerificationContract,
         // Remove from user' tokenId list
         _userTokenIds[tokenOwner].remove(tokenId);
 
-        delete _sbtID[info.sbtType][info.uniqueId];
+        delete _userInfo[tokenOwner][info.sbtType][info.uniqueId];
         delete _tokenIdInfo[tokenId];
 
         emit SBTBurnt(msg.sender, tokenId);

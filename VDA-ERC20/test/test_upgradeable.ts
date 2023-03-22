@@ -1,16 +1,11 @@
 /* eslint-disable node/no-missing-import */
 /* eslint-disable prettier/prettier */
-import chai, { expect } from "chai"
-import chaiAsPromised from "chai-as-promised"
-import { solidity } from 'ethereum-waffle'
 import hre, { ethers , upgrades } from "hardhat"
 
-import { VeridaToken } from "../typechain/VeridaToken"
-import { VeridaTokenV2 } from "../typechain/VeridaTokenV2"
+import { VeridaToken } from "../typechain-types"
+import { VeridaTokenV2 } from "../typechain-types"
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers"
-
-chai.use(solidity)
-chai.use(chaiAsPromised)
+import { expect } from "chai";
 
 let accountList : SignerWithAddress[];
 

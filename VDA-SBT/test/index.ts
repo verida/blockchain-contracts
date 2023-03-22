@@ -1,5 +1,4 @@
-import chai, { expect } from "chai";
-import chaiAsPromised from "chai-as-promised";
+import { expect } from "chai";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 
 import hre, { ethers , upgrades } from "hardhat"
@@ -9,8 +8,6 @@ import { SoulboundNFT } from "../typechain-types";
 import { generateProof, SignInfo } from "./utils"
 import EncryptionUtils from '@verida/encryption-utils'
 import { Keyring } from "@verida/keyring";
-
-chai.use(chaiAsPromised);
 
 const sbtTypes = [
     "twitter",

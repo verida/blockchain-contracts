@@ -11,7 +11,7 @@ import "@openzeppelin/hardhat-upgrades";
 import "@openzeppelin/hardhat-defender";
 
 dotenv.config({path: __dirname + '/.env'})
-const {PRIVATE_KEY, POLYGONSCAN_API_KEY, RPC_URL_POLYGON, RPC_URL_MUMBAI} = process.env;
+const {PRIVATE_KEY, POLYGONSCAN_API_KEY, POLYGON_TESTNET_RPC, POLYGON_MAINNET_RPC} = process.env;
 
 const config: HardhatUserConfig = {
   solidity: {
@@ -35,12 +35,12 @@ const config: HardhatUserConfig = {
   },
   networks: {
     polygonmainnet: {
-      url: RPC_URL_POLYGON !== undefined ? RPC_URL_POLYGON : "https://polygon-rpc.com/",
+      url: POLYGON_MAINNET_RPC !== undefined ? POLYGON_MAINNET_RPC : "https://polygon-rpc.com/",
       chainId: 137,
       accounts: PRIVATE_KEY !== undefined ? [PRIVATE_KEY] : [],
     },
     polygontestnet: {
-      url: RPC_URL_MUMBAI !== undefined ? RPC_URL_MUMBAI : "https://matic-mumbai.chainstacklabs.com",
+      url: POLYGON_TESTNET_RPC !== undefined ? POLYGON_TESTNET_RPC : "https://matic-mumbai.chainstacklabs.com",
       chainId: 80001,
       accounts: PRIVATE_KEY !== undefined ? [PRIVATE_KEY] : [], 
       gas: 2100000,
