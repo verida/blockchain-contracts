@@ -1,4 +1,4 @@
-2023-03-XX (v0.0.3)
+2023-03-24 (v0.0.3)
 -------------------
 - Solidity upgraded to '0.8.18'
 - Hardhat configuration upgraded
