@@ -11,7 +11,7 @@ The key objectives are:
 ## Dependencies
 ### Verida contract dependency
 - `@verida/vda-verification-contract` : VDA-Verification-Base contract
-- `@verida/erc20-contract` : VDA-ERC20
+- `@verida/erc20-contract` : VDA-ERC20 - Used in test script
 
 # Test & Deploy
 ## Test
