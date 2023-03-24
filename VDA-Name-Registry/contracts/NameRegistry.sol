@@ -3,8 +3,9 @@ pragma solidity ^0.8.18;
 
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
-import "./EnumerableSet.sol";
-import "./StringLib.sol";
+// Verida contract dependencies
+import "@verida/common-contract/contracts/EnumerableSet.sol";
+import "@verida/common-contract/contracts/StringLib.sol";
 import "./VeridaDataVerificationLib.sol";
 
 // import "hardhat/console.sol";
