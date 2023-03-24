@@ -1,14 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.18;
 
-// import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-// import "@openzeppelin/contracts-upgradeable/utils/structs/EnumerableSetUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/StringsUpgradeable.sol";
 
 import "@verida/vda-verification-contract/contracts/VDAVerificationContract.sol";
+import { EnumerableSet } from "@verida/common-contract/contracts/EnumerableSet.sol";
 
 import "./IVeridaDIDLinkage.sol";
-import "./EnumerableSet.sol";
 
 contract VeridaDIDLinkage is VDAVerificationContract,
     IVeridaDIDLinkage

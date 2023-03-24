@@ -1,7 +1,8 @@
-2023-03-22 (v0.0.3)
+2023-03-24 (v0.0.3)
 -------------------
 - Solidity upgraded to '0.8.18'
 - Hardhat configuration upgraded
+- Move `EnumerableSet` library into the `VDA-Common` contract.
 
 2023-03-08 (v0.0.2)
 -------------------
