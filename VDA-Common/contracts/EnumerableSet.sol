@@ -58,7 +58,7 @@ library EnumerableSet {
         uint len = set._values.length;
         if (len > 0) {
             string memory value;
-            for (uint i = 0; i < len; i++) {
+            for (uint i; i < len; i++) {
                 value = set._values[i];
                 delete set._indexes[value];
             }

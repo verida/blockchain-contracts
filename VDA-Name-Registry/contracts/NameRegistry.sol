@@ -165,7 +165,7 @@ contract NameRegistry is  OwnableUpgradeable {
 
         string[] memory userNameList = new string[](length);
 
-        for (uint i = 0; i < length; i++) {
+        for (uint i; i < length; i++) {
             userNameList[i] = didUserNameList.at(i);
         }
 
@@ -215,8 +215,8 @@ contract NameRegistry is  OwnableUpgradeable {
         uint len = nameBytes.length;
 
         uint startIndex = len;
-        uint index = 0;
-        uint8 dotCount = 0;
+        uint index;
+        uint8 dotCount;
         while (index < len && dotCount < 2 && isValidCharacter(nameBytes[index])) {
             // Find a "."
             if (nameBytes[index] == 0x2E) {

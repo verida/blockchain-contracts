@@ -177,7 +177,7 @@ contract VeridaDIDLinkage is VDAVerificationContract,
         uint length = list.length();
         string[] memory ret = new string[](length);
 
-        for (uint i = 0; i < length; i++) {
+        for (uint i; i < length; i++) {
             ret[i] = list.at(i);
         }
 
@@ -192,7 +192,7 @@ contract VeridaDIDLinkage is VDAVerificationContract,
         bytes memory tmp = bytes(_a);
         require(tmp.length == 42, "Invalid address");
 
-        uint160 iaddr = 0;
+        uint160 iaddr;
         uint160 b1;
         uint160 b2;
         for (uint i = 2; i < 2 + 2 * 20; i += 2) {
@@ -232,8 +232,8 @@ contract VeridaDIDLinkage is VDAVerificationContract,
         uint len = strBytes.length;
 
         uint sepPos = len;
-        uint index = 0;
-        uint8 sepCount = 0;
+        uint index;
+        uint8 sepCount;
         while (index < len && sepCount < 2) {
             if (strBytes[index] == 0x7c) {
                 sepPos = index;

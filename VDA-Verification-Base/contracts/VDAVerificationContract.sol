@@ -84,8 +84,8 @@ contract VDAVerificationContract is OwnableUpgradeable {
         address contextSigner = ECDSAUpgradeable.recover(dataHash, signature);
         string memory strContextSigner = StringsUpgradeable.toHexString(uint256(uint160(contextSigner)));
 
-        bool isVerified = false;
-        uint index = 0;
+        bool isVerified;
+        uint index;
 
         while (index < _trustedSigners.length() && !isVerified) {
             address account = _trustedSigners.at(index);
@@ -128,8 +128,8 @@ contract VDAVerificationContract is OwnableUpgradeable {
         address contextSigner = ECDSAUpgradeable.recover(dataHash, signature);
         string memory strContextSigner = StringsUpgradeable.toHexString(uint256(uint160(contextSigner)));
 
-        bool isVerified = false;
-        uint index = 0;
+        bool isVerified;
+        uint index;
 
         while (index < validSigners.length && !isVerified) {
             address account = validSigners[index];
