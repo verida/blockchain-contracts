@@ -165,7 +165,7 @@ contract NameRegistry is  OwnableUpgradeable {
 
         string[] memory userNameList = new string[](length);
 
-        for (uint i; i < length; i++) {
+        for (uint i; i < length; ++i) {
             userNameList[i] = didUserNameList.at(i);
         }
 
@@ -234,7 +234,7 @@ contract NameRegistry is  OwnableUpgradeable {
 
         bytes memory suffixBytes = new bytes(len - startIndex);
 
-        for (index = startIndex; index < len; index++) {
+        for (index = startIndex; index < len; ++index) {
             suffixBytes[index - startIndex] = nameBytes[index];
         }
 

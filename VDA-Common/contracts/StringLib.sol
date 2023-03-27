@@ -27,7 +27,7 @@ library StringLib {
         pure
         returns (string memory) {
         bytes memory _baseBytes = bytes(_base);
-        for (uint i; i < _baseBytes.length; i++) {
+        for (uint i; i < _baseBytes.length; ++i) {
             _baseBytes[i] = _upper(_baseBytes[i]);
         }
         return string(_baseBytes);
@@ -48,7 +48,7 @@ library StringLib {
         pure
         returns (string memory) {
         bytes memory _baseBytes = bytes(_base);
-        for (uint i; i < _baseBytes.length; i++) {
+        for (uint i; i < _baseBytes.length; ++i) {
             _baseBytes[i] = _lower(_baseBytes[i]);
         }
         return string(_baseBytes);

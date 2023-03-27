@@ -177,7 +177,7 @@ contract VeridaDIDLinkage is VDAVerificationContract,
         uint length = list.length();
         string[] memory ret = new string[](length);
 
-        for (uint i; i < length; i++) {
+        for (uint i; i < length; ++i) {
             ret[i] = list.at(i);
         }
 
@@ -245,12 +245,12 @@ contract VeridaDIDLinkage is VDAVerificationContract,
         require(index == len && sepCount == 1 && sepPos > 0 && sepPos < (len - 1), "Invalid identifier");
 
         bytes memory kindBytes = new bytes(sepPos);
-        for (index = 0; index < sepPos; index++) {
+        for (index = 0; index < sepPos; ++index) {
             kindBytes[index] = strBytes[index];
         }
 
         bytes memory idBytes = new bytes(len - sepPos - 1);
-        for (index = sepPos + 1; index < len; index++) {
+        for (index = sepPos + 1; index < len; ++index) {
             idBytes[index - sepPos - 1] = strBytes[index];
         }
 

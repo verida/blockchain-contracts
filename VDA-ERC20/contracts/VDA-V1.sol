@@ -139,7 +139,7 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
     function getMinterList() external view override returns(address[] memory) {
         uint256 count = getRoleMemberCount(MINT_ROLE);
         address[] memory minterList = new address[](count);
-        for (uint i; i < count; i++) {
+        for (uint i; i < count; ++i) {
             minterList[i] = getRoleMember(MINT_ROLE, i);
         }
         return minterList;
