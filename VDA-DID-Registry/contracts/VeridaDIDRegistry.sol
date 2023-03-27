@@ -192,7 +192,7 @@ contract VeridaDIDRegistry is OwnableUpgradeable, IVeridaDIDRegistry {
    * @dev See {IVeridaDIDRegistry}
    */
   function getDIDs(uint startIndex, uint count) external view onlyOwner override returns(address[] memory) {
-    require(count > 0 && (startIndex + count) <= _registeredDIDs.length(), "Out of range");
+    require(count != 0 && (startIndex + count) <= _registeredDIDs.length(), "Out of range");
 
     address[] memory ret = new address[](count);
 

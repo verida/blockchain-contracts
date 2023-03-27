@@ -78,7 +78,7 @@ contract VDAVerificationContract is OwnableUpgradeable {
         bytes memory signature,
         bytes memory proof
     ) internal virtual {
-        require(_trustedSigners.length() > 0, "No signers provided");
+        require(_trustedSigners.length() != 0, "No signers provided");
 
         bytes32 dataHash = keccak256(data);
         address contextSigner = ECDSAUpgradeable.recover(dataHash, signature);
@@ -122,7 +122,7 @@ contract VDAVerificationContract is OwnableUpgradeable {
         bytes memory proof,
         address[] memory validSigners
     ) internal virtual {
-        require(validSigners.length > 0, "No signers provided");
+        require(validSigners.length != 0, "No signers provided");
 
         bytes32 dataHash = keccak256(data);
         address contextSigner = ECDSAUpgradeable.recover(dataHash, signature);

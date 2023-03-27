@@ -227,7 +227,7 @@ contract VeridaDIDLinkage is VDAVerificationContract,
     function parseIdentifier(string calldata identifier) internal pure returns(string memory, string memory) {
         //0x7c
         bytes memory strBytes = bytes(identifier);
-        require(strBytes.length > 0, "Invalid identifier");
+        require(strBytes.length != 0, "Invalid identifier");
 
         uint len = strBytes.length;
 

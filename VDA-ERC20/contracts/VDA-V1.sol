@@ -198,7 +198,7 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
      */
     function updateMaxAmountPerWalletRate(uint32 newRate) external onlyOwner {
         require(newRate <= AMOUNT_RATE_LIMIT, "Invalid rate");
-        require(newRate > 0, "Invalid rate");
+        require(newRate != 0, "Invalid rate");
 
         emit UpdateMaxAmountPerWalletRate(newRate, maxAmountPerWalletRate);
 
@@ -219,7 +219,7 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
      */
     function updateMaxAmountPerSellRate(uint32 newRate) external onlyOwner {
         require(newRate <= AMOUNT_RATE_LIMIT, "Invalid rate");
-        require(newRate > 0, "Invalid rate");
+        require(newRate != 0, "Invalid rate");
 
         emit UpdateMaxAmountPerSell(newRate, maxAmountPerSellRate);
 

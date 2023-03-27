@@ -161,7 +161,7 @@ contract NameRegistry is  OwnableUpgradeable {
         EnumerableSet.StringSet storage didUserNameList = _DIDInfoList[did];
 
         uint256 length = didUserNameList.length();
-        require(length > 0, "No registered DID");
+        require(length != 0, "No registered DID");
 
         string[] memory userNameList = new string[](length);
 
@@ -209,7 +209,7 @@ contract NameRegistry is  OwnableUpgradeable {
     function getSuffix(string calldata name) private pure returns(string memory suffix) {
         string memory _name = name.lower();
         bytes memory nameBytes = bytes(_name);
-        require(nameBytes.length > 0, "No Suffix");
+        require(nameBytes.length != 0, "No Suffix");
 
 
         uint len = nameBytes.length;
@@ -257,7 +257,7 @@ contract NameRegistry is  OwnableUpgradeable {
     }
 
     function updateMaxNamesPerDID(uint count) external onlyOwner {
-        require(count > 0, "Zero not allowed");
+        require(count != 0, "Zero not allowed");
         uint orgValue = maxNamesPerDID;
         maxNamesPerDID = count;
 

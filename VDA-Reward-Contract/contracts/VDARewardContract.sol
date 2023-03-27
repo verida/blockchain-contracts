@@ -19,7 +19,7 @@ contract VDARewardContract is IVDARewardContract, VDAVerificationContract {
 
     modifier onlyExistingClaimType(string calldata typeId) {
         ClaimType storage claimType = claimTypes[typeId];
-        require(claimType.reward > 0 && bytes(claimType.schema).length > 0, "Non existing CalimType");
+        require(claimType.reward != 0 && bytes(claimType.schema).length != 0, "Non existing CalimType");
         _;
     }
 
@@ -45,9 +45,9 @@ contract VDARewardContract is IVDARewardContract, VDAVerificationContract {
      * @dev see {IVDARewardContract-addClaimType}
      */
     function addClaimType(string calldata typeId, uint rewardAmount, string calldata schema) external onlyOwner {
-        require(bytes(typeId).length > 0, "Invalid id");
-        require(rewardAmount > 0, "Invalid reward amount");
-        require(bytes(schema).length > 0, "Invalid schema");
+        require(bytes(typeId).length != 0, "Invalid id");
+        require(rewardAmount != 0, "Invalid reward amount");
+        require(bytes(schema).length != 0, "Invalid schema");
         ClaimType storage claimType = claimTypes[typeId];
         require(claimType.reward == 0 && bytes(claimType.schema).length == 0, "Already existing ClaimType");
         claimType.reward = rewardAmount;
@@ -69,7 +69,7 @@ contract VDARewardContract is IVDARewardContract, VDAVerificationContract {
      * @dev see {IVDARewardContract-updateClaimTypeReward}
      */
     function updateClaimTypeReward(string calldata typeId, uint amount) external onlyOwner onlyExistingClaimType(typeId){
-        require(amount > 0, "Invalid reward amount");
+        require(amount != 0, "Invalid reward amount");
         ClaimType storage claimType = claimTypes[typeId];
         claimType.reward = amount;
 
