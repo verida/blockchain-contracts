@@ -11,6 +11,11 @@ import "./IVeridaDIDRegistry.sol";
 
 // import "hardhat/console.sol";
 
+error RevokedDID();
+error InvalidSignature();
+error UnregisteredDID();
+error OutOfRange();
+
 /** @title VeridaDIDRegistry */
 contract VeridaDIDRegistry is OwnableUpgradeable, IVeridaDIDRegistry {
 
@@ -61,8 +66,8 @@ contract VeridaDIDRegistry is OwnableUpgradeable, IVeridaDIDRegistry {
    * @dev See {IVeridaDIDRegistry}
    */
   function register(address didAddress, string[] calldata endpoints, bytes calldata signature ) external override {
-    if (_nonce[didAddress] != 0) {
-      require(isRegistered(didAddress), "Revoked DID address");
+    if (_nonce[didAddress] != 0 && !isRegistered(didAddress)) {
+      revert RevokedDID();
     }
 
     {
@@ -74,7 +79,9 @@ contract VeridaDIDRegistry is OwnableUpgradeable, IVeridaDIDRegistry {
 
       rawMsg = abi.encodePacked(rawMsg, _nonce[didAddress]);
 
-      require(VeridaDataVerificationLib.validateSignature(rawMsg, signature, didAddress), "Invalid signature");
+      if (!VeridaDataVerificationLib.validateSignature(rawMsg, signature, didAddress)) {
+        revert InvalidSignature();
+      }
       _nonce[didAddress]++;
     }
 
@@ -98,7 +105,9 @@ contract VeridaDIDRegistry is OwnableUpgradeable, IVeridaDIDRegistry {
    * @dev See {IVeridaDIDRegistry}
    */
   function revoke(address didAddress, bytes calldata signature) external override {
-    require(isRegistered(didAddress), "Unregistered address");
+    if (!isRegistered(didAddress)) {
+      revert UnregisteredDID();
+    }
     {
       address controller = _getController(didAddress);
       bytes memory rawMsg = abi.encodePacked(
@@ -106,7 +115,9 @@ contract VeridaDIDRegistry is OwnableUpgradeable, IVeridaDIDRegistry {
         "/revoke/",
         _nonce[didAddress]);
       
-      require(VeridaDataVerificationLib.validateSignature(rawMsg, signature, controller), "Invalid signature");
+      if (!VeridaDataVerificationLib.validateSignature(rawMsg, signature, controller)) {
+        revert InvalidSignature();
+      }
       _nonce[didAddress]++;
     }
 
@@ -139,7 +150,9 @@ contract VeridaDIDRegistry is OwnableUpgradeable, IVeridaDIDRegistry {
    * @dev See {IVeridaDIDRegistry}
    */
   function setController(address didAddress, address controller, bytes calldata signature) external override {
-    require(isRegistered(didAddress), "Unregistered address");
+    if (!isRegistered(didAddress)) {
+      revert UnregisteredDID();
+    }
     {
       address oldController = _getController(didAddress);
       bytes memory rawMsg = abi.encodePacked(
@@ -149,7 +162,9 @@ contract VeridaDIDRegistry is OwnableUpgradeable, IVeridaDIDRegistry {
         "/",
         _nonce[didAddress]);
       
-      require(VeridaDataVerificationLib.validateSignature(rawMsg, signature, oldController), "Invalid signature");
+      if (!VeridaDataVerificationLib.validateSignature(rawMsg, signature, oldController)) {
+        revert InvalidSignature();
+      }
       _nonce[didAddress]++;
     }
 
@@ -162,7 +177,9 @@ contract VeridaDIDRegistry is OwnableUpgradeable, IVeridaDIDRegistry {
    * @dev See {IVeridaDIDRegistry}
    */
   function lookup(address didAddress) external view override returns(address, string[] memory) {
-    require(isRegistered(didAddress), "Unregistered address");
+    if (!isRegistered(didAddress)) {
+      revert UnregisteredDID();
+    }
 
     EnumerableSet.StringSet storage list = _DIDInfo[didAddress].endpoints;
     uint length = list.length();
@@ -195,7 +212,9 @@ contract VeridaDIDRegistry is OwnableUpgradeable, IVeridaDIDRegistry {
    * @dev See {IVeridaDIDRegistry}
    */
   function getDIDs(uint startIndex, uint count) external view onlyOwner override returns(address[] memory) {
-    require(count != 0 && (startIndex + count) <= _registeredDIDs.length(), "Out of range");
+    if (count == 0 || (startIndex + count ) > _registeredDIDs.length()) {
+      revert OutOfRange();
+    }
 
     address[] memory ret = new address[](count);
 

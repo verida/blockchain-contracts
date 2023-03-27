@@ -3,7 +3,7 @@
 import { expect } from "chai";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 
-import { VeridaDIDRegistry } from "../typechain-types";
+import { contracts, VeridaDIDRegistry } from "../typechain-types";
 
 import EncryptionUtils from '@verida/encryption-utils'
 
@@ -120,7 +120,7 @@ describe("Verida DIDRegistry", () => {
   describe("Register", () => {
     it("Should reject for invalid signature", async () => {
       const signature = await getRegisterSignature(did, endPoints_A, badSigner.privateKey)
-      await expect(didReg.register(did, endPoints_A, signature)).to.be.rejectedWith("Invalid signature");
+      await expect(didReg.register(did, endPoints_A, signature)).to.be.revertedWithCustomError(didReg, "InvalidSignature");
     })
 
     it("Success", async () => {
@@ -153,7 +153,7 @@ describe("Verida DIDRegistry", () => {
         tempDID.address,
         endPoints_B,
         signature
-      )).to.be.rejectedWith("Revoked DID address");
+      )).to.be.revertedWithCustomError(didReg, "RevokedDID");
     })
   })
 
@@ -192,10 +192,10 @@ describe("Verida DIDRegistry", () => {
       await expect(didReg.connect(accounts[1]).getDIDs(0,1)).to.be.rejectedWith("Ownable: caller is not the owner")
 
       // Should reject for invalid ranges
-      await expect(didReg.getDIDs(0,0)).to.be.rejectedWith("Out of range")
-      await expect(didReg.getDIDs(0,4)).to.be.rejectedWith("Out of range")
-      await expect(didReg.getDIDs(2,2)).to.be.rejectedWith("Out of range")
-      await expect(didReg.getDIDs(3,1)).to.be.rejectedWith("Out of range")
+      await expect(didReg.getDIDs(0,0)).to.be.revertedWithCustomError(didReg, "OutOfRange")
+      await expect(didReg.getDIDs(0,4)).to.be.revertedWithCustomError(didReg, "OutOfRange")
+      await expect(didReg.getDIDs(2,2)).to.be.revertedWithCustomError(didReg, "OutOfRange")
+      await expect(didReg.getDIDs(3,1)).to.be.revertedWithCustomError(didReg, "OutOfRange")
     })
 
     it("Should not updated on duplicate Register", async () => {
@@ -220,7 +220,7 @@ describe("Verida DIDRegistry", () => {
       const orgCount = (await didReg.activeDIDCount()).toNumber();
 
       const signature = await getRegisterSignature(testDIDs[0].address, testEndPoints, badSigner.privateKey)
-      await expect(didReg.register(testDIDs[0].address, testEndPoints, signature)).to.be.rejectedWith("Invalid signature");
+      await expect(didReg.register(testDIDs[0].address, testEndPoints, signature)).to.be.revertedWithCustomError(didReg, "InvalidSignature");
 
       const newCount = (await didReg.activeDIDCount()).toNumber();
       expect(newCount).equal(orgCount)
@@ -252,7 +252,7 @@ describe("Verida DIDRegistry", () => {
 
     it("Should reject for unregistered DIDs", async () => {
       const testDID = Wallet.createRandom();
-      await expect(didReg.lookup(testDID.address)).to.be.rejectedWith("Unregistered address");
+      await expect(didReg.lookup(testDID.address)).to.be.revertedWithCustomError(didReg, "UnregisteredDID");
     })
 
     it("Should return empty array for empty endpoints", async () => {
@@ -277,7 +277,7 @@ describe("Verida DIDRegistry", () => {
       await didReg.revoke(testDID.address, signature);
 
       // // Reject for reovked one
-      await expect(didReg.lookup(testDID.address)).to.be.rejectedWith("Unregistered address");
+      await expect(didReg.lookup(testDID.address)).to.be.revertedWithCustomError(didReg, "UnregisteredDID");
     })
   })
   
@@ -292,7 +292,7 @@ describe("Verida DIDRegistry", () => {
         testDID.address, 
         controller.address, 
         signature)
-      ).to.be.rejectedWith("Unregistered address");
+      ).to.be.revertedWithCustomError(didReg, "UnregisteredDID");
     })
 
     it("Should reject for invalid signature", async () => {
@@ -303,7 +303,7 @@ describe("Verida DIDRegistry", () => {
         did, 
         controller.address, 
         signature)
-      ).to.be.rejectedWith("Invalid signature")
+      ).to.be.revertedWithCustomError(didReg, "InvalidSignature")
     })
 
     it("Change controller for registered one", async () => {
@@ -366,17 +366,17 @@ describe("Verida DIDRegistry", () => {
     it("Should reject for unregistered DID", async () => {
       const testDID = Wallet.createRandom()
       const signature = await getRevokeSignature(testDID.address, testDID.privateKey);
-      await expect(didReg.revoke(testDID.address, signature)).to.be.rejectedWith("Unregistered address");
+      await expect(didReg.revoke(testDID.address, signature)).to.be.revertedWithCustomError(didReg, "UnregisteredDID");
     })
 
     it("Should return for invalid signature - bad signer",async () => {
       const signature = await getRevokeSignature(did, badSigner.privateKey);
-      await expect(didReg.revoke(did, signature)).to.be.rejectedWith("Invalid signature");
+      await expect(didReg.revoke(did, signature)).to.be.revertedWithCustomError(didReg, "InvalidSignature");
     })
 
     it("Should return for invalid signature - not a controller",async () => {
       const signature = await getRevokeSignature(did, identity.privateKey);
-      await expect(didReg.revoke(did, signature)).to.be.rejectedWith("Invalid signature");
+      await expect(didReg.revoke(did, signature)).to.be.revertedWithCustomError(didReg, "InvalidSignature");
     })
 
     it("Revoked successfully", async () => {
@@ -388,7 +388,7 @@ describe("Verida DIDRegistry", () => {
 
     it("Should reject for revoked DID", async () => {
       const signature = await getRevokeSignature(did, controller.privateKey);
-      await expect(didReg.revoke(did, signature)).to.be.rejectedWith("Unregistered address");
+      await expect(didReg.revoke(did, signature)).to.be.revertedWithCustomError(didReg, "UnregisteredDID");
     })
   })
 });

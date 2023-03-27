@@ -74,7 +74,7 @@ describe("MVP-Verida Test", () => {
 
             await expect(
                 vda.connect(minter).mint(minter.address, 100)
-            ).to.be.rejectedWith("Not a minter")
+            ).to.be.revertedWithCustomError(vda, "NoPermission")
 
             // Add a minter
             await vda.addMinter(minter.address)
@@ -102,12 +102,12 @@ describe("MVP-Verida Test", () => {
             // Old owner has no permission to mint
             await expect(
                 vda.connect(oldOwner).mint(oldOwner.address, 100)
-            ).to.be.rejectedWith("Not a minter")
+            ).to.be.revertedWithCustomError(vda, "NoPermission")
 
             // Old owner has no permission to add/revoke minters
             await expect(
                 vda.connect(oldOwner).addMinter(minter.address)
-            ).to.be.rejectedWith()
+            ).to.be.rejectedWith("Ownable: caller is not the owner")
             
             // New owner has permission to mint
             expect(await vda.balanceOf(newOwner.address)).to.be.eq(0)
@@ -120,7 +120,7 @@ describe("MVP-Verida Test", () => {
             // New owenr has permission to add a minter
             await expect(
                 vda.connect(minter).mint(minter.address, 100)
-            ).to.be.rejectedWith("Not a minter")
+            ).to.be.revertedWithCustomError(vda, "NoPermission")
             await vda.connect(newOwner).addMinter(minter.address)
             
             // Mint from new minter
@@ -135,7 +135,7 @@ describe("MVP-Verida Test", () => {
             await vda.connect(newOwner).revokeMinter(minter.address)
             await expect(
                 vda.connect(minter).mint(minter.address, 100)
-            ).to.be.rejectedWith("Not a minter")
+            ).to.be.revertedWithCustomError(vda, "NoPermission")
         })
 
         it("Renounce ownership", async () => {
@@ -151,12 +151,12 @@ describe("MVP-Verida Test", () => {
             // Old owner has no permission to mint
             await expect(
                 vda.connect(oldOwner).mint(oldOwner.address, 100)
-            ).to.be.rejectedWith("Not a minter")
+            ).to.be.revertedWithCustomError(vda, "NoPermission")
 
             // Old owner has no permission to add/revoke minters
             await expect(
                 vda.connect(oldOwner).addMinter(minter.address)
-            ).to.be.rejectedWith()
+            ).to.be.rejectedWith("Ownable: caller is not the owner")
         })
     })
 
@@ -173,7 +173,7 @@ describe("MVP-Verida Test", () => {
         it("Should reject token transfer before transfer enabled", async () => {
             await expect(
                 vda.transfer(receiver.address, 100)
-            ).to.be.rejectedWith("Token transfer not allowed")
+            ).to.be.revertedWithCustomError(vda, "TransferLimited")
         })
 
         it("Transfer success after transfer enabled", async () => {
@@ -210,23 +210,23 @@ describe("MVP-Verida Test", () => {
                     vda.connect(testAccount).addMinter(testMinter.address)
                 ).to.be.rejectedWith("Ownable: caller is not the owner");
                 // Already granted
-                await expect(vda.addMinter(owner.address)).to.be.rejectedWith(
-                    "Already granted"
-                );
+                await expect(
+                    vda.addMinter(owner.address)
+                ).to.be.revertedWithCustomError(vda, "DuplicatedRequest");
     
                 await vda.addMinter(testMinter.address);
-                await expect(vda.addMinter(testMinter.address)).to.be.rejectedWith(
-                    "Already granted"
-                );
+                await expect(
+                    vda.addMinter(testMinter.address)
+                ).to.be.revertedWithCustomError(vda, "DuplicatedRequest");
             });
     
             it("revokeMinter", async () => {
                 await vda.addMinter(testMinter.address);
     
                 await vda.revokeMinter(testMinter.address);
-                await expect(vda.revokeMinter(testMinter.address)).to.be.rejectedWith(
-                    "No minter"
-                );
+                await expect(
+                    vda.revokeMinter(testMinter.address)
+                ).to.be.revertedWithCustomError(vda, "InvalidAddress");
             });
     
             it("getMinterCount", async () => {
@@ -260,13 +260,13 @@ describe("MVP-Verida Test", () => {
                 it("Rejected by Amount Rate Limit", async () => {
                     await expect(
                         vda.updateMaxAmountPerWalletRate(31 * RATE_DENOMINATOR)
-                    ).to.be.rejectedWith("Invalid rate");
+                    ).to.be.revertedWithCustomError(vda, "InvalidRate");
                 });
     
                 it("Rejected when setting 0 rate", async () => {
                     await expect(
                         vda.updateMaxAmountPerWalletRate(0)
-                    ).to.be.rejectedWith("Invalid rate");
+                    ).to.be.revertedWithCustomError(vda, "InvalidRate");
                 });
     
                 it("Updated correctly", async () => {
@@ -307,14 +307,18 @@ describe("MVP-Verida Test", () => {
     
                     // Send 40% when maxAmountPerWallet rate is 25%
                     const amount_40 = MAX_SUPPLY.mul(40).div(100);
-                    await expect(vda.transfer(receiver.address, amount_40)).to.be.rejectedWith("Receiver amount limit");
+                    await expect(
+                        vda.transfer(receiver.address, amount_40)
+                    ).to.be.revertedWithCustomError(vda, "WalletAmountLimited");
     
                     // Check receiver balance
                     expect(await vda.balanceOf(receiver.address)).to.be.eq(0);
     
                     // Send 25.1% when maxAmountPerWallet rate is 25%
                     const amount_25_1 = MAX_SUPPLY.mul(251).div(1000);
-                    await expect(vda.transfer(receiver.address, amount_25_1)).to.be.rejectedWith("Receiver amount limit");
+                    await expect(
+                        vda.transfer(receiver.address, amount_25_1)
+                    ).to.be.revertedWithCustomError(vda, "WalletAmountLimited");
     
                     // Check receiver balance
                     expect(await vda.balanceOf(receiver.address)).to.be.eq(0);
@@ -341,7 +345,9 @@ describe("MVP-Verida Test", () => {
     
                     // Send 2% will be failed, max amount per wallet is 25%
                     const amount_2 = MAX_SUPPLY.mul(2).div(100);
-                    await expect(vda.transfer(receiver.address, amount_2)).to.be.rejectedWith("Receiver amount limit");
+                    await expect(
+                        vda.transfer(receiver.address, amount_2)
+                    ).to.be.revertedWithCustomError(vda, "WalletAmountLimited");
     
                     // Check receiver balance
                     expect(await vda.balanceOf(receiver.address)).to.be.eq(amount_10.add(amount_14));
@@ -369,13 +375,13 @@ describe("MVP-Verida Test", () => {
                 it("Rejected by Amount Rate Limit", async () => {
                     await expect(
                         vda.updateMaxAmountPerSellRate(31 * RATE_DENOMINATOR)
-                    ).to.be.rejectedWith("Invalid rate");
+                    ).to.be.revertedWithCustomError(vda, "InvalidRate");
                 });
     
                 it("Rejected when setting 0 rate", async () => {
                     await expect(
                         vda.updateMaxAmountPerSellRate(0)
-                    ).to.be.rejectedWith("Invalid rate");
+                    ).to.be.revertedWithCustomError(vda, "InvalidRate");
                 });
     
                 it("Updated correctly", async () => {
@@ -433,11 +439,15 @@ describe("MVP-Verida Test", () => {
     
                     // Send 10 % of MAX_SUPPLY, Failed
                     const amount_10 = MAX_SUPPLY.mul(10).div(100);
-                    await expect(vda.connect(sellerAccount).transfer(mockPoolAccount.address, amount_10)).to.be.rejectedWith("Sell amount exceeds limit");
+                    await expect(
+                        vda.connect(sellerAccount).transfer(mockPoolAccount.address, amount_10)
+                    ).to.be.revertedWithCustomError(vda, "SellAmountLimited");
     
                     // Send 0.11 % of MAX_SUPPLY when max sell rate is 0.1%, Failed
                     const amount_0_11 = MAX_SUPPLY.mul(11).div(100).div(100);
-                    await expect(vda.connect(sellerAccount).transfer(mockPoolAccount.address, amount_0_11)).to.be.rejectedWith("Sell amount exceeds limit");
+                    await expect(
+                        vda.connect(sellerAccount).transfer(mockPoolAccount.address, amount_0_11)
+                    ).to.be.revertedWithCustomError(vda, "SellAmountLimited");
     
                     // Check Pool balance
                     expect(await vda.balanceOf(mockPoolAccount.address)).to.be.eq(0);
@@ -514,7 +524,9 @@ describe("MVP-Verida Test", () => {
     
                 // Receiver can't receive over 10% of MAX_SUPPLY
                 const amount_11 = MAX_SUPPLY.mul(11).div(100);
-                await expect(vda.connect(testAccount).transfer(receiver.address, amount_11)).to.be.rejectedWith("Receiver amount limit");
+                await expect(
+                    vda.connect(testAccount).transfer(receiver.address, amount_11)
+                ).to.be.revertedWithCustomError(vda, "WalletAmountLimited");
             })
     
             it("After excluded from max wallet amount limit, can receive over limit", async () => {
@@ -581,7 +593,9 @@ describe("MVP-Verida Test", () => {
     
                 // Seller failed to sell over limit. Sell 20%
                 const amount_20 = MAX_SUPPLY.mul(20).div(100);
-                await expect(vda.connect(seller).transfer(mockPoolAccount.address, amount_20)).to.be.rejectedWith("Sell amount exceeds limit");
+                await expect(
+                    vda.connect(seller).transfer(mockPoolAccount.address, amount_20)
+                ).to.be.revertedWithCustomError(vda, "SellAmountLimited");
             })
     
             it("After excluded from max sell amount limit, seller call sell over limit", async () => {

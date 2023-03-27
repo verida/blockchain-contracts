@@ -7,12 +7,16 @@ import "@openzeppelin/contracts-upgradeable/utils/CountersUpgradeable.sol";
 // import "@openzeppelin/contracts-upgradeable/utils/structs/EnumerableSetUpgradeable.sol";
 
 import "@verida/vda-verification-contract/contracts/VDAVerificationContract.sol";
-import "@verida/name-registry/contracts/EnumerableSet.sol";
+import "@verida/common-contract/contracts/EnumerableSet.sol";
 
 import "./IERC5192.sol";
 import "./ISoulboundNFT.sol";
 
 // import "hardhat/console.sol";
+
+error TransferBlocked();
+error InvalidSBTType();
+error NoPermission();
 
 contract SoulboundNFT is VDAVerificationContract, 
     IERC721MetadataUpgradeable,
@@ -90,7 +94,9 @@ contract SoulboundNFT is VDAVerificationContract,
         uint256 firstTokenId,
         uint256 batchSize
         ) internal override virtual {
-        require(from == address(0) || to == address(0), "Err: token transfer is BLOCKED");
+        if (from != address(0) && to != address(0)) {
+            revert TransferBlocked();
+        }
         super._beforeTokenTransfer(from, to, firstTokenId, batchSize);
     }
 
@@ -185,7 +191,10 @@ contract SoulboundNFT is VDAVerificationContract,
         bytes calldata requestSignature,
         bytes calldata requestProof
     ) external override returns(uint) {
-        require(isValidSBTType(sbtInfo.sbtType), "Invalid SBT type");
+        if (!isValidSBTType(sbtInfo.sbtType)) {
+            revert InvalidSBTType();
+        }
+
         {
             bytes memory params = abi.encodePacked(
                 did,
@@ -212,7 +221,9 @@ contract SoulboundNFT is VDAVerificationContract,
             verifyData(params, sbtInfo.signedData, sbtInfo.signedProof);
         }
 
-        require(_userInfo[sbtInfo.recipient][sbtInfo.sbtType][sbtInfo.uniqueId] == 0, "Already claimed type");
+        if (_userInfo[sbtInfo.recipient][sbtInfo.sbtType][sbtInfo.uniqueId] != 0) {
+            revert InvalidSBTType();
+        }
 
         _tokenIdCounter.increment();
         uint256 tokenId = _tokenIdCounter.current();
@@ -275,7 +286,9 @@ contract SoulboundNFT is VDAVerificationContract,
      */
     function burnSBT(uint tokenId) external override {
         address tokenOwner = ERC721Upgradeable.ownerOf(tokenId);
-        require(msg.sender == tokenOwner || msg.sender == owner(), "Invalid operation");
+        if (msg.sender != tokenOwner && msg.sender != owner()) {
+            revert NoPermission();
+        }
 
         _burn(tokenId);
 

@@ -8,6 +8,12 @@ import { EnumerableSet } from "@verida/common-contract/contracts/EnumerableSet.s
 
 import "./IVeridaDIDLinkage.sol";
 
+error RegisteredIdentifierType();
+error InvalidIdentifierType();
+error RegisteredIdentifier();
+error InvalidIdentifier();
+error InvalidAddress();
+
 contract VeridaDIDLinkage is VDAVerificationContract,
     IVeridaDIDLinkage
 {
@@ -53,7 +59,8 @@ contract VeridaDIDLinkage is VDAVerificationContract,
      * @dev See {IVeridaDIDLinkage}
      */
     function addIdentifierType(string calldata identifierTypeId, bool isSelfSigner) external onlyOwner {
-        require(_identifierType[identifierTypeId] == SignerType.Unregistered, "Registered type");
+        if (_identifierType[identifierTypeId] != SignerType.Unregistered)
+            revert RegisteredIdentifierType();
         
         _identifierType[identifierTypeId] = isSelfSigner ? SignerType.Self : SignerType.Trusted;
     }
@@ -77,12 +84,16 @@ contract VeridaDIDLinkage is VDAVerificationContract,
         string memory kind;
         string memory id;
         (kind, id) = parseIdentifier(info.identifier);
-        require(_identifierType[kind] != SignerType.Unregistered, "Invalid identifier type");
+        if (_identifierType[kind] == SignerType.Unregistered) {
+            revert InvalidIdentifierType();
+        }
 
         string memory strDID = StringsUpgradeable.toHexString(uint256(uint160(didAddr)));
         strDID = string(abi.encodePacked("did:vda:", strDID));
 
-        require(bytes(_identifierController[info.identifier]).length == 0, "Identity already exists");
+        if (bytes(_identifierController[info.identifier]).length != 0) {
+            revert RegisteredIdentifier();
+        }
 
         // Verify data
         {
@@ -135,7 +146,9 @@ contract VeridaDIDLinkage is VDAVerificationContract,
         string memory strDID = StringsUpgradeable.toHexString(uint256(uint160(didAddr)));
         strDID = string(abi.encodePacked("did:vda:", strDID));
 
-        require(_didIdentifiers[strDID].contains(identifier), "Identifier not linked");
+        if (!(_didIdentifiers[strDID].contains(identifier))) {
+            revert InvalidIdentifier();
+        }
 
         // Verify request
         {
@@ -191,7 +204,9 @@ contract VeridaDIDLinkage is VDAVerificationContract,
      */
     function parseAddr(string memory _a) internal pure returns (address _parsedAddress) {
         bytes memory tmp = bytes(_a);
-        require(tmp.length == 42, "Invalid address");
+        if (tmp.length != 42) {
+            revert InvalidAddress();
+        }
 
         uint160 iaddr;
         uint160 b1;
@@ -229,7 +244,9 @@ contract VeridaDIDLinkage is VDAVerificationContract,
     function parseIdentifier(string calldata identifier) internal pure returns(string memory, string memory) {
         //0x7c
         bytes memory strBytes = bytes(identifier);
-        require(strBytes.length != 0, "Invalid identifier");
+        if (strBytes.length == 0) {
+            revert InvalidIdentifier();
+        }
 
         uint len = strBytes.length;
 
@@ -246,7 +263,9 @@ contract VeridaDIDLinkage is VDAVerificationContract,
             }
         }
 
-        require(index == len && sepCount == 1 && sepPos > 0 && sepPos < (len - 1), "Invalid identifier");
+        if (index != len || sepCount != 1 || sepPos == 0 || sepPos >= (len - 1)) {
+            revert InvalidIdentifier();
+        }
 
         bytes memory kindBytes = new bytes(sepPos);
         for (index = 0; index < sepPos;) {

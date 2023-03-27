@@ -9,6 +9,11 @@ import "@openzeppelin/contracts-upgradeable/utils/structs/EnumerableSetUpgradeab
 
 // import "hardhat/console.sol";
 
+error RegisteredSigner();
+error UnregisteredSigner();
+error NoSigners();
+error InvalidSignature();
+
 contract VDAVerificationContract is OwnableUpgradeable {
 
     using EnumerableSetUpgradeable for EnumerableSetUpgradeable.AddressSet;
@@ -41,7 +46,9 @@ contract VDAVerificationContract is OwnableUpgradeable {
      * @param didAddress Trusted signer address
      */
     function addTrustedSigner(address didAddress) external onlyOwner {
-        require(!_trustedSigners.contains(didAddress), "Already registered");
+        if (_trustedSigners.contains(didAddress)) {
+            revert RegisteredSigner();
+        }
         _trustedSigners.add(didAddress);
     }
 
@@ -51,7 +58,9 @@ contract VDAVerificationContract is OwnableUpgradeable {
      * @param didAddress Trusted signer address
      */
     function removeTrustedSigner(address didAddress) external onlyOwner {
-        require(_trustedSigners.contains(didAddress), "Unregistered address");
+        if (!_trustedSigners.contains(didAddress)) {
+            revert UnregisteredSigner();
+        }
         _trustedSigners.remove(didAddress);
     }
 
@@ -78,7 +87,9 @@ contract VDAVerificationContract is OwnableUpgradeable {
         bytes memory signature,
         bytes memory proof
     ) internal virtual {
-        require(_trustedSigners.length() != 0, "No signers provided");
+        if (_trustedSigners.length() == 0) {
+            revert NoSigners();
+        }
 
         bytes32 dataHash = keccak256(data);
         address contextSigner = ECDSAUpgradeable.recover(dataHash, signature);
@@ -105,7 +116,9 @@ contract VDAVerificationContract is OwnableUpgradeable {
             unchecked { ++index; }
         }
 
-        require(isVerified, "Data is not signed by a valid signing DID");
+        if (!isVerified) {
+            revert InvalidSignature();
+        }
     }
     
     /**
@@ -122,7 +135,9 @@ contract VDAVerificationContract is OwnableUpgradeable {
         bytes memory proof,
         address[] memory validSigners
     ) internal virtual {
-        require(validSigners.length != 0, "No signers provided");
+        if (validSigners.length == 0) {
+            revert NoSigners();
+        }
 
         bytes32 dataHash = keccak256(data);
         address contextSigner = ECDSAUpgradeable.recover(dataHash, signature);
@@ -149,7 +164,9 @@ contract VDAVerificationContract is OwnableUpgradeable {
             unchecked { ++index; }
         }
 
-        require(isVerified, "Data is not signed by a valid signing DID");
+        if (!isVerified) {
+            revert InvalidSignature();
+        }
     }
     
      /**

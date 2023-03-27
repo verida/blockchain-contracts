@@ -9,6 +9,14 @@ import "@verida/common-contract/contracts/StringLib.sol";
 import "./VeridaDataVerificationLib.sol";
 
 // import "hardhat/console.sol";
+
+error InvalidAddress();
+error InvalidSuffix();
+error InvalidSignature();
+error InvalidName();
+error LimitedNameCount();
+error InvalidNameCount();
+
 /**
  * @title Verida NameRegistry contract
  */
@@ -72,8 +80,12 @@ contract NameRegistry is  OwnableUpgradeable {
      * @param signature - Signature provided by transaction creator
      */
     function register(string calldata name, address did, bytes calldata signature) external {
-        require(did != address(0x0), "Invalid zero address");
-        require(isValidSuffix(name), "Invalid suffix");
+        if (did == address(0x0)) {
+            revert InvalidAddress();
+        }
+        if(!isValidSuffix(name)) {
+            revert InvalidSuffix();
+        }
 
         {
             uint didNonce = nonce(did);
@@ -83,15 +95,21 @@ contract NameRegistry is  OwnableUpgradeable {
                 didNonce
             );
 
-            require(VeridaDataVerificationLib.validateSignature(paramData, signature, did), "Invalid Signature");
+            if (!VeridaDataVerificationLib.validateSignature(paramData, signature, did)) {
+                revert InvalidSignature();
+            }
         }
 
         string memory _name = name.lower();
-        require(_nameToDID[_name] == address(0x0), "Name already registered");
+        if (_nameToDID[_name] != address(0x0)) {
+            revert InvalidName();
+        }
         
         EnumerableSet.StringSet storage didUserNameList = _DIDInfoList[did];
 
-        require(didUserNameList.length() < maxNamesPerDID, "DID can not support any more names");
+        if (didUserNameList.length() >= maxNamesPerDID) {
+            revert LimitedNameCount();
+        }
         
         _nameToDID[_name] = did;
         // To-do(Alex) : Check for upper & lower case strings
@@ -108,7 +126,9 @@ contract NameRegistry is  OwnableUpgradeable {
      * @param signature - Signature provided by transaction creator
      */
     function unregister(string calldata name, address did, bytes calldata signature) external {
-        require(did != address(0x0), "Invalid zero address");
+        if (did == address(0x0)) {
+            revert InvalidAddress();
+        }
 
         {
             uint didNonce = nonce(did);
@@ -118,15 +138,21 @@ contract NameRegistry is  OwnableUpgradeable {
                 didNonce
             );
 
-            require(VeridaDataVerificationLib.validateSignature(paramData, signature, did), "Invalid Signature");
+            if (!VeridaDataVerificationLib.validateSignature(paramData, signature, did)) {
+                revert InvalidSignature();
+            }
         }
         
         string memory _name = name.lower();
 
         address callerDID = _nameToDID[_name];
-        require(callerDID != address(0x0), "Unregistered name");
+        if (callerDID == address(0x0)) {
+            revert InvalidName();
+        }
 
-        require(callerDID == did, "Invalid DID");
+        if (callerDID != did) {
+            revert InvalidAddress();
+        }
         
         EnumerableSet.StringSet storage didUserNameList = _DIDInfoList[callerDID];
 
@@ -147,7 +173,9 @@ contract NameRegistry is  OwnableUpgradeable {
         name = name.lower();
 
         address callerDID = _nameToDID[name];
-        require(callerDID != address(0x0), "Unregistered name");
+        if (callerDID == address(0x0)) {
+            revert InvalidName();
+        }
 
         return callerDID;
     }
@@ -161,7 +189,9 @@ contract NameRegistry is  OwnableUpgradeable {
         EnumerableSet.StringSet storage didUserNameList = _DIDInfoList[did];
 
         uint256 length = didUserNameList.length();
-        require(length != 0, "No registered DID");
+        if (length == 0) {
+            revert InvalidAddress();
+        }
 
         string[] memory userNameList = new string[](length);
 
@@ -183,7 +213,9 @@ contract NameRegistry is  OwnableUpgradeable {
     function addSufix(string memory suffix) external onlyOwner {
         suffix = suffix.lower();
 
-        require(!suffixList.contains(suffix), "Already registered");
+        if (suffixList.contains(suffix)) {
+            revert InvalidSuffix();
+        }
 
         suffixList.add(suffix);
 
@@ -210,8 +242,9 @@ contract NameRegistry is  OwnableUpgradeable {
     function getSuffix(string calldata name) private pure returns(string memory suffix) {
         string memory _name = name.lower();
         bytes memory nameBytes = bytes(_name);
-        require(nameBytes.length != 0, "No Suffix");
-
+        if (nameBytes.length == 0) {
+            revert InvalidName();
+        }
 
         uint len = nameBytes.length;
 
@@ -229,11 +262,14 @@ contract NameRegistry is  OwnableUpgradeable {
                 ++index;
             }
         }
-        require(dotCount < 2 && index == len, "Invalid character specified in name");
-        require(startIndex < len, "No Suffix");
-        // uint nameLen = startIndex;
+        // nameLen = startIndex;
+        if (startIndex >= len) {
+            revert InvalidName();
+        }
 
-        require(startIndex > 2 && startIndex < 34, "Invalid name length");
+        if (dotCount > 1 || index != len || startIndex <= 2 || startIndex >= 34) {
+            revert InvalidName();
+        }
 
         bytes memory suffixBytes = new bytes(len - startIndex);
 
@@ -261,8 +297,10 @@ contract NameRegistry is  OwnableUpgradeable {
     }
 
     function updateMaxNamesPerDID(uint count) external onlyOwner {
-        require(count != 0, "Zero not allowed");
         uint orgValue = maxNamesPerDID;
+        if (count <= orgValue) {
+            revert InvalidNameCount();
+        }
         maxNamesPerDID = count;
 
         emit UpdateMaxNamesPerDID(orgValue, count);

@@ -83,7 +83,9 @@ describe("VDA Verification base test", () => {
 
             const rawProof = `${did.address}${badSigner.address}`.toLowerCase()
             const proof = await createProofSign(rawProof, did.privateKey)
-            await expect(contract.testSign(did.address, name, value, signature, proof)).to.be.rejectedWith("Data is not signed by a valid signing DID")
+            await expect(
+                contract.testSign(did.address, name, value, signature, proof)
+            ).to.be.revertedWithCustomError(contract, "InvalidSignature")
         })
 
         it("Test", async () => {

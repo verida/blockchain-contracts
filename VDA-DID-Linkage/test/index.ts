@@ -7,7 +7,7 @@ import { Wallet } from 'ethers'
 
 import { generateProof, SignInfo } from "./utils"
 import { Keyring } from "@verida/keyring";
-import { VeridaDIDLinkage } from "../typechain-types";
+import { VeridaDIDLinkage, VeridaDIDLinkage__factory } from "../typechain-types";
 
 import EncryptionUtils from "@verida/encryption-utils";
 
@@ -88,7 +88,7 @@ describe("Verida DID Linkage", () => {
         it("Failed: Registered type", async () => {
             await expect(contract
                 .addIdentifierType(identifierTypes[0].name, identifierTypes[0].isSelfSigner)
-            ).to.be.rejectedWith("Registered type")
+            ).to.be.revertedWithCustomError(contract, "RegisteredIdentifierType")
         })
     })
 
@@ -161,13 +161,12 @@ describe("Verida DID Linkage", () => {
                 signInfo.userProof!)
         }
 
-        it("Should reject for invalid identifier type", async () => {
+        it("Should reject for invalid identifiers", async () => {
             const invalidIdentifiers = [
                 'facebook|ab345|df15',  // Double `|` symbols
                 'facebook',             // No `|` symbol
                 'facebook|',            // No identifier
                 '|facebook',            // No identifier type
-                'telegram|25fg57',      // Unregistered identifier type
             ]
 
             for (const identifier of invalidIdentifiers) {
@@ -180,7 +179,26 @@ describe("Verida DID Linkage", () => {
                     },
                     '0x12', // Will not be checkd
                     '0x12' // Will not be checked
-                )).to.be.rejectedWith("Invalid identifier")
+                )).to.be.revertedWithCustomError(contract, "InvalidIdentifier")
+            }
+        })
+
+        it("Should reject for unregistered identifier types", async () => {
+            const invalidIdentifiers = [
+                'telegram|25fg57',
+                'linkedin|ffx23'
+            ]
+            for (const identifier of invalidIdentifiers) {
+                await expect(contract.link(
+                    signInfo.userAddress,
+                    {
+                        identifier,
+                        signedData: '0x12', // Will not be checked
+                        signedProof: '0x12' // Will not be checked
+                    },
+                    '0x12', // Will not be checkd
+                    '0x12' // Will not be checked
+                )).to.be.revertedWithCustomError(contract, "InvalidIdentifierType")
             }
         })
 
@@ -190,7 +208,6 @@ describe("Verida DID Linkage", () => {
 
             const tx = await callLink(identifier, signedData, signedProof)
             
-            // await expect(callLink(identifier, signedData, signedProof)).to.be.rejectedWith("No signers provided")
             const did = `did:vda:${signInfo.userAddress.toLowerCase()}`
             expect(tx).to.emit(contract, "Link").withArgs(did, identifier)
         })
@@ -209,7 +226,7 @@ describe("Verida DID Linkage", () => {
 
             await expect(
                 callLink(identifier, signedData, signedProof)
-            ).to.be.rejectedWith("Identity already exists");
+            ).to.be.revertedWithCustomError(contract, "RegisteredIdentifier")
         })
     })
 
@@ -282,7 +299,7 @@ describe("Verida DID Linkage", () => {
                 unlinkedIdentifier,
                 "0x12",
                 "0x12")
-            ).to.be.rejectedWith("Identifier not linked")
+            ).to.be.revertedWithCustomError(contract, "InvalidIdentifier");
         })
 
         it("Successfully unlink", async () => {
