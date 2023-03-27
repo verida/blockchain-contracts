@@ -165,8 +165,9 @@ contract NameRegistry is  OwnableUpgradeable {
 
         string[] memory userNameList = new string[](length);
 
-        for (uint i; i < length; ++i) {
+        for (uint i; i < length;) {
             userNameList[i] = didUserNameList.at(i);
+            unchecked { ++i; }
         }
 
         return userNameList;
@@ -219,12 +220,14 @@ contract NameRegistry is  OwnableUpgradeable {
         uint8 dotCount;
         while (index < len && dotCount < 2 && isValidCharacter(nameBytes[index])) {
             // Find a "."
-            if (nameBytes[index] == 0x2E) {
-                startIndex = index + 1;
-                dotCount++;
-            }
+            unchecked {
+                if (nameBytes[index] == 0x2E) {
+                    startIndex = index + 1;
+                    ++dotCount;
+                }
 
-            index++;
+                ++index;
+            }
         }
         require(dotCount < 2 && index == len, "Invalid character specified in name");
         require(startIndex < len, "No Suffix");
@@ -234,8 +237,9 @@ contract NameRegistry is  OwnableUpgradeable {
 
         bytes memory suffixBytes = new bytes(len - startIndex);
 
-        for (index = startIndex; index < len; ++index) {
+        for (index = startIndex; index < len;) {
             suffixBytes[index - startIndex] = nameBytes[index];
+            unchecked { ++index; }
         }
 
         suffix = string(suffixBytes);

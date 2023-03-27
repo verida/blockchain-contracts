@@ -67,8 +67,9 @@ contract VeridaDIDRegistry is OwnableUpgradeable, IVeridaDIDRegistry {
 
     {
       bytes memory rawMsg = abi.encodePacked(didAddress, "/");
-      for (uint i; i < endpoints.length; ++i) {
+      for (uint i; i < endpoints.length;) {
         rawMsg = abi.encodePacked(rawMsg, endpoints[i], "/");
+        unchecked { ++i; }
       }
 
       rawMsg = abi.encodePacked(rawMsg, _nonce[didAddress]);
@@ -80,8 +81,9 @@ contract VeridaDIDRegistry is OwnableUpgradeable, IVeridaDIDRegistry {
     EnumerableSet.StringSet storage list = _DIDInfo[didAddress].endpoints;
     list.clear();
     
-    for (uint i; i < endpoints.length; ++i) {
+    for (uint i; i < endpoints.length;) {
       list.add(endpoints[i]);
+      unchecked { ++i; }
     }
 
     // Add didAddress for only new registers
@@ -167,8 +169,9 @@ contract VeridaDIDRegistry is OwnableUpgradeable, IVeridaDIDRegistry {
 
     string[] memory ret = new string[](length);
 
-    for (uint i; i < length; ++i) {
+    for (uint i; i < length;) {
       ret[i] = list.at(i);
+      unchecked { ++i; }
     }
 
     return (_getController(didAddress), ret);
@@ -196,8 +199,9 @@ contract VeridaDIDRegistry is OwnableUpgradeable, IVeridaDIDRegistry {
 
     address[] memory ret = new address[](count);
 
-    for (uint i; i < count; ++i) {
+    for (uint i; i < count;) {
       ret[i] = _registeredDIDs.at(startIndex + i);
+      unchecked { ++i; }
     }
 
     return ret;

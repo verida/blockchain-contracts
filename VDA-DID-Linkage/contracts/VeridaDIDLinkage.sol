@@ -177,8 +177,9 @@ contract VeridaDIDLinkage is VDAVerificationContract,
         uint length = list.length();
         string[] memory ret = new string[](length);
 
-        for (uint i; i < length; ++i) {
+        for (uint i; i < length;) {
             ret[i] = list.at(i);
+            unchecked { ++i; }
         }
 
         return ret;
@@ -195,7 +196,7 @@ contract VeridaDIDLinkage is VDAVerificationContract,
         uint160 iaddr;
         uint160 b1;
         uint160 b2;
-        for (uint i = 2; i < 2 + 2 * 20; i += 2) {
+        for (uint i = 2; i < 2 + 2 * 20;) {
             iaddr *= 256;
             b1 = uint160(uint8(tmp[i]));
             b2 = uint160(uint8(tmp[i + 1]));
@@ -214,6 +215,7 @@ contract VeridaDIDLinkage is VDAVerificationContract,
                 b2 -= 48;
             }
             iaddr += (b1 * 16 + b2);
+            unchecked { i += 2; }
         }
         return address(iaddr);
     }
@@ -235,23 +237,27 @@ contract VeridaDIDLinkage is VDAVerificationContract,
         uint index;
         uint8 sepCount;
         while (index < len && sepCount < 2) {
-            if (strBytes[index] == 0x7c) {
-                sepPos = index;
-                sepCount++;
+            unchecked {
+                if (strBytes[index] == 0x7c) {
+                    sepPos = index;
+                    ++sepCount;
+                }
+                ++index;
             }
-            index++;
         }
 
         require(index == len && sepCount == 1 && sepPos > 0 && sepPos < (len - 1), "Invalid identifier");
 
         bytes memory kindBytes = new bytes(sepPos);
-        for (index = 0; index < sepPos; ++index) {
+        for (index = 0; index < sepPos;) {
             kindBytes[index] = strBytes[index];
+            unchecked { ++index; }
         }
 
         bytes memory idBytes = new bytes(len - sepPos - 1);
-        for (index = sepPos + 1; index < len; ++index) {
+        for (index = sepPos + 1; index < len;) {
             idBytes[index - sepPos - 1] = strBytes[index];
+            unchecked { ++index; }
         }
 
         string memory kind = string(kindBytes);

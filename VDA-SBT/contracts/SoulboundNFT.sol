@@ -136,8 +136,9 @@ contract SoulboundNFT is VDAVerificationContract,
     function getTrustedSignerAddresses() external view override returns(address[] memory) {
         uint length = _trustedSigners.length();
         address[] memory list = new address[](length);
-        for (uint i; i < length; ++i) {
+        for (uint i; i < length;) {
             list[i] = _trustedSigners.at(i);
+            unchecked { ++i; }
         }
 
         return list;
@@ -152,11 +153,13 @@ contract SoulboundNFT is VDAVerificationContract,
         bool isValid = true;
         if (!_sbtTypes.contains(sbtType)) {
             bytes memory charSet = bytes(sbtType);
-            for (uint i; i < charSet.length && isValid; ++i) {
+            for (uint i; i < charSet.length && isValid;) {
                 if (!(charSet[i] >= 0x61 && charSet[i] <= 0x7a) 
                     && !(charSet[i] >= 0x30 && charSet[i] <= 0x39)
-                    && charSet[i] != 0x2d)
-                    isValid = false;
+                    && charSet[i] != 0x2d) {
+                        isValid = false;
+                }
+                unchecked { ++i; }
             }
         }
         return isValid;
@@ -244,8 +247,9 @@ contract SoulboundNFT is VDAVerificationContract,
         uint length = balanceOf(didAddress);
         uint[] memory sbtList = new uint[](length);
 
-        for (uint i; i < length; ++i) {
+        for (uint i; i < length;) {
             sbtList[i] = _userTokenIds[didAddress].at(i);
+            unchecked { ++i; }
         }
         return sbtList;
     }

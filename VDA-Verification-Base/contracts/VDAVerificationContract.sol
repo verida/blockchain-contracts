@@ -102,7 +102,7 @@ contract VDAVerificationContract is OwnableUpgradeable {
                 isVerified = true;
                 break;
             }
-            index++;
+            unchecked { ++index; }
         }
 
         require(isVerified, "Data is not signed by a valid signing DID");
@@ -146,7 +146,7 @@ contract VDAVerificationContract is OwnableUpgradeable {
                 isVerified = true;
                 break;
             }
-            index++;
+            unchecked { ++index; }
         }
 
         require(isVerified, "Data is not signed by a valid signing DID");
