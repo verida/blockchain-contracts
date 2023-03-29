@@ -11,11 +11,6 @@ import "./IVeridaDIDRegistry.sol";
 
 // import "hardhat/console.sol";
 
-error RevokedDID();
-error InvalidSignature();
-error UnregisteredDID();
-error OutOfRange();
-
 /** @title VeridaDIDRegistry */
 contract VeridaDIDRegistry is OwnableUpgradeable, IVeridaDIDRegistry {
 
@@ -46,7 +41,13 @@ contract VeridaDIDRegistry is OwnableUpgradeable, IVeridaDIDRegistry {
     address controller;
     EnumerableSet.StringSet endpoints;
   }
-  
+
+  // Custom errors
+  error RevokedDID();
+  error InvalidSignature();
+  error UnregisteredDID();
+  error OutOfRange();
+
   /**
    * @notice Initialize
    */
@@ -131,12 +132,15 @@ contract VeridaDIDRegistry is OwnableUpgradeable, IVeridaDIDRegistry {
    * @notice Internal function to get a controller of DID address
    * @dev This is internal function to be used in another functions. Gas efficient than external function
    * @param didAddress DID address
-   * @return address Controller of DID address
+   * @return result Controller of DID address
    */
-  function _getController(address didAddress) internal view returns(address) {
-    if (_DIDInfo[didAddress].controller == address(0x0))
-      return didAddress;
-    return _DIDInfo[didAddress].controller;
+  function _getController(address didAddress) internal view returns(address result) {
+    result = _DIDInfo[didAddress].controller;
+    assembly {
+      if iszero(result) {
+        result := didAddress
+      }
+    }
   }
 
   /**

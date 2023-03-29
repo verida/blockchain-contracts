@@ -9,15 +9,6 @@ import "./IVDA.sol";
 
 // import "hardhat/console.sol";
 
-error OutOfSupplyLimit();
-error DuplicatedRequest();
-error InvalidAddress();
-error TransferLimited();
-error WalletAmountLimited();
-error SellAmountLimited();
-error NoPermission();
-error InvalidRate();
-
 contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable, 
     IVeridaToken, AccessControlEnumerableUpgradeable {
 
@@ -33,20 +24,30 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
 
     // Rate values can be set up to 30%
     uint32 public constant AMOUNT_RATE_LIMIT = 30 * RATE_DENOMINATOR;
-    
-    uint32 public maxAmountPerWalletRate;
-    uint32 public maxAmountPerSellRate;
 
+    // State variables
+    mapping(address => bool) public isExcludedFromSellAmountLimit;
+    mapping(address => bool) public isExcludedFromWalletAmountLimit;
+    
     uint256 private maxAmountPerWallet;
     uint256 private maxAmountPerSell;
+
+    uint32 public maxAmountPerWalletRate;
+    uint32 public maxAmountPerSellRate;
 
     bool public isMaxAmountPerWalletEnabled;
     bool public isMaxAmountPerSellEnabled;
     bool public isTransferEnabled;
 
-    mapping(address => bool) public isExcludedFromSellAmountLimit;
-    mapping(address => bool) public isExcludedFromWalletAmountLimit;
-    
+    // Custom errors
+    error OutOfSupplyLimit();
+    error DuplicatedRequest();
+    error InvalidAddress();
+    error TransferLimited();
+    error WalletAmountLimited();
+    error SellAmountLimited();
+    error NoPermission();
+    error InvalidRate();
 
     /**
      * Store addresses that a automatic market make pairs.
@@ -123,10 +124,15 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
         if (hasRole(MINT_ROLE, to)) {
             revert DuplicatedRequest();
         }
-        if (to == address(0)) {
-            revert InvalidAddress();
-        }
 
+        assembly {
+            if iszero(to) {
+                let ptr := mload(0x40)
+                mstore(ptr, 0xe6c4247b00000000000000000000000000000000000000000000000000000000)
+                revert(ptr, 0x4) //revert InvalidAddress()
+            }
+        }
+        
         grantRole(MINT_ROLE, to);
 
         emit AddMinter(to);
@@ -182,11 +188,18 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
         uint256 amount
     ) internal override {
 
-        // Allow if isTransferEnabled or Minting & burning operation
-        if (!isTransferEnabled && sender != address(0) && recipient != address(0)) {
-            revert TransferLimited();
+        if (!isTransferEnabled) {
+            assembly {
+                if eq(iszero(sender), 0) {
+                    if eq(iszero(recipient), 0) {
+                        let ptr := mload(0x40)
+                        mstore(ptr, 0x69126dbd00000000000000000000000000000000000000000000000000000000)
+                        revert(ptr, 0x4) //revert TransferLimited()
+                    }
+                }
+            }
         }
-
+        
         if (isMaxAmountPerWalletEnabled && !isExcludedFromWalletAmountLimit[recipient]) {
             if ((balanceOf(recipient) + amount) > maxAmountPerWallet) {
                 revert WalletAmountLimited();

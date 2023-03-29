@@ -6,12 +6,6 @@ import "./IVDARewardContract.sol";
 
 import "@verida/vda-verification-contract/contracts/VDAVerificationContract.sol";
 
-error InvalidId();
-error InvalidRewardAmount();
-error InvalidSchema();
-error DuplicatedRequest();
-error InsufficientTokenAmount();
-
 contract VDARewardContract is IVDARewardContract, VDAVerificationContract {
 
     /** ReardToken : ERC20 contract */
@@ -30,6 +24,13 @@ contract VDARewardContract is IVDARewardContract, VDAVerificationContract {
         }
         _;
     }
+
+    // Custom errors
+    error InvalidId();
+    error InvalidRewardAmount();
+    error InvalidSchema();
+    error DuplicatedRequest();
+    error InsufficientTokenAmount();
 
     function __VDARewardContract_init(IERC20Upgradeable token) public initializer {
         __Ownable_init();

@@ -10,13 +10,6 @@ import "./VeridaDataVerificationLib.sol";
 
 // import "hardhat/console.sol";
 
-error InvalidAddress();
-error InvalidSuffix();
-error InvalidSignature();
-error InvalidName();
-error LimitedNameCount();
-error InvalidNameCount();
-
 /**
  * @title Verida NameRegistry contract
  */
@@ -55,6 +48,14 @@ contract NameRegistry is  OwnableUpgradeable {
     event AddSuffix(string indexed suffix);
     event UpdateMaxNamesPerDID(uint from, uint to);
 
+    // Custom errors
+    error InvalidAddress();
+    error InvalidSuffix();
+    error InvalidSignature();
+    error InvalidName();
+    error LimitedNameCount();
+    error InvalidNameCount();
+
     /**
      * @notice Initialize
      */
@@ -80,8 +81,12 @@ contract NameRegistry is  OwnableUpgradeable {
      * @param signature - Signature provided by transaction creator
      */
     function register(string calldata name, address did, bytes calldata signature) external {
-        if (did == address(0x0)) {
-            revert InvalidAddress();
+        assembly {
+            if iszero(did) {
+                let ptr := mload(0x40)
+                mstore(ptr, 0xe6c4247b00000000000000000000000000000000000000000000000000000000)
+                revert(ptr, 0x4) //revert InvalidAddress()
+            }
         }
         if(!isValidSuffix(name)) {
             revert InvalidSuffix();
@@ -101,8 +106,16 @@ contract NameRegistry is  OwnableUpgradeable {
         }
 
         string memory _name = name.lower();
-        if (_nameToDID[_name] != address(0x0)) {
-            revert InvalidName();
+        {
+            // Check _nameToDID[_name] is zero
+            address _nameDID = _nameToDID[_name];
+            assembly {
+                if eq(iszero(_nameDID), 0) {
+                    let ptr := mload(0x40)
+                    mstore(ptr, 0x430f13b300000000000000000000000000000000000000000000000000000000)
+                    revert(ptr, 0x4)
+                }
+            }
         }
         
         EnumerableSet.StringSet storage didUserNameList = _DIDInfoList[did];
@@ -126,10 +139,14 @@ contract NameRegistry is  OwnableUpgradeable {
      * @param signature - Signature provided by transaction creator
      */
     function unregister(string calldata name, address did, bytes calldata signature) external {
-        if (did == address(0x0)) {
-            revert InvalidAddress();
+        assembly {
+            if iszero(did) {
+                let ptr := mload(0x40)
+                mstore(ptr, 0xe6c4247b00000000000000000000000000000000000000000000000000000000)
+                revert(ptr, 0x4) // revert InvalidAddress()
+            }
         }
-
+        
         {
             uint didNonce = nonce(did);
             bytes memory paramData = abi.encodePacked(
@@ -146,8 +163,12 @@ contract NameRegistry is  OwnableUpgradeable {
         string memory _name = name.lower();
 
         address callerDID = _nameToDID[_name];
-        if (callerDID == address(0x0)) {
-            revert InvalidName();
+        assembly {
+            if iszero(callerDID) {
+                let ptr := mload(0x40)
+                mstore(ptr, 0x430f13b300000000000000000000000000000000000000000000000000000000)
+                revert(ptr, 0x4) // revert InvalidName()
+            }
         }
 
         if (callerDID != did) {
@@ -173,8 +194,12 @@ contract NameRegistry is  OwnableUpgradeable {
         name = name.lower();
 
         address callerDID = _nameToDID[name];
-        if (callerDID == address(0x0)) {
-            revert InvalidName();
+        assembly {
+            if iszero(callerDID) {
+                let ptr := mload(0x40)
+                mstore(ptr, 0x430f13b300000000000000000000000000000000000000000000000000000000)
+                revert(ptr, 0x4) // revert InvalidName()
+            }
         }
 
         return callerDID;

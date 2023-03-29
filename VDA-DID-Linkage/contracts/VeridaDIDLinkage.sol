@@ -8,12 +8,6 @@ import { EnumerableSet } from "@verida/common-contract/contracts/EnumerableSet.s
 
 import "./IVeridaDIDLinkage.sol";
 
-error RegisteredIdentifierType();
-error InvalidIdentifierType();
-error RegisteredIdentifier();
-error InvalidIdentifier();
-error InvalidAddress();
-
 contract VeridaDIDLinkage is VDAVerificationContract,
     IVeridaDIDLinkage
 {
@@ -47,6 +41,13 @@ contract VeridaDIDLinkage is VDAVerificationContract,
         Self,
         Trusted
     }
+
+    // Custom errors
+    error RegisteredIdentifierType();
+    error InvalidIdentifierType();
+    error RegisteredIdentifier();
+    error InvalidIdentifier();
+    error InvalidAddress();
 
     /**
      * @notice Initialize

@@ -14,10 +14,6 @@ import "./ISoulboundNFT.sol";
 
 // import "hardhat/console.sol";
 
-error TransferBlocked();
-error InvalidSBTType();
-error NoPermission();
-
 contract SoulboundNFT is VDAVerificationContract, 
     IERC721MetadataUpgradeable,
     ERC721URIStorageUpgradeable, 
@@ -57,6 +53,11 @@ contract SoulboundNFT is VDAVerificationContract,
      */
     mapping(address => EnumerableSetUpgradeable.UintSet) _userTokenIds;
 
+    // Custom errors
+    error TransferBlocked();
+    error InvalidSBTType();
+    error NoPermission();
+
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
@@ -94,8 +95,14 @@ contract SoulboundNFT is VDAVerificationContract,
         uint256 firstTokenId,
         uint256 batchSize
         ) internal override virtual {
-        if (from != address(0) && to != address(0)) {
-            revert TransferBlocked();
+        assembly {
+            if eq(iszero(from), 0) {
+                if eq(iszero(to), 0) {
+                    let ptr := mload(0x40)
+                    mstore(ptr, 0xf90e674a00000000000000000000000000000000000000000000000000000000)
+                    revert(ptr, 0x4) //revert TransferBlocked
+                }
+            }
         }
         super._beforeTokenTransfer(from, to, firstTokenId, batchSize);
     }
@@ -110,10 +117,18 @@ contract SoulboundNFT is VDAVerificationContract,
         uint256 firstTokenId,
         uint256 batchSize
     ) internal override virtual {
-        if (to == address(0x0)) {
-            emit Unlocked(firstTokenId);
-        } else if (to != address(0xdead)) {
-            emit Locked(firstTokenId);
+        {
+            bytes32 eventHashLocked = bytes32(keccak256("Locked(uint256)"));
+            bytes32 eventHashUnlocked = bytes32(keccak256("Unlocked(uint256)"));
+            assembly {
+                let eventHash := eventHashLocked
+                if iszero(to) {
+                    eventHash := eventHashUnlocked
+                }
+                mstore(0x80, firstTokenId)
+                log1(0x80, 32, eventHash)
+            }
+            
         }
         super._afterTokenTransfer(from, to, firstTokenId, batchSize);
     }
@@ -121,12 +136,14 @@ contract SoulboundNFT is VDAVerificationContract,
     /**
      * @dev See {IERC5192}
      */
-    function locked(uint256 tokenId) external view override returns(bool) {
+    function locked(uint256 tokenId) external view override returns(bool result) {
         address owner = ERC721Upgradeable.ownerOf(tokenId);
-        if (owner == address(0x0)) {
-            return false;
+        result = true;
+        assembly {
+            if iszero(owner) {
+                result := false
+            }
         }
-        return true;
     }
 
     /**

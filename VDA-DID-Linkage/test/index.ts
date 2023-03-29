@@ -209,7 +209,7 @@ describe("Verida DID Linkage", () => {
             const tx = await callLink(identifier, signedData, signedProof)
             
             const did = `did:vda:${signInfo.userAddress.toLowerCase()}`
-            expect(tx).to.emit(contract, "Link").withArgs(did, identifier)
+            await expect(tx).to.emit(contract, "Link").withArgs(did, identifier)
         })
         
         it("Success for `Self` signer type", async () => {
@@ -217,7 +217,7 @@ describe("Verida DID Linkage", () => {
             const tx = await callLink(identifier, signedData, signedProof)
 
             const did = `did:vda:${signInfo.userAddress.toLowerCase()}`
-            expect(tx).to.emit(contract, "Link").withArgs(did, identifier)
+            await expect(tx).to.emit(contract, "Link").withArgs(did, identifier)
         })
 
         it("Should reject for already linked identifier", async () => {
@@ -313,7 +313,7 @@ describe("Verida DID Linkage", () => {
                     signInfo.userProof!
                 )
 
-                expect(tx).to.emit(contract, "Unlink").withArgs(did, identifier)
+                await expect(tx).to.emit(contract, "Unlink").withArgs(did, identifier)
             }
         })
     })
