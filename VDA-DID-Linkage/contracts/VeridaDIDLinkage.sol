@@ -58,7 +58,7 @@ contract VeridaDIDLinkage is VDAVerificationContract,
     /**
      * @dev See {IVeridaDIDLinkage}
      */
-    function addIdentifierType(string calldata identifierTypeId, bool isSelfSigner) external onlyOwner {
+    function addIdentifierType(string calldata identifierTypeId, bool isSelfSigner) external payable onlyOwner {
         if (_identifierType[identifierTypeId] != SignerType.Unregistered)
             revert RegisteredIdentifierType();
         

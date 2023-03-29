@@ -45,7 +45,7 @@ contract VDAVerificationContract is OwnableUpgradeable {
      * @dev Only the contract owner can add
      * @param didAddress Trusted signer address
      */
-    function addTrustedSigner(address didAddress) external onlyOwner {
+    function addTrustedSigner(address didAddress) external payable onlyOwner {
         if (_trustedSigners.contains(didAddress)) {
             revert RegisteredSigner();
         }
@@ -57,7 +57,7 @@ contract VDAVerificationContract is OwnableUpgradeable {
      * @dev Only the contract owner can remove
      * @param didAddress Trusted signer address
      */
-    function removeTrustedSigner(address didAddress) external onlyOwner {
+    function removeTrustedSigner(address didAddress) external payable onlyOwner {
         if (!_trustedSigners.contains(didAddress)) {
             revert UnregisteredSigner();
         }

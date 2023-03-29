@@ -119,7 +119,7 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
     /**
      * @dev see {IVeridaToken-addMinter}
      */
-    function addMinter(address to) external onlyOwner override {
+    function addMinter(address to) external payable onlyOwner override {
         if (hasRole(MINT_ROLE, to)) {
             revert DuplicatedRequest();
         }
@@ -135,7 +135,7 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
     /**
      * @dev see {IVeridaToken-revokeMinter}
      */
-    function revokeMinter(address to) external onlyOwner override {
+    function revokeMinter(address to) external payable onlyOwner override {
         if (!hasRole(MINT_ROLE, to)) {
             revert InvalidAddress();
         }
@@ -210,7 +210,7 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
     /**
      * @dev enable/disable AutomatedMarkertMakerPair
      */
-    function setAutomatedMarketMakerPair(address pair, bool value) external onlyOwner
+    function setAutomatedMarketMakerPair(address pair, bool value) external payable onlyOwner
     {
         if (automatedMarketMakerPairs[pair] == value) {
             revert DuplicatedRequest();
@@ -223,7 +223,7 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
     /**
      * @dev update max amount per wallet percent.
      */
-    function updateMaxAmountPerWalletRate(uint32 newRate) external onlyOwner {
+    function updateMaxAmountPerWalletRate(uint32 newRate) external payable onlyOwner {
         if (newRate == 0 || newRate > AMOUNT_RATE_LIMIT) {
             revert InvalidRate();
         }
@@ -245,7 +245,7 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
     /**
      * @dev update max amount per sell percent.
      */
-    function updateMaxAmountPerSellRate(uint32 newRate) external onlyOwner {
+    function updateMaxAmountPerSellRate(uint32 newRate) external payable onlyOwner {
         if (newRate == 0 || newRate > AMOUNT_RATE_LIMIT) {
             revert InvalidRate();
         }
@@ -267,7 +267,7 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
     /**
      * @dev exclude account from sell amount limit
      */
-    function excludeFromSellAmountLimit(address account, bool excluded) external onlyOwner {
+    function excludeFromSellAmountLimit(address account, bool excluded) external payable onlyOwner {
         if (isExcludedFromSellAmountLimit[account] == excluded) {
             revert DuplicatedRequest();
         }
@@ -278,7 +278,7 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
     /**
      * @dev exclude account from wallet amount limit
      */
-    function excludeFromWalletAmountLimit(address account, bool excluded) external onlyOwner {
+    function excludeFromWalletAmountLimit(address account, bool excluded) external payable onlyOwner {
         if (isExcludedFromWalletAmountLimit[account] == excluded) {
             revert DuplicatedRequest();
         }
@@ -289,7 +289,7 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
     /**
      * @dev enable/disable MaxAmountPerSell
      */
-    function enableMaxAmountPerSell(bool isEnabled) external onlyOwner {
+    function enableMaxAmountPerSell(bool isEnabled) external payable onlyOwner {
         if (isMaxAmountPerSellEnabled == isEnabled) {
             revert DuplicatedRequest();
         }
@@ -300,7 +300,7 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
     /**
      * @dev enable/disable MaxAmountPerWallet
      */
-    function enableMaxAmountPerWallet(bool isEnabled) external onlyOwner {
+    function enableMaxAmountPerWallet(bool isEnabled) external payable onlyOwner {
         if (isMaxAmountPerWalletEnabled == isEnabled) {
             revert DuplicatedRequest();
         }
@@ -311,7 +311,7 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
     /**
      * See {IVDA.sol}
      */
-    function enableTransfer() external onlyOwner override {
+    function enableTransfer() external payable onlyOwner override {
         if (isTransferEnabled) {
             revert DuplicatedRequest();
         }

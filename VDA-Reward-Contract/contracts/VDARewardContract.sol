@@ -52,7 +52,7 @@ contract VDARewardContract is IVDARewardContract, VDAVerificationContract {
     /**
      * @dev see {IVDARewardContract-addClaimType}
      */
-    function addClaimType(string calldata typeId, uint rewardAmount, string calldata schema) external onlyOwner {
+    function addClaimType(string calldata typeId, uint rewardAmount, string calldata schema) external payable onlyOwner {
         if (bytes(typeId).length == 0) {
             revert InvalidId();
         }
@@ -76,7 +76,7 @@ contract VDARewardContract is IVDARewardContract, VDAVerificationContract {
     /**
      * @dev see {IVDARewardContract-removeClaimType}
      */
-    function removeClaimType(string calldata typeId) external onlyOwner onlyExistingClaimType(typeId){
+    function removeClaimType(string calldata typeId) external payable onlyOwner onlyExistingClaimType(typeId){
         delete claimTypes[typeId];
 
         emit RemoveClaimType(typeId);
@@ -85,7 +85,7 @@ contract VDARewardContract is IVDARewardContract, VDAVerificationContract {
     /**
      * @dev see {IVDARewardContract-updateClaimTypeReward}
      */
-    function updateClaimTypeReward(string calldata typeId, uint amount) external onlyOwner onlyExistingClaimType(typeId){
+    function updateClaimTypeReward(string calldata typeId, uint amount) external payable onlyOwner onlyExistingClaimType(typeId){
         if (amount == 0) {
             revert InvalidRewardAmount();
         }

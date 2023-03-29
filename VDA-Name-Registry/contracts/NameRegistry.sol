@@ -210,7 +210,7 @@ contract NameRegistry is  OwnableUpgradeable {
      * @param suffix - Suffix to be added
      */
 
-    function addSufix(string memory suffix) external onlyOwner {
+    function addSufix(string memory suffix) external payable onlyOwner {
         suffix = suffix.lower();
 
         if (suffixList.contains(suffix)) {
@@ -296,7 +296,7 @@ contract NameRegistry is  OwnableUpgradeable {
         return false;
     }
 
-    function updateMaxNamesPerDID(uint count) external onlyOwner {
+    function updateMaxNamesPerDID(uint count) external payable onlyOwner {
         uint orgValue = maxNamesPerDID;
         if (count <= orgValue) {
             revert InvalidNameCount();

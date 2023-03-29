@@ -70,7 +70,7 @@ interface IVeridaDIDLinkage {
      * @param identifierTypeId Type of identifier to be added
      * @param isSelfSigner If true, signer type is self signed, otherwise trusted signer
      */
-    function addIdentifierType(string calldata identifierTypeId, bool isSelfSigner) external;
+    function addIdentifierType(string calldata identifierTypeId, bool isSelfSigner) external payable;
 
     /**
      * @notice Check whether an address is trusted
