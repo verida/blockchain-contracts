@@ -7,7 +7,7 @@ import "@openzeppelin/contracts-upgradeable/utils/CountersUpgradeable.sol";
 // import "@openzeppelin/contracts-upgradeable/utils/structs/EnumerableSetUpgradeable.sol";
 
 import "@verida/vda-verification-contract/contracts/VDAVerificationContract.sol";
-import "@verida/name-registry/contracts/EnumerableSet.sol";
+import "@verida/common-contract/contracts/EnumerableSet.sol";
 
 import "./IERC5192.sol";
 import "./ISoulboundNFT.sol";
