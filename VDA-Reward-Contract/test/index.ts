@@ -1,16 +1,13 @@
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
-import chai, { expect } from "chai";
-import chaiAsPromised from "chai-as-promised";
+import { expect } from "chai";
 import { BigNumber, Wallet } from "ethers";
 
 import hre, { ethers , upgrades } from "hardhat"
 import { VDARewardContract } from "../typechain-types";
-import { VeridaToken } from "@verida/erc20-contract/typechain";
+import { VeridaToken } from "@verida/erc20-contract/typechain-types";
 import EncryptionUtils from '@verida/encryption-utils'
 
 import { abi as TokenABI, bytecode as TokenByteCode } from "@verida/erc20-contract/artifacts/contracts/VDA-V1.sol/VeridaToken.json";
-
-chai.use(chaiAsPromised);
 
 let accountList: SignerWithAddress[];
 let owner: SignerWithAddress;

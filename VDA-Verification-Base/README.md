@@ -1,31 +1,44 @@
-# VDAVerificationContract
-
+# Contract Explain
+## Description
 This is a parent contract of all verida contracts that use proof verification feature.
 This contract is for contract developers of **Verida**.
 
-## Explain of contract files
+## Project structure
+### Contract files
 
 - **VDAVerficationContract.sol** : This is a verification contract.
 - **TestContract.sol** : Created for test purpose. It includes test functions too.
 
-## Test files
+### Test files
 - index.ts : Test the basic `verification` feature
 - proof.ts : Test with interaction to the blockchain. DID-Document & DID-Client used
 - signTest.ts : This is for signing test. Not for VDA-Verification-Base.
 
-## Build & Test
-Describes in Ubuntu OS.
+# Test & Deploy
+## Test
+You can run test by following command:
+```
+    yarn test test/index.ts
+``` 
 
-Open terminal and go to project directory by using `cd <PROJECT_PATH>` command.
-### Install dependencies
+## Deploy
+You can deploy contract by following command:
 ```
-yarn install
+    yarn deploy --network <Target Network>
 ```
-### Compile
+At the moment, there are 2 available networks:
+- polygontestnet
+- polygonmainnet
+
+__Example__: Deploying to polygon mainnet
 ```
-npx hardhat compile
+    yarn deploy --network polygonmainnet
 ```
-### Test
+
+## Verify
+Once you deployed contract, you could see the deployed contract address in the terminal or in the `scripts/contract-address.json`
+
+You can verify your contract by following command:
 ```
-npx hardhat test
+    yarn verify <Contract Address> --network <Target Network>
 ```

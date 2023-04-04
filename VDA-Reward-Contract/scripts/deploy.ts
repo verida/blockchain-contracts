@@ -1,9 +1,9 @@
 import { ethers, upgrades } from "hardhat";
 import { VDARewardContract } from "../typechain-types";
-import * as tokenArtifact from "../../VDA-Reward-Token/artifacts/contracts/RewardToken.sol/RewardToken.json"
+import * as tokenArtifact from "@verida/erc20-contract/artifacts/contracts/VDA-V1.sol/VeridaToken.json"
 
 async function main() {
-  const rewardTokenAddress = "0xCb9e0Ae6b27AD593f8b17A47366c743649763523"
+  const rewardTokenAddress = "<Input Verida token address>"
 
   const contractFactory = await ethers.getContractFactory("VDARewardContract")
   const contract = (await upgrades.deployProxy(
@@ -34,6 +34,3 @@ main().catch((error) => {
   console.error(error);
   process.exitCode = 1;
 });
-
-// 2022/9/19
-// Mumbai : 0xdAd2B70B4158562fbFeCb49Be6207d987299bd15

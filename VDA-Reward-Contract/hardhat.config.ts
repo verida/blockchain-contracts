@@ -1,21 +1,20 @@
 import { HardhatUserConfig } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
+
 import * as dotenv from "dotenv";
 
+// For verify
+import "@nomiclabs/hardhat-ethers";
 // For upgradeable - deploy
 import "@openzeppelin/hardhat-upgrades";
-// For verify 
-import "@nomiclabs/hardhat-ethers"
 
-dotenv.config({path: __dirname + '/.env'});
-
-const {PRIVATE_KEY, POLYGONSCAN_API_KEY} = process.env;
-
+dotenv.config({path: __dirname + '/.env'})
+const {PRIVATE_KEY, POLYGONSCAN_API_KEY, POLYGON_TESTNET_RPC, POLYGON_MAINNET_RPC} = process.env;
 const config: HardhatUserConfig = {
   solidity: {
     compilers: [
       {
-        version: "0.8.9",
+        version: "0.8.18",
         settings: {
           optimizer: {
             enabled: true,
@@ -25,23 +24,18 @@ const config: HardhatUserConfig = {
       },
     ],
   },
-  paths: {
-    sources: "./contracts",
-    tests: "./test",
-    cache: "./cache",
-    artifacts: "./artifacts",
-  },
-
   networks: {
     polygonmainnet: {
-      url: "https://polygon-rpc.com/",
+      url: POLYGON_MAINNET_RPC !== undefined ? POLYGON_MAINNET_RPC : "https://polygon-rpc.com/",
       chainId: 137,
       accounts: PRIVATE_KEY !== undefined ? [PRIVATE_KEY] : [],
     },
     polygontestnet: {
-      url: "http://44.234.36.28:8545",
+      url: POLYGON_TESTNET_RPC !== undefined ? POLYGON_TESTNET_RPC : "https://matic-mumbai.chainstacklabs.com",
       chainId: 80001,
       accounts: PRIVATE_KEY !== undefined ? [PRIVATE_KEY] : [], 
+      gas: 2100000,
+      gasPrice: 8000000000
     },
   },
   gasReporter: {

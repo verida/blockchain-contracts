@@ -1,2 +1,4 @@
-# Version 0.0.X
-## 0.0.1 - Initial Version
+2023-03-20 (v0.0.2)
+-------------------
+- Upgrade solidity version to `0.8.18`
+- Upgrade hardhat configuration

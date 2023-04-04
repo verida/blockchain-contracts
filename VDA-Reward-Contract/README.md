@@ -1,10 +1,5 @@
-# Dependency
-## Contract
-- @verida/vda-verification-contract : VDA-Verification-Base contract
-- @verida/reward-token-contract : VDA-Reward-Token
-
-# Verida Reward Contract
-
+# Contract Explain
+## Description
 This contract receive signed off chain data and use that to provide a reward to the address making the request.
 
 The key objectives are:
@@ -12,39 +7,37 @@ The key objectives are:
 1. Provide a token reward for Verida Vault users to incentivize use of the testnet
 2. Demonstrate our off-chain to on-chain data verification capabilities
 
-## Build
-Run following command in project directory:
-```
-npx hardhat compile
-```
 
+## Dependencies
+### Verida contract dependency
+- `@verida/vda-verification-contract` : VDA-Verification-Base contract
+- `@verida/erc20-contract` : VDA-ERC20 - Used in test script
+
+# Test & Deploy
 ## Test
-
-This uses @verida/encryption-utils package in verida-js library.
-Before test link @verida/encryption-utils:
-- Run `yarn link` inside the encryption-utils package of verida-js
-- Run `yarn link @verida/encryption-utils` inside the current project directory
-
-Test by following command inside current project directory:
+You can run test by following command:
 ```
-npx hardhat test
-```
+    yarn test test/index.ts
+``` 
 
 ## Deploy
-
-Can deploy contract on the chains. At the moment, deploy script is supported polygon mainnet & polygon testnet.
-To add more chains, configure `hardhat.config` file in the project.
-
-Run following command in the terminal:
+You can deploy contract by following command:
 ```
-npx hardhat run scripts/deploy.ts --network <NETWORK_NAME>
+    yarn deploy --network <Target Network>
 ```
-Here <NETWORK_NAME> can be one of following:
-- polygonmainnet
+At the moment, there are 2 available networks:
 - polygontestnet
+- polygonmainnet
 
-Example: Deploy contract on polygon test net
+__Example__: Deploying to polygon mainnet
 ```
-npx hardhat run scripts/deploy.ts --network polygontestnet
+    yarn deploy --network polygonmainnet
 ```
-**Warning** : Once VDARewardContract deployed, 10000 VDAR tokens would be minted to the deployed contract. To do so, private key should be the same for RewordToken deployment & RewardContract deployment. Meaning, we need to use the same `"PRIVATE_KEY=..."` field in the .env files.
+
+## Verify
+Once you deployed contract, you could see the deployed contract address in the terminal or in the `scripts/contract-address.json`
+
+You can verify your contract by following command:
+```
+    yarn verify <Contract Address> --network <Target Network>
+```

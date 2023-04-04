@@ -2,18 +2,12 @@
 /* eslint-disable prettier/prettier */
 /* eslint-disable no-unused-vars */
 /* eslint-disable node/no-missing-import */
-import chai, { expect } from "chai";
-import chaiAsPromised from "chai-as-promised";
-import { solidity } from "ethereum-waffle";
+import { expect } from "chai";
 import hre, { ethers, upgrades } from "hardhat";
 
-import { VeridaToken } from "../typechain/VeridaToken";
+import { VeridaToken } from "../typechain-types";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { BigNumber } from "@ethersproject/bignumber";
-import { beforeEach } from "mocha";
-
-chai.use(solidity);
-chai.use(chaiAsPromised);
 
 let accountList: SignerWithAddress[];
 let owner: SignerWithAddress;

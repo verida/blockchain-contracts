@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: MIT
-pragma solidity ^0.8.9;
+pragma solidity ^0.8.18;
 
 import "./VDAVerificationContract.sol";
 
@@ -104,7 +104,7 @@ contract TestContract is VDAVerificationContract {
      * @param signature Signature of the message
      * @return address Signer of the message
      */
-    function rawRecoverAddress(address addr1, address addr2, bytes calldata signature) external view returns(address) {
+    function rawRecoverAddress(address addr1, address addr2, bytes calldata signature) external pure returns(address) {
         string memory strAddr1 = StringsUpgradeable.toHexString(uint256(uint160(addr1)));
         string memory strAddr2 = StringsUpgradeable.toHexString(uint256(uint160(addr2)));
 
