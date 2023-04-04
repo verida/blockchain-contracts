@@ -97,7 +97,7 @@ describe("VeridaRewardContract", () => {
                     "",
                     claimTypes[0].reward,
                     claimTypes[0].schema
-                )).to.be.rejectedWith('Invalid id')
+                )).to.be.revertedWithCustomError(contract, "InvalidId")
             })
 
             it("Failed for invalid reward amount", async () => {
@@ -105,7 +105,7 @@ describe("VeridaRewardContract", () => {
                     claimTypes[0].id,
                     0,
                     claimTypes[0].schema
-                )).to.be.rejectedWith('Invalid reward amount')
+                )).to.be.revertedWithCustomError(contract, "InvalidRewardAmount")
             })
 
             it("Failed for invalid schema", async () => {
@@ -113,11 +113,13 @@ describe("VeridaRewardContract", () => {
                     claimTypes[0].id,
                     claimTypes[0].reward,
                     ""
-                )).to.be.rejectedWith('Invalid schema')
+                )).to.be.revertedWithCustomError(contract, "InvalidSchema")
             })
 
             it("Add a ClaimType successfully", async () => {
-                await expect(contract.getClaimType(claimTypes[0].id)).to.be.rejectedWith("Non existing CalimType")
+                await expect(
+                    contract.getClaimType(claimTypes[0].id)
+                ).to.be.revertedWithCustomError(contract, "InvalidId")
 
                 await contract.addClaimType(
                     claimTypes[0].id,
@@ -135,7 +137,7 @@ describe("VeridaRewardContract", () => {
                     claimTypes[0].id,
                     claimTypes[1].reward,
                     claimTypes[1].schema
-                )).to.be.rejectedWith('Already existing ClaimType')
+                )).to.be.revertedWithCustomError(contract, "InvalidId")
             })            
         })
 
@@ -149,7 +151,7 @@ describe("VeridaRewardContract", () => {
             it("Faild for non-existing claim id", async () => {
                 await expect(contract.removeClaimType(
                     "Invalid Claim ID"
-                )).to.be.rejectedWith('Non existing CalimType')
+                )).to.be.revertedWithCustomError(contract, "InvalidId")
             })
 
             it("Remove a ClaimType successfully", async () => {
@@ -157,13 +159,13 @@ describe("VeridaRewardContract", () => {
                 await contract.removeClaimType(claimTypes[0].id)
                 await expect(contract.getClaimType(
                     claimTypes[0].id
-                )).to.be.rejectedWith('Non existing CalimType')
+                )).to.be.revertedWithCustomError(contract, "InvalidId")
             })
 
             it("Failed for removed claim type", async () => {
                 await expect(contract.removeClaimType(
                     claimTypes[0].id
-                )).to.be.rejectedWith('Non existing CalimType')
+                )).to.be.revertedWithCustomError(contract, "InvalidId")
             })
         })
 
@@ -187,14 +189,14 @@ describe("VeridaRewardContract", () => {
                 await expect(contract.updateClaimTypeReward(
                     "Invalid Claim ID",
                     BigNumber.from(10)
-                )).to.be.rejectedWith('Non existing CalimType')
+                )).to.be.revertedWithCustomError(contract, "InvalidId")
             })
 
             it("Failed for invalid reward amount", async () => {
                 await expect(contract.updateClaimTypeReward(
                     claimTypes[0].id,
                     BigNumber.from(0)
-                )).to.be.rejectedWith('Invalid reward amount')
+                )).to.be.revertedWithCustomError(contract, "InvalidRewardAmount")
             })
 
             it("Update reward amount successfully", async () => {
@@ -235,7 +237,7 @@ describe("VeridaRewardContract", () => {
             it("Failed for already added address", async () => {
                 await expect(contract.addTrustedSigner(
                     trustedSigners[0].address)
-                ).to.be.rejectedWith('Already registered')
+                ).to.be.revertedWithCustomError(contract, "RegisteredSigner")
             })
         })
 
@@ -249,7 +251,7 @@ describe("VeridaRewardContract", () => {
             it("Failed for non-existing address", async () => {
                 await expect(contract.removeTrustedSigner(
                     trustedSigners[1].address
-                )).to.be.rejectedWith('Unregistered address')
+                )).to.be.revertedWithCustomError(contract, "UnregisteredSigner")
             })
 
             it("Remove an address successfully", async () => {
@@ -259,7 +261,7 @@ describe("VeridaRewardContract", () => {
             it("Failed for removed address", async () => {
                 await expect(contract.removeTrustedSigner(
                     trustedSigners[0].address)
-                ).to.be.rejectedWith('Unregistered address')
+                ).to.be.revertedWithCustomError(contract, "UnregisteredSigner")
             })
         })
     })
@@ -326,7 +328,7 @@ describe("VeridaRewardContract", () => {
                 receiverAddress[0],
                 signature,
                 proof
-            )).to.be.rejectedWith('Non existing CalimType')
+            )).to.be.revertedWithCustomError(contract, "InvalidId")
         })
 
         it("Failed for Invalid signer", async () => {
@@ -343,7 +345,7 @@ describe("VeridaRewardContract", () => {
                 receiverAddress[0],
                 signature,
                 proof
-            )).to.be.rejectedWith('Data is not signed by a valid signing DID')
+            )).to.be.revertedWithCustomError(contract, "InvalidSignature")
         })
 
         it("Failed for Insufficient reward token in contract", async () => {
@@ -362,7 +364,7 @@ describe("VeridaRewardContract", () => {
                 receiverAddress[0],
                 signature,
                 proof                
-            )).to.be.rejectedWith('Insufficient token in contract')
+            )).to.be.revertedWithCustomError(contract, "InsufficientTokenAmount")
         })
 
         it("Claim successfully", async () => {
@@ -409,7 +411,7 @@ describe("VeridaRewardContract", () => {
                 receiverAddress[0],
                 signature,
                 proof                
-            )).to.be.rejectedWith('Already claimed')
+            )).to.be.revertedWithCustomError(contract, "DuplicatedRequest")
         })
     })
 })

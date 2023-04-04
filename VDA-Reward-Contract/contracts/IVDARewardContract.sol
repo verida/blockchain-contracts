@@ -67,18 +67,18 @@ interface IVDARewardContract {
      * @param rewardAmount - The amount of VDAR tokens to be rewarded for successful claim.
      * @param schema - The schema URI of claim type. (ie: https://common.schemas.verida.io/social/creds/facebook)
      */
-    function addClaimType(string calldata typeId, uint rewardAmount, string calldata schema) external;
+    function addClaimType(string calldata typeId, uint rewardAmount, string calldata schema) external payable;
 
     /**
      * @dev Remove a claim type. Only owner can remove.
      * @param typeId - Unique ID of the claimType.
      */
-    function removeClaimType(string calldata typeId) external;
+    function removeClaimType(string calldata typeId) external payable;
 
     /**
      * @dev Update reward amount of the claim type. Only owner can update.
      * @param typeId - Unique ID of the claim type
      * @param amount - The amount of VDAR tokens to be rewarded for successful claim.
      */
-    function updateClaimTypeReward(string calldata typeId, uint amount) external;
+    function updateClaimTypeReward(string calldata typeId, uint amount) external payable;
 }

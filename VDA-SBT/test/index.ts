@@ -101,11 +101,11 @@ describe("Verida Soulbound", () => {
             it("Failed : Unregistered address", async () => {
                 // Not registered account
                 await expect(contract.removeTrustedSigner(companyAccounts[1].address))
-                    .to.be.rejectedWith("Unregistered address");
+                    .to.be.revertedWithCustomError(contract, "UnregisteredSigner");
 
                 // Already removed account
                 await expect(contract.removeTrustedSigner(companyAccounts[0].address))
-                    .to.be.rejectedWith("Unregistered address");
+                    .to.be.revertedWithCustomError(contract, "UnregisteredSigner");
             })
         })
 
@@ -186,7 +186,7 @@ describe("Verida Soulbound", () => {
                     },
                     "0x12", // signature not checked 
                     "0x12" // proof not checked
-                )).to.be.rejectedWith("Invalid SBT type")
+                )).to.be.revertedWithCustomError(contract, "InvalidSBTType")
             }
             
         })
@@ -214,7 +214,7 @@ describe("Verida Soulbound", () => {
                 },
                 requestSignature,
                 signInfo.userProof!
-            )).to.be.rejectedWith("No signers provided");
+            )).to.be.revertedWithCustomError(contract, "NoSigners");
         })
 
         it("Failed : VerifyRequest - Invalid Request Proof", async () => {
@@ -248,7 +248,7 @@ describe("Verida Soulbound", () => {
                 },
                 requestSignature,
                 userProof
-            )).to.be.rejectedWith("Data is not signed by a valid signing DID");
+            )).to.be.revertedWithCustomError(contract, "InvalidSignature");
 
             contract.removeTrustedSigner(signInfo.signerAddress)
         })
@@ -278,9 +278,9 @@ describe("Verida Soulbound", () => {
             );
 
             const tokenId = await contract.totalSupply(); //Latest tokenId
-            expect(tx).to.emit(contract, "Transfer").withArgs(zeroAddress, claimer.address, tokenId)
-            expect(tx).to.emit(contract, "Locked").withArgs(tokenId)
-            expect(tx).to.emit(contract, "SBTClaimed").withArgs(claimer.address, tokenId, sbtType)
+            await expect(tx).to.emit(contract, "Transfer").withArgs(zeroAddress, claimer.address, tokenId)
+            await expect(tx).to.emit(contract, "Locked").withArgs(tokenId)
+            await expect(tx).to.emit(contract, "SBTClaimed").withArgs(claimer.address, tokenId, sbtType)
         })
 
         it("Succes : Claimed same SBT to different claimer",async () => {
@@ -308,9 +308,9 @@ describe("Verida Soulbound", () => {
             );
 
             const tokenId = await contract.totalSupply(); //Latest tokenId
-            expect(tx).to.emit(contract, "Transfer").withArgs(zeroAddress, claimer.address, tokenId)
-            expect(tx).to.emit(contract, "Locked").withArgs(tokenId)
-            expect(tx).to.emit(contract, "SBTClaimed").withArgs(claimer.address, tokenId, sbtType)
+            await expect(tx).to.emit(contract, "Transfer").withArgs(zeroAddress, claimer.address, tokenId)
+            await expect(tx).to.emit(contract, "Locked").withArgs(tokenId)
+            await expect(tx).to.emit(contract, "SBTClaimed").withArgs(claimer.address, tokenId, sbtType)
         })
 
         it("Failed : Already claimed type - duplication of claimed request ", async () => {
@@ -334,7 +334,7 @@ describe("Verida Soulbound", () => {
                 },
                 requestSignature,
                 signInfo.userProof!
-            )).to.be.rejectedWith("Already claimed type");            
+            )).to.be.revertedWithCustomError(contract, "InvalidSBTType");
         })
 
         it("Success : same SBT type with different id",async () => {
@@ -368,9 +368,9 @@ describe("Verida Soulbound", () => {
             );
 
             const tokenId = await contract.totalSupply(); //Latest tokenId
-            expect(tx).to.emit(contract, "Transfer").withArgs(zeroAddress, claimer.address, tokenId)
-            expect(tx).to.emit(contract, "Locked").withArgs(tokenId)
-            expect(tx).to.emit(contract, "SBTClaimed").withArgs(claimer.address, tokenId, sbtType)
+            await expect(tx).to.emit(contract, "Transfer").withArgs(zeroAddress, claimer.address, tokenId)
+            await expect(tx).to.emit(contract, "Locked").withArgs(tokenId)
+            await expect(tx).to.emit(contract, "SBTClaimed").withArgs(claimer.address, tokenId, sbtType)
         })
     })
 
@@ -416,7 +416,7 @@ describe("Verida Soulbound", () => {
             await expect(contract
                 .connect(claimer)
                 .transferFrom(claimer.address, recepient.address, 1)
-            ).to.be.rejectedWith("Err: token transfer is BLOCKED")
+            ).to.be.revertedWithCustomError(contract, "TransferBlocked")
         })
     })
 
@@ -451,15 +451,18 @@ describe("Verida Soulbound", () => {
                 contract
                 .connect(badCaller)
                 .burnSBT(idList[0].toNumber())
-            ).to.be.rejectedWith("Invalid operation")
+            ).to.be.revertedWithCustomError(contract, "NoPermission")
         })
 
         it("Token owner burn successfully", async () => {
             const idList = await contract.getClaimedSBTList(claimer.address)
             expect(idList.length).to.be.greaterThan(0)
 
-            const tx = await contract.connect(claimer).burnSBT(idList[0].toNumber())
-            expect(tx).to.emit(contract, "SBTBurnt").withArgs(claimer.address, idList[0])
+            const tokenId = idList[0].toNumber()
+            const tx = await contract.connect(claimer).burnSBT(tokenId)
+            await expect(tx).to.emit(contract, "SBTBurnt").withArgs(claimer.address, tokenId)
+            await expect(tx).to.emit(contract, "Transfer").withArgs(claimer.address, zeroAddress, tokenId)
+            await expect(tx).to.emit(contract, "Unlocked").withArgs(tokenId)
 
             const updatedIdList = await contract.getClaimedSBTList(claimer.address)
             expect(updatedIdList.length).to.equal(idList.length - 1)
@@ -471,8 +474,11 @@ describe("Verida Soulbound", () => {
             const idList = await contract.getClaimedSBTList(claimer.address)
             expect(idList.length).to.be.greaterThan(0)
 
-            const tx = await contract.burnSBT(idList[0].toNumber())
-            expect(tx).to.emit(contract, "SBTBurnt").withArgs(owner.address, idList[0])
+            const tokenId = idList[0].toNumber()
+            const tx = await contract.burnSBT(tokenId)
+            await expect(tx).emit(contract, "SBTBurnt").withArgs(owner.address, tokenId)
+            await expect(tx).emit(contract, "Transfer").withArgs(claimer.address, zeroAddress, tokenId)
+            await expect(tx).emit(contract, "Unlocked").withArgs(tokenId)
 
             const updatedIdList = await contract.getClaimedSBTList(claimer.address)
             expect(updatedIdList.length).to.equal(idList.length - 1)

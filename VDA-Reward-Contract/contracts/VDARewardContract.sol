@@ -19,9 +19,18 @@ contract VDARewardContract is IVDARewardContract, VDAVerificationContract {
 
     modifier onlyExistingClaimType(string calldata typeId) {
         ClaimType storage claimType = claimTypes[typeId];
-        require(claimType.reward > 0 && bytes(claimType.schema).length > 0, "Non existing CalimType");
+        if (claimType.reward == 0 || bytes(claimType.schema).length == 0) {
+            revert InvalidId();
+        }
         _;
     }
+
+    // Custom errors
+    error InvalidId();
+    error InvalidRewardAmount();
+    error InvalidSchema();
+    error DuplicatedRequest();
+    error InsufficientTokenAmount();
 
     function __VDARewardContract_init(IERC20Upgradeable token) public initializer {
         __Ownable_init();
@@ -44,12 +53,21 @@ contract VDARewardContract is IVDARewardContract, VDAVerificationContract {
     /**
      * @dev see {IVDARewardContract-addClaimType}
      */
-    function addClaimType(string calldata typeId, uint rewardAmount, string calldata schema) external onlyOwner {
-        require(bytes(typeId).length > 0, "Invalid id");
-        require(rewardAmount > 0, "Invalid reward amount");
-        require(bytes(schema).length > 0, "Invalid schema");
+    function addClaimType(string calldata typeId, uint rewardAmount, string calldata schema) external payable onlyOwner {
+        if (bytes(typeId).length == 0) {
+            revert InvalidId();
+        }
+        if (rewardAmount == 0) {
+            revert InvalidRewardAmount();
+        }
+        if (bytes(schema).length == 0) {
+            revert InvalidSchema();
+        }
         ClaimType storage claimType = claimTypes[typeId];
-        require(claimType.reward == 0 && bytes(claimType.schema).length == 0, "Already existing ClaimType");
+        if (claimType.reward != 0 || bytes(claimType.schema).length != 0) {
+            revert InvalidId();
+        }
+
         claimType.reward = rewardAmount;
         claimType.schema = schema;
 
@@ -59,7 +77,7 @@ contract VDARewardContract is IVDARewardContract, VDAVerificationContract {
     /**
      * @dev see {IVDARewardContract-removeClaimType}
      */
-    function removeClaimType(string calldata typeId) external onlyOwner onlyExistingClaimType(typeId){
+    function removeClaimType(string calldata typeId) external payable onlyOwner onlyExistingClaimType(typeId){
         delete claimTypes[typeId];
 
         emit RemoveClaimType(typeId);
@@ -68,8 +86,10 @@ contract VDARewardContract is IVDARewardContract, VDAVerificationContract {
     /**
      * @dev see {IVDARewardContract-updateClaimTypeReward}
      */
-    function updateClaimTypeReward(string calldata typeId, uint amount) external onlyOwner onlyExistingClaimType(typeId){
-        require(amount > 0, "Invalid reward amount");
+    function updateClaimTypeReward(string calldata typeId, uint amount) external payable onlyOwner onlyExistingClaimType(typeId){
+        if (amount == 0) {
+            revert InvalidRewardAmount();
+        }
         ClaimType storage claimType = claimTypes[typeId];
         claimType.reward = amount;
 
@@ -93,11 +113,15 @@ contract VDARewardContract is IVDARewardContract, VDAVerificationContract {
             "|",
             claimType.schema
         );
-        require(!claims[rawMsg], "Already claimed");
+        if (claims[rawMsg]) {
+            revert DuplicatedRequest();
+        }
 
         verifyData(rawMsg, signature, proof);
         
-        require(rewardToken.balanceOf(address(this)) >= claimType.reward, "Insufficient token in contract");
+        if (rewardToken.balanceOf(address(this)) < claimType.reward) {
+            revert InsufficientTokenAmount();
+        }
 
         claims[rawMsg] = true;
         rewardToken.transfer(to, claimType.reward);

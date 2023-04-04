@@ -6,12 +6,12 @@ interface IVeridaToken {
     /**
      * @dev Allow token mint for 'to'.
      */
-    function addMinter(address to) external;
+    function addMinter(address to) external payable;
 
     /**
      * @dev Revoke mint role from 'to'
      */
-    function revokeMinter(address to) external;
+    function revokeMinter(address to) external payable;
 
     /**
      * @dev Get Minter count.
@@ -37,7 +37,7 @@ interface IVeridaToken {
      * @notice Enable token transfer
      * @dev Only the contract owner enables. Once enabled, not able to disable.
      */
-    function enableTransfer() external;
+    function enableTransfer() external payable;
 
     /**
      * @dev Emitted when MINT_ROLE is added to 'to' address

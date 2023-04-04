@@ -24,20 +24,30 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
 
     // Rate values can be set up to 30%
     uint32 public constant AMOUNT_RATE_LIMIT = 30 * RATE_DENOMINATOR;
-    
-    uint32 public maxAmountPerWalletRate;
-    uint32 public maxAmountPerSellRate;
 
+    // State variables
+    mapping(address => bool) public isExcludedFromSellAmountLimit;
+    mapping(address => bool) public isExcludedFromWalletAmountLimit;
+    
     uint256 private maxAmountPerWallet;
     uint256 private maxAmountPerSell;
+
+    uint32 public maxAmountPerWalletRate;
+    uint32 public maxAmountPerSellRate;
 
     bool public isMaxAmountPerWalletEnabled;
     bool public isMaxAmountPerSellEnabled;
     bool public isTransferEnabled;
 
-    mapping(address => bool) public isExcludedFromSellAmountLimit;
-    mapping(address => bool) public isExcludedFromWalletAmountLimit;
-    
+    // Custom errors
+    error OutOfSupplyLimit();
+    error DuplicatedRequest();
+    error InvalidAddress();
+    error TransferLimited();
+    error WalletAmountLimited();
+    error SellAmountLimited();
+    error NoPermission();
+    error InvalidRate();
 
     /**
      * Store addresses that a automatic market make pairs.
@@ -46,7 +56,9 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
     mapping(address => bool) public automatedMarketMakerPairs;
     
     modifier validMint(uint256 amount) {
-        require((totalSupply() + amount) <= MAX_SUPPLY, "Max supply limit");
+        if ((totalSupply() + amount) > MAX_SUPPLY) {
+            revert OutOfSupplyLimit();
+        }
         _;
     }
 
@@ -92,7 +104,9 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
      * @dev Mint `amount` tokens to `to`.
      */
     function mint(address to, uint256 amount) external validMint(amount) override {
-        require(hasRole(MINT_ROLE, _msgSender()), 'Not a minter');
+        if (!hasRole(MINT_ROLE, _msgSender())) {
+            revert NoPermission();
+        }
         _mint(to, amount);
     }
 
@@ -106,10 +120,19 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
     /**
      * @dev see {IVeridaToken-addMinter}
      */
-    function addMinter(address to) external onlyOwner override {
-        require(!hasRole(MINT_ROLE, to), 'Already granted');
-        require(to != address(0), 'Invalid zero address');
+    function addMinter(address to) external payable onlyOwner override {
+        if (hasRole(MINT_ROLE, to)) {
+            revert DuplicatedRequest();
+        }
 
+        assembly {
+            if iszero(to) {
+                let ptr := mload(0x40)
+                mstore(ptr, 0xe6c4247b00000000000000000000000000000000000000000000000000000000)
+                revert(ptr, 0x4) //revert InvalidAddress()
+            }
+        }
+        
         grantRole(MINT_ROLE, to);
 
         emit AddMinter(to);
@@ -118,8 +141,10 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
     /**
      * @dev see {IVeridaToken-revokeMinter}
      */
-    function revokeMinter(address to) external onlyOwner override {
-        require(hasRole(MINT_ROLE, to), 'No minter');
+    function revokeMinter(address to) external payable onlyOwner override {
+        if (!hasRole(MINT_ROLE, to)) {
+            revert InvalidAddress();
+        }
 
         revokeRole(MINT_ROLE, to);
 
@@ -139,8 +164,9 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
     function getMinterList() external view override returns(address[] memory) {
         uint256 count = getRoleMemberCount(MINT_ROLE);
         address[] memory minterList = new address[](count);
-        for (uint256 i = 0; i < count; i++) {
+        for (uint i; i < count;) {
             minterList[i] = getRoleMember(MINT_ROLE, i);
+            unchecked { ++i; }
         }
         return minterList;
     }
@@ -148,7 +174,7 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
     /**
      * @dev return current version of Verida Token
      */
-    function getVersion() external pure returns(string memory){
+    function getVersion() external virtual pure returns(string memory){
         return "1.0";
     }
 
@@ -162,12 +188,22 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
         uint256 amount
     ) internal override {
 
-        // Allow if isTransferEnabled or Minting & burning operation
-        require(isTransferEnabled || sender == address(0) || recipient == address(0), "Token transfer not allowed");
-
+        if (!isTransferEnabled) {
+            assembly {
+                if eq(iszero(sender), 0) {
+                    if eq(iszero(recipient), 0) {
+                        let ptr := mload(0x40)
+                        mstore(ptr, 0x69126dbd00000000000000000000000000000000000000000000000000000000)
+                        revert(ptr, 0x4) //revert TransferLimited()
+                    }
+                }
+            }
+        }
+        
         if (isMaxAmountPerWalletEnabled && !isExcludedFromWalletAmountLimit[recipient]) {
-            require((balanceOf(recipient) + amount) <= maxAmountPerWallet, 
-                "Receiver amount limit");
+            if ((balanceOf(recipient) + amount) > maxAmountPerWallet) {
+                revert WalletAmountLimited();
+            }
         }
 
         // isSelling
@@ -175,7 +211,9 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
             && automatedMarketMakerPairs[recipient]
             && !isExcludedFromSellAmountLimit[sender]) 
         {
-            require(amount <= maxAmountPerSell, "Sell amount exceeds limit");
+            if (amount > maxAmountPerSell) {
+                revert SellAmountLimited();
+            }
         }
         
         super._transfer(sender, recipient, amount);
@@ -185,9 +223,11 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
     /**
      * @dev enable/disable AutomatedMarkertMakerPair
      */
-    function setAutomatedMarketMakerPair(address pair, bool value) external onlyOwner
+    function setAutomatedMarketMakerPair(address pair, bool value) external payable onlyOwner
     {
-        require(automatedMarketMakerPairs[pair] != value, "Already set");
+        if (automatedMarketMakerPairs[pair] == value) {
+            revert DuplicatedRequest();
+        }
         automatedMarketMakerPairs[pair] = value;
 
         emit SetAutomatedMarketMakerPair(pair, value);
@@ -196,9 +236,10 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
     /**
      * @dev update max amount per wallet percent.
      */
-    function updateMaxAmountPerWalletRate(uint32 newRate) external onlyOwner {
-        require(newRate <= AMOUNT_RATE_LIMIT, "Invalid rate");
-        require(newRate > 0, "Invalid rate");
+    function updateMaxAmountPerWalletRate(uint32 newRate) external payable onlyOwner {
+        if (newRate == 0 || newRate > AMOUNT_RATE_LIMIT) {
+            revert InvalidRate();
+        }
 
         emit UpdateMaxAmountPerWalletRate(newRate, maxAmountPerWalletRate);
 
@@ -217,9 +258,10 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
     /**
      * @dev update max amount per sell percent.
      */
-    function updateMaxAmountPerSellRate(uint32 newRate) external onlyOwner {
-        require(newRate <= AMOUNT_RATE_LIMIT, "Invalid rate");
-        require(newRate > 0, "Invalid rate");
+    function updateMaxAmountPerSellRate(uint32 newRate) external payable onlyOwner {
+        if (newRate == 0 || newRate > AMOUNT_RATE_LIMIT) {
+            revert InvalidRate();
+        }
 
         emit UpdateMaxAmountPerSell(newRate, maxAmountPerSellRate);
 
@@ -238,8 +280,10 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
     /**
      * @dev exclude account from sell amount limit
      */
-    function excludeFromSellAmountLimit(address account, bool excluded) external onlyOwner {
-        require(isExcludedFromSellAmountLimit[account] != excluded);
+    function excludeFromSellAmountLimit(address account, bool excluded) external payable onlyOwner {
+        if (isExcludedFromSellAmountLimit[account] == excluded) {
+            revert DuplicatedRequest();
+        }
         isExcludedFromSellAmountLimit[account] = excluded;
         emit ExcludeFromSellAmountLimit(account, excluded);
     }
@@ -247,8 +291,10 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
     /**
      * @dev exclude account from wallet amount limit
      */
-    function excludeFromWalletAmountLimit(address account, bool excluded) external onlyOwner {
-        require(isExcludedFromWalletAmountLimit[account] != excluded);
+    function excludeFromWalletAmountLimit(address account, bool excluded) external payable onlyOwner {
+        if (isExcludedFromWalletAmountLimit[account] == excluded) {
+            revert DuplicatedRequest();
+        }
         isExcludedFromWalletAmountLimit[account] = excluded;
         emit ExcludeFromWalletAmountLimit(account, excluded);
     }
@@ -256,8 +302,10 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
     /**
      * @dev enable/disable MaxAmountPerSell
      */
-    function enableMaxAmountPerSell(bool isEnabled) external onlyOwner {
-        require(isMaxAmountPerSellEnabled != isEnabled);
+    function enableMaxAmountPerSell(bool isEnabled) external payable onlyOwner {
+        if (isMaxAmountPerSellEnabled == isEnabled) {
+            revert DuplicatedRequest();
+        }
         isMaxAmountPerSellEnabled = isEnabled;
         emit EnableMaxAmountPerSell(isEnabled);        
     }
@@ -265,8 +313,10 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
     /**
      * @dev enable/disable MaxAmountPerWallet
      */
-    function enableMaxAmountPerWallet(bool isEnabled) external onlyOwner {
-        require(isMaxAmountPerWalletEnabled != isEnabled);
+    function enableMaxAmountPerWallet(bool isEnabled) external payable onlyOwner {
+        if (isMaxAmountPerWalletEnabled == isEnabled) {
+            revert DuplicatedRequest();
+        }
         isMaxAmountPerWalletEnabled = isEnabled;
         emit EnableMaxAmountPerWallet(isEnabled);
     }
@@ -274,9 +324,10 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
     /**
      * See {IVDA.sol}
      */
-    function enableTransfer() external onlyOwner override {
-        require(!isTransferEnabled, "Transfer enabled");
-
+    function enableTransfer() external payable onlyOwner override {
+        if (isTransferEnabled) {
+            revert DuplicatedRequest();
+        }
         isTransferEnabled = true;
     }
 

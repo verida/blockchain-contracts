@@ -53,6 +53,11 @@ contract SoulboundNFT is VDAVerificationContract,
      */
     mapping(address => EnumerableSetUpgradeable.UintSet) _userTokenIds;
 
+    // Custom errors
+    error TransferBlocked();
+    error InvalidSBTType();
+    error NoPermission();
+
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
@@ -90,7 +95,15 @@ contract SoulboundNFT is VDAVerificationContract,
         uint256 firstTokenId,
         uint256 batchSize
         ) internal override virtual {
-        require(from == address(0) || to == address(0), "Err: token transfer is BLOCKED");
+        assembly {
+            if eq(iszero(from), 0) {
+                if eq(iszero(to), 0) {
+                    let ptr := mload(0x40)
+                    mstore(ptr, 0xf90e674a00000000000000000000000000000000000000000000000000000000)
+                    revert(ptr, 0x4) //revert TransferBlocked
+                }
+            }
+        }
         super._beforeTokenTransfer(from, to, firstTokenId, batchSize);
     }
 
@@ -104,10 +117,18 @@ contract SoulboundNFT is VDAVerificationContract,
         uint256 firstTokenId,
         uint256 batchSize
     ) internal override virtual {
-        if (to == address(0x0)) {
-            emit Unlocked(firstTokenId);
-        } else if (to != address(0xdead)) {
-            emit Locked(firstTokenId);
+        {
+            bytes32 eventHashLocked = bytes32(keccak256("Locked(uint256)"));
+            bytes32 eventHashUnlocked = bytes32(keccak256("Unlocked(uint256)"));
+            assembly {
+                let eventHash := eventHashLocked
+                if iszero(to) {
+                    eventHash := eventHashUnlocked
+                }
+                mstore(0x80, firstTokenId)
+                log1(0x80, 32, eventHash)
+            }
+            
         }
         super._afterTokenTransfer(from, to, firstTokenId, batchSize);
     }
@@ -115,12 +136,14 @@ contract SoulboundNFT is VDAVerificationContract,
     /**
      * @dev See {IERC5192}
      */
-    function locked(uint256 tokenId) external view override returns(bool) {
+    function locked(uint256 tokenId) external view override returns(bool result) {
         address owner = ERC721Upgradeable.ownerOf(tokenId);
-        if (owner == address(0x0)) {
-            return false;
+        result = true;
+        assembly {
+            if iszero(owner) {
+                result := false
+            }
         }
-        return true;
     }
 
     /**
@@ -136,8 +159,9 @@ contract SoulboundNFT is VDAVerificationContract,
     function getTrustedSignerAddresses() external view override returns(address[] memory) {
         uint length = _trustedSigners.length();
         address[] memory list = new address[](length);
-        for (uint i = 0; i < length; i++) {
+        for (uint i; i < length;) {
             list[i] = _trustedSigners.at(i);
+            unchecked { ++i; }
         }
 
         return list;
@@ -152,11 +176,13 @@ contract SoulboundNFT is VDAVerificationContract,
         bool isValid = true;
         if (!_sbtTypes.contains(sbtType)) {
             bytes memory charSet = bytes(sbtType);
-            for (uint i = 0; i < charSet.length && isValid; i++) {
+            for (uint i; i < charSet.length && isValid;) {
                 if (!(charSet[i] >= 0x61 && charSet[i] <= 0x7a) 
                     && !(charSet[i] >= 0x30 && charSet[i] <= 0x39)
-                    && charSet[i] != 0x2d)
-                    isValid = false;
+                    && charSet[i] != 0x2d) {
+                        isValid = false;
+                }
+                unchecked { ++i; }
             }
         }
         return isValid;
@@ -182,7 +208,10 @@ contract SoulboundNFT is VDAVerificationContract,
         bytes calldata requestSignature,
         bytes calldata requestProof
     ) external override returns(uint) {
-        require(isValidSBTType(sbtInfo.sbtType), "Invalid SBT type");
+        if (!isValidSBTType(sbtInfo.sbtType)) {
+            revert InvalidSBTType();
+        }
+
         {
             bytes memory params = abi.encodePacked(
                 did,
@@ -209,7 +238,9 @@ contract SoulboundNFT is VDAVerificationContract,
             verifyData(params, sbtInfo.signedData, sbtInfo.signedProof);
         }
 
-        require(_userInfo[sbtInfo.recipient][sbtInfo.sbtType][sbtInfo.uniqueId] == 0, "Already claimed type");
+        if (_userInfo[sbtInfo.recipient][sbtInfo.sbtType][sbtInfo.uniqueId] != 0) {
+            revert InvalidSBTType();
+        }
 
         _tokenIdCounter.increment();
         uint256 tokenId = _tokenIdCounter.current();
@@ -244,8 +275,9 @@ contract SoulboundNFT is VDAVerificationContract,
         uint length = balanceOf(didAddress);
         uint[] memory sbtList = new uint[](length);
 
-        for (uint i = 0; i < length; i++) {
+        for (uint i; i < length;) {
             sbtList[i] = _userTokenIds[didAddress].at(i);
+            unchecked { ++i; }
         }
         return sbtList;
     }
@@ -271,7 +303,9 @@ contract SoulboundNFT is VDAVerificationContract,
      */
     function burnSBT(uint tokenId) external override {
         address tokenOwner = ERC721Upgradeable.ownerOf(tokenId);
-        require(msg.sender == tokenOwner || msg.sender == owner(), "Invalid operation");
+        if (msg.sender != tokenOwner && msg.sender != owner()) {
+            revert NoPermission();
+        }
 
         _burn(tokenId);
 

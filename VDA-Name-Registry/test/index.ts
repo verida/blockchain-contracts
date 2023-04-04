@@ -85,7 +85,7 @@ describe("NameRegistry", function () {
           zeroAddress,
           formatBytes32String("Correct signature not working")
         )
-      ).to.be.rejectedWith("Invalid zero address");
+      ).to.be.revertedWithCustomError(contract, "InvalidAddress");
     });
 
     it("Failed : Invalid character specified in names", async () => {
@@ -95,7 +95,7 @@ describe("NameRegistry", function () {
         const signature = await getRegisterSignature(name, dids[0]);
         await expect(
           contract.register(name, dids[0].address, signature)
-        ).to.be.rejectedWith("Invalid character specified in name");
+        ).to.be.revertedWithCustomError(contract, "InvalidName");
       }
     });
 
@@ -106,7 +106,7 @@ describe("NameRegistry", function () {
         const signature = await getRegisterSignature(name, dids[0]);
         await expect(
           contract.register(name, dids[0].address, signature)
-        ).to.be.rejectedWith("Invalid character specified in name");
+        ).to.be.revertedWithCustomError(contract, "InvalidName");
       }
     });
 
@@ -115,13 +115,21 @@ describe("NameRegistry", function () {
 
       await expect(
         contract.register(testNames[4], dids[0].address, signature)
-      ).to.be.rejectedWith("Invalid suffix");
+      ).to.be.revertedWithCustomError(contract, "InvalidSuffix");
     });
 
-    it("Failed : Invalid signature", async () => {
+    it("Failed : Invalid DID - zero address", async () => {
       await expect(
-        contract.register(testNames[0], zeroAddress, "Invalid signature")
-      ).to.be.rejectedWith("Invalid signature");
+        contract.register(testNames[0], zeroAddress, "0x00")
+      ).to.be.revertedWithCustomError(contract, "InvalidAddress");
+    });
+
+    it("Failed : Invalid Signature", async () => {
+      const badSignature = await getRegisterSignature(testNames[0], dids[1]);
+
+      await expect(
+        contract.register(testNames[0], dids[0].address, badSignature)
+      ).to.be.revertedWithCustomError(contract, "InvalidSignature");
     });
 
     describe("Name Length Test", () => {
@@ -136,7 +144,7 @@ describe("NameRegistry", function () {
           const signature = await getRegisterSignature(name, did);
           await expect(
             contract.register(name, did.address, signature)
-          ).to.be.rejectedWith("Invalid name length");
+          ).to.be.revertedWithCustomError(contract, "InvalidName");
         }
       });
 
@@ -169,24 +177,24 @@ describe("NameRegistry", function () {
       let signature = await getRegisterSignature(testNames[0], dids[0]);
       await expect(
         contract.register(testNames[0], dids[0].address, signature)
-      ).to.be.rejectedWith("Name already registered");
+      ).to.be.revertedWithCustomError(contract, "InvalidName");
 
       await expect(
         contract
           .connect(accountList[1])
           .register(testNames[0], dids[0].address, signature)
-      ).to.be.rejectedWith("Name already registered");
+      ).to.be.revertedWithCustomError(contract, "InvalidName");
 
       signature = await getRegisterSignature(testNames[0], dids[1]);
       await expect(
         contract.register(testNames[0], dids[1].address, signature)
-      ).to.be.rejectedWith("Name already registered");
+      ).to.be.revertedWithCustomError(contract, "InvalidName");
 
       await expect(
         contract
           .connect(accountList[1])
           .register(testNames[0], dids[1].address, signature)
-      ).to.be.rejectedWith("Name already registered");
+      ).to.be.revertedWithCustomError(contract, "InvalidName");
     });
   });
 
@@ -201,7 +209,7 @@ describe("NameRegistry", function () {
       const signature = await getRegisterSignature(testNames[1], dids[0]);
       await expect(
         contract.register(testNames[1], dids[0].address, signature)
-      ).to.be.rejectedWith("DID can not support any more names");
+      ).to.be.revertedWithCustomError(contract, "LimitedNameCount");
     });
 
     it("Update MaxNamesPerDID failed : non-owner", async () => {
@@ -236,13 +244,13 @@ describe("NameRegistry", function () {
 
   describe("Find DID", () => {
     it("Failed : Unregistered name", async () => {
-      await expect(contract.findDID(testNames[3])).to.be.rejectedWith(
-        "Unregistered name"
-      );
+      await expect(
+        contract.findDID(testNames[3])
+      ).to.be.revertedWithCustomError(contract, "InvalidName");
 
       await expect(
         contract.connect(accountList[1]).findDID(testNames[3])
-      ).to.be.rejectedWith("Unregistered name");
+      ).to.be.revertedWithCustomError(contract, "InvalidName");
     });
 
     it("Successfully get DID", async () => {
@@ -267,14 +275,12 @@ describe("NameRegistry", function () {
 
       await expect(
         contract.connect(accountList[1]).getUserNameList(dids[1].address)
-      ).to.be.rejectedWith("No registered DID");
+      ).to.be.revertedWithCustomError(contract, "InvalidAddress");
     });
 
     it("Successfully get username list", async () => {
       const result = await contract.getUserNameList(dids[0].address);
       expect(result.length).to.be.eq(3);
-
-      console.log("Returned usernames: ", result);
     });
   });
 
@@ -283,7 +289,7 @@ describe("NameRegistry", function () {
       const signature = await getRegisterSignature(testNames[3], dids[0]);
       await expect(
         contract.unregister(testNames[3], dids[0].address, signature)
-      ).to.be.rejectedWith("Unregistered name");
+      ).to.be.revertedWithCustomError(contract, "InvalidName");
     });
 
     it("Failed : Invalid DID", async () => {
@@ -292,21 +298,21 @@ describe("NameRegistry", function () {
         contract
           .connect(accountList[1])
           .unregister(testNames[0], dids[1].address, signature)
-      ).to.be.rejectedWith("Invalid DID");
+      ).to.be.revertedWithCustomError(contract, "InvalidAddress");
 
       signature = await getRegisterSignature(testNames[0], dids[2]);
       await expect(
         contract
           .connect(accountList[1])
           .unregister(testNames[0], dids[2].address, signature)
-      ).to.be.rejectedWith("Invalid DID");
+      ).to.be.revertedWithCustomError(contract, "InvalidAddress");
 
       signature = await getRegisterSignature(testNames[1], dids[2]);
       await expect(
         contract
           .connect(accountList[1])
           .unregister(testNames[1], dids[2].address, signature)
-      ).to.be.rejectedWith("Invalid DID");
+      ).to.be.revertedWithCustomError(contract, "InvalidAddress");
     });
 
     it("Successfully unregistered", async () => {
@@ -330,7 +336,7 @@ describe("NameRegistry", function () {
       await contract.unregister(testNames[2], dids[0].address, signature);
       await expect(
         contract.getUserNameList(dids[0].address)
-      ).to.be.rejectedWith("No registered DID");
+      ).to.be.revertedWithCustomError(contract, "InvalidAddress");
     });
   });
 
@@ -346,7 +352,7 @@ describe("NameRegistry", function () {
       // Register names failed before adding suffix
       await expect(
         contract.register(testNames[4], dids[0].address, signature)
-      ).to.be.rejectedWith("Invalid suffix");
+      ).to.be.revertedWithCustomError(contract, "InvalidSuffix");
 
       // Register new suffix
       await contract.addSufix(newSuffix);

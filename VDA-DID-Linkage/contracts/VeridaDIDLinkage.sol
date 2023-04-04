@@ -42,6 +42,13 @@ contract VeridaDIDLinkage is VDAVerificationContract,
         Trusted
     }
 
+    // Custom errors
+    error RegisteredIdentifierType();
+    error InvalidIdentifierType();
+    error RegisteredIdentifier();
+    error InvalidIdentifier();
+    error InvalidAddress();
+
     /**
      * @notice Initialize
      */
@@ -52,8 +59,9 @@ contract VeridaDIDLinkage is VDAVerificationContract,
     /**
      * @dev See {IVeridaDIDLinkage}
      */
-    function addIdentifierType(string calldata identifierTypeId, bool isSelfSigner) external onlyOwner {
-        require(_identifierType[identifierTypeId] == SignerType.Unregistered, "Registered type");
+    function addIdentifierType(string calldata identifierTypeId, bool isSelfSigner) external payable onlyOwner {
+        if (_identifierType[identifierTypeId] != SignerType.Unregistered)
+            revert RegisteredIdentifierType();
         
         _identifierType[identifierTypeId] = isSelfSigner ? SignerType.Self : SignerType.Trusted;
     }
@@ -77,12 +85,16 @@ contract VeridaDIDLinkage is VDAVerificationContract,
         string memory kind;
         string memory id;
         (kind, id) = parseIdentifier(info.identifier);
-        require(_identifierType[kind] != SignerType.Unregistered, "Invalid identifier type");
+        if (_identifierType[kind] == SignerType.Unregistered) {
+            revert InvalidIdentifierType();
+        }
 
         string memory strDID = StringsUpgradeable.toHexString(uint256(uint160(didAddr)));
         strDID = string(abi.encodePacked("did:vda:", strDID));
 
-        require(bytes(_identifierController[info.identifier]).length == 0, "Identity already exists");
+        if (bytes(_identifierController[info.identifier]).length != 0) {
+            revert RegisteredIdentifier();
+        }
 
         // Verify data
         {
@@ -135,7 +147,9 @@ contract VeridaDIDLinkage is VDAVerificationContract,
         string memory strDID = StringsUpgradeable.toHexString(uint256(uint160(didAddr)));
         strDID = string(abi.encodePacked("did:vda:", strDID));
 
-        require(_didIdentifiers[strDID].contains(identifier), "Identifier not linked");
+        if (!(_didIdentifiers[strDID].contains(identifier))) {
+            revert InvalidIdentifier();
+        }
 
         // Verify request
         {
@@ -177,8 +191,9 @@ contract VeridaDIDLinkage is VDAVerificationContract,
         uint length = list.length();
         string[] memory ret = new string[](length);
 
-        for (uint i = 0; i < length; i++) {
+        for (uint i; i < length;) {
             ret[i] = list.at(i);
+            unchecked { ++i; }
         }
 
         return ret;
@@ -190,12 +205,14 @@ contract VeridaDIDLinkage is VDAVerificationContract,
      */
     function parseAddr(string memory _a) internal pure returns (address _parsedAddress) {
         bytes memory tmp = bytes(_a);
-        require(tmp.length == 42, "Invalid address");
+        if (tmp.length != 42) {
+            revert InvalidAddress();
+        }
 
-        uint160 iaddr = 0;
+        uint160 iaddr;
         uint160 b1;
         uint160 b2;
-        for (uint i = 2; i < 2 + 2 * 20; i += 2) {
+        for (uint i = 2; i < 2 + 2 * 20;) {
             iaddr *= 256;
             b1 = uint160(uint8(tmp[i]));
             b2 = uint160(uint8(tmp[i + 1]));
@@ -214,6 +231,7 @@ contract VeridaDIDLinkage is VDAVerificationContract,
                 b2 -= 48;
             }
             iaddr += (b1 * 16 + b2);
+            unchecked { i += 2; }
         }
         return address(iaddr);
     }
@@ -227,31 +245,39 @@ contract VeridaDIDLinkage is VDAVerificationContract,
     function parseIdentifier(string calldata identifier) internal pure returns(string memory, string memory) {
         //0x7c
         bytes memory strBytes = bytes(identifier);
-        require(strBytes.length > 0, "Invalid identifier");
+        if (strBytes.length == 0) {
+            revert InvalidIdentifier();
+        }
 
         uint len = strBytes.length;
 
         uint sepPos = len;
-        uint index = 0;
-        uint8 sepCount = 0;
+        uint index;
+        uint8 sepCount;
         while (index < len && sepCount < 2) {
-            if (strBytes[index] == 0x7c) {
-                sepPos = index;
-                sepCount++;
+            unchecked {
+                if (strBytes[index] == 0x7c) {
+                    sepPos = index;
+                    ++sepCount;
+                }
+                ++index;
             }
-            index++;
         }
 
-        require(index == len && sepCount == 1 && sepPos > 0 && sepPos < (len - 1), "Invalid identifier");
+        if (index != len || sepCount != 1 || sepPos == 0 || sepPos >= (len - 1)) {
+            revert InvalidIdentifier();
+        }
 
         bytes memory kindBytes = new bytes(sepPos);
-        for (index = 0; index < sepPos; index++) {
+        for (index = 0; index < sepPos;) {
             kindBytes[index] = strBytes[index];
+            unchecked { ++index; }
         }
 
         bytes memory idBytes = new bytes(len - sepPos - 1);
-        for (index = sepPos + 1; index < len; index++) {
+        for (index = sepPos + 1; index < len;) {
             idBytes[index - sepPos - 1] = strBytes[index];
+            unchecked { ++index; }
         }
 
         string memory kind = string(kindBytes);
