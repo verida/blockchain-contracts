@@ -8,7 +8,6 @@ import "@verida/common-contract/contracts/EnumerableSet.sol";
 import "@verida/common-contract/contracts/StringLib.sol";
 import "./VeridaDataVerificationLib.sol";
 
-// import "hardhat/console.sol";
 
 /**
  * @title Verida NameRegistry contract
@@ -24,24 +23,24 @@ contract NameRegistry is  OwnableUpgradeable {
     mapping(address => uint) internal _nonce;
 
     /**
-     * @notice Maximum names per DID.
-     */
-    uint public maxNamesPerDID;
-
-    /**
      * @notice username to did
      */
     mapping(string => address) private _nameToDID;
+    
+    /** 
+     * @notice DID to username list
+     */
+    mapping(address => EnumerableSet.StringSet) private _DIDInfoList;
 
     /**
      * @notice Allowed suffix list
      */
     EnumerableSet.StringSet private suffixList;
 
-    /** 
-     * @notice DID to username list
+    /**
+     * @notice Maximum names per DID.
      */
-    mapping(address => EnumerableSet.StringSet) private _DIDInfoList;
+    uint public maxNamesPerDID;
 
     event Register(string indexed name, address indexed DID);
     event Unregister(string indexed name, address indexed DID);
@@ -61,8 +60,12 @@ contract NameRegistry is  OwnableUpgradeable {
      */
     function initialize() public initializer {
         __Ownable_init();
-        suffixList.add("vda");
+
         maxNamesPerDID = 1;
+
+        string memory suffix = "vda";
+        suffixList.add(suffix);
+        emit AddSuffix(suffix);
     }
 
     /**
@@ -113,7 +116,7 @@ contract NameRegistry is  OwnableUpgradeable {
                 if eq(iszero(_nameDID), 0) {
                     let ptr := mload(0x40)
                     mstore(ptr, 0x430f13b300000000000000000000000000000000000000000000000000000000)
-                    revert(ptr, 0x4)
+                    revert(ptr, 0x4) //revert InvalidName()
                 }
             }
         }
@@ -125,8 +128,6 @@ contract NameRegistry is  OwnableUpgradeable {
         }
         
         _nameToDID[_name] = did;
-        // To-do(Alex) : Check for upper & lower case strings
-        // nameBytes = strToBytes32(_name);
         didUserNameList.add(_name);
 
         emit Register(name, did);
@@ -162,27 +163,25 @@ contract NameRegistry is  OwnableUpgradeable {
         
         string memory _name = name.lower();
 
-        address callerDID = _nameToDID[_name];
+        address nameDID = _nameToDID[_name];
         assembly {
-            if iszero(callerDID) {
+            if iszero(nameDID) {
                 let ptr := mload(0x40)
                 mstore(ptr, 0x430f13b300000000000000000000000000000000000000000000000000000000)
                 revert(ptr, 0x4) // revert InvalidName()
             }
         }
 
-        if (callerDID != did) {
+        if (nameDID != did) {
             revert InvalidAddress();
         }
         
-        EnumerableSet.StringSet storage didUserNameList = _DIDInfoList[callerDID];
+        EnumerableSet.StringSet storage didUserNameList = _DIDInfoList[nameDID];
 
         delete _nameToDID[_name];
-        // To-do(Alex) : Check for upper & lower case strings
-        // nameBytes = strToBytes32(_name);
         didUserNameList.remove(_name);
 
-        emit Unregister(name, callerDID);
+        emit Unregister(name, nameDID);
     }
 
     /**
@@ -193,16 +192,16 @@ contract NameRegistry is  OwnableUpgradeable {
     function findDID(string memory name) external view returns(address) {
         name = name.lower();
 
-        address callerDID = _nameToDID[name];
+        address nameDID = _nameToDID[name];
         assembly {
-            if iszero(callerDID) {
+            if iszero(nameDID) {
                 let ptr := mload(0x40)
                 mstore(ptr, 0x430f13b300000000000000000000000000000000000000000000000000000000)
                 revert(ptr, 0x4) // revert InvalidName()
             }
         }
 
-        return callerDID;
+        return nameDID;
     }
 
     /**
@@ -234,8 +233,7 @@ contract NameRegistry is  OwnableUpgradeable {
      * Will be rejected if suffix already registered
      * @param suffix - Suffix to be added
      */
-
-    function addSufix(string memory suffix) external payable onlyOwner {
+    function addSuffix(string memory suffix) external payable onlyOwner {
         suffix = suffix.lower();
 
         if (suffixList.contains(suffix)) {
@@ -287,7 +285,6 @@ contract NameRegistry is  OwnableUpgradeable {
                 ++index;
             }
         }
-        // nameLen = startIndex;
         if (startIndex >= len) {
             revert InvalidName();
         }

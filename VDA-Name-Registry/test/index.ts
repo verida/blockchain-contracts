@@ -343,11 +343,11 @@ describe("NameRegistry", function () {
   describe("Add suffix", () => {
     it("Failed : Not a owner", async () => {
       await expect(
-        contract.connect(accountList[1]).addSufix(newSuffix)
+        contract.connect(accountList[1]).addSuffix(newSuffix)
       ).to.be.rejectedWith("Ownable: caller is not the owner");
     });
 
-    it("Add sufix successfully", async () => {
+    it("Add suffix successfully", async () => {
       let signature = await getRegisterSignature(testNames[4], dids[0]);
       // Register names failed before adding suffix
       await expect(
@@ -355,7 +355,7 @@ describe("NameRegistry", function () {
       ).to.be.revertedWithCustomError(contract, "InvalidSuffix");
 
       // Register new suffix
-      await contract.addSufix(newSuffix);
+      await contract.addSuffix(newSuffix);
 
       // Register naems success after adding suffix
       signature = await getRegisterSignature(testNames[4], dids[0]);
