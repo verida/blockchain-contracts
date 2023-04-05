@@ -4,15 +4,12 @@ pragma solidity ^0.8.18;
 import "@openzeppelin/contracts-upgradeable/token/ERC721/extensions/IERC721MetadataUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC721/extensions/ERC721URIStorageUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/CountersUpgradeable.sol";
-// import "@openzeppelin/contracts-upgradeable/utils/structs/EnumerableSetUpgradeable.sol";
 
 import "@verida/vda-verification-contract/contracts/VDAVerificationContract.sol";
 import "@verida/common-contract/contracts/EnumerableSet.sol";
 
 import "./IERC5192.sol";
 import "./ISoulboundNFT.sol";
-
-// import "hardhat/console.sol";
 
 contract SoulboundNFT is VDAVerificationContract, 
     IERC721MetadataUpgradeable,
@@ -55,8 +52,8 @@ contract SoulboundNFT is VDAVerificationContract,
 
     // Custom errors
     error TransferBlocked();
-    error InvalidSBTType();
     error NoPermission();
+    error InvalidSBTInfo(bool invalidSBTType, bool emptyUniqueId, bool emptyURI);
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -173,8 +170,8 @@ contract SoulboundNFT is VDAVerificationContract,
      * @param sbtType SBT Type
      */
     function isValidSBTType(string calldata sbtType) private view returns(bool) {
-        bool isValid = true;
-        if (!_sbtTypes.contains(sbtType)) {
+        bool isValid = bytes(sbtType).length != 0;
+        if (!_sbtTypes.contains(sbtType) && isValid) {
             bytes memory charSet = bytes(sbtType);
             for (uint i; i < charSet.length && isValid;) {
                 if (!(charSet[i] >= 0x61 && charSet[i] <= 0x7a) 
@@ -208,10 +205,20 @@ contract SoulboundNFT is VDAVerificationContract,
         bytes calldata requestSignature,
         bytes calldata requestProof
     ) external override returns(uint) {
-        if (!isValidSBTType(sbtInfo.sbtType)) {
-            revert InvalidSBTType();
-        }
+        {
+            if (!isValidSBTType(sbtInfo.sbtType)) {
+                revert InvalidSBTInfo(true, false, false);
+            }
 
+            if (bytes(sbtInfo.uniqueId).length == 0) {
+                revert InvalidSBTInfo(false, true, false);
+            }
+
+            if (bytes(sbtInfo.sbtURI).length == 0) {
+                revert InvalidSBTInfo(false, false, true);
+            }
+        }
+        
         {
             bytes memory params = abi.encodePacked(
                 did,
@@ -239,29 +246,25 @@ contract SoulboundNFT is VDAVerificationContract,
         }
 
         if (_userInfo[sbtInfo.recipient][sbtInfo.sbtType][sbtInfo.uniqueId] != 0) {
-            revert InvalidSBTType();
+            revert InvalidSBTInfo(true, false, false);
         }
 
         _tokenIdCounter.increment();
         uint256 tokenId = _tokenIdCounter.current();
-        _safeMint(sbtInfo.recipient, tokenId);
-
-        // SetTokenURI
-        _setTokenURI(tokenId, sbtInfo.sbtURI);
 
         _userInfo[sbtInfo.recipient][sbtInfo.sbtType][sbtInfo.uniqueId] = tokenId;
 
         _tokenIdInfo[tokenId].sbtType = sbtInfo.sbtType;
         _tokenIdInfo[tokenId].uniqueId = sbtInfo.uniqueId;
 
-        emit SBTClaimed(sbtInfo.recipient, tokenId, sbtInfo.sbtType);
-
-        // Add to user' tokenId list
         _userTokenIds[sbtInfo.recipient].add(tokenId);
 
-        // Register SBTType
         addSBTType(sbtInfo.sbtType);
 
+        _safeMint(sbtInfo.recipient, tokenId);
+        _setTokenURI(tokenId, sbtInfo.sbtURI);
+        
+        emit SBTClaimed(sbtInfo.recipient, tokenId, sbtInfo.sbtType);
         // Freeze Metadata
         emit PermanentURI(sbtInfo.sbtURI, tokenId);
 
@@ -307,8 +310,6 @@ contract SoulboundNFT is VDAVerificationContract,
             revert NoPermission();
         }
 
-        _burn(tokenId);
-
         TokenInfo storage info = _tokenIdInfo[tokenId];
 
         // Remove from user' tokenId list
@@ -317,6 +318,7 @@ contract SoulboundNFT is VDAVerificationContract,
         delete _userInfo[tokenOwner][info.sbtType][info.uniqueId];
         delete _tokenIdInfo[tokenId];
 
+        _burn(tokenId);
         emit SBTBurnt(msg.sender, tokenId);
     }
 

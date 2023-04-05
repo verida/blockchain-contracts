@@ -70,13 +70,6 @@ interface ISoulboundNFT {
      */
     function getTrustedSignerAddresses() external view returns(address[] memory);
 
-    // /**
-    //  * @notice Remove a existing SBT type
-    //  * @dev Only the owner can remove
-    //  * @param sbtType existing type to be removed
-    //  */
-    // function removeSBTType(string calldata sbtType) external;
-
     /**
      * @notice Claim a SBT type to requested user
      * @dev Claim to msg.sender

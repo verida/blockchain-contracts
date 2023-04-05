@@ -170,7 +170,8 @@ describe("Verida Soulbound", () => {
             const invalidSBTTypes = [
                 "Abc",
                 "ab_",
-                "ab!"
+                "ab!",
+                ""
             ]
 
             for (let i = 0; i < invalidSBTTypes.length; i++) {
@@ -186,9 +187,40 @@ describe("Verida Soulbound", () => {
                     },
                     "0x12", // signature not checked 
                     "0x12" // proof not checked
-                )).to.be.revertedWithCustomError(contract, "InvalidSBTType")
+                )).to.be.revertedWithCustomError(contract, "InvalidSBTInfo")
             }
-            
+        })
+
+        it("Failed : empty uniqueId", async () => {
+            await expect(contract.claimSBT(
+                signInfo.userAddress,
+                {
+                    sbtType: "twitter",
+                    uniqueId : "",
+                    sbtURI: "",
+                    recipient: claimer.address,
+                    signedData,
+                    signedProof: signInfo.signerProof!
+                },
+                "0x12", // signature not checked 
+                "0x12" // proof not checked
+            )).to.be.revertedWithCustomError(contract, "InvalidSBTInfo")
+        })
+
+        it("Failed : empty URI", async () => {
+            await expect(contract.claimSBT(
+                signInfo.userAddress,
+                {
+                    sbtType: "twitter",
+                    uniqueId : "1",
+                    sbtURI: "",
+                    recipient: claimer.address,
+                    signedData,
+                    signedProof: signInfo.signerProof!
+                },
+                "0x12", // signature not checked 
+                "0x12" // proof not checked
+            )).to.be.revertedWithCustomError(contract, "InvalidSBTInfo")
         })
 
         it("Failed : VerifyRequest - No signers provided in contract", async () => {
@@ -334,7 +366,7 @@ describe("Verida Soulbound", () => {
                 },
                 requestSignature,
                 signInfo.userProof!
-            )).to.be.revertedWithCustomError(contract, "InvalidSBTType");
+            )).to.be.revertedWithCustomError(contract, "InvalidSBTInfo")
         })
 
         it("Success : same SBT type with different id",async () => {

@@ -1,3 +1,9 @@
+2023-04-03 (v0.2.0)
+-------------------
+Updates on audit report
+- Gas optimized
+- Replaced the require statements with custom errors
+
 2023-03-24 (v0.1.1)
 -------------------
 - Moved `EnumerableSet` into `VDA-common` contract

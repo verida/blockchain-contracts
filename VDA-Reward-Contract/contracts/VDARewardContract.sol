@@ -125,5 +125,7 @@ contract VDARewardContract is IVDARewardContract, VDAVerificationContract {
 
         claims[rawMsg] = true;
         rewardToken.transfer(to, claimType.reward);
+
+        emit Claim(typeId, hash, to);
     }
 } 
