@@ -1,3 +1,9 @@
+2023-04-03 (v0.4.0)
+-------------------
+Updates on audit report
+- Gas optimized
+- Replaced the require statements with custom errors
+
 2023-03-24 (v0.3.1)
 -------------------
 - Moved `EnumerableSet` & `StringLib` into the `VDA-Common` contract.

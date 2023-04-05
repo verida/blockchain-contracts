@@ -64,6 +64,8 @@ contract VeridaDIDLinkage is VDAVerificationContract,
             revert RegisteredIdentifierType();
         
         _identifierType[identifierTypeId] = isSelfSigner ? SignerType.Self : SignerType.Trusted;
+
+        emit AddIdentifierType(identifierTypeId, isSelfSigner);
     }
 
     /**
@@ -179,6 +181,9 @@ contract VeridaDIDLinkage is VDAVerificationContract,
      * @dev See {IVeridaDIDLinkage}
      */
     function lookup(string calldata identifier) external view override returns(string memory) {
+        // Check validity of identifier
+        parseIdentifier(identifier);
+
         return _identifierController[identifier];
     }
 

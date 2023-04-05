@@ -102,4 +102,11 @@ interface IVeridaDIDLinkage {
      */
     event Unlink(string did, string identifier);
 
+    /**
+     * @notice emitted when an identifierType added
+     * @param identifierTypeId Type of identifier to be added
+     * @param isSelfSigner If true, signer type is self signed, otherwise trusted signer
+     */
+    event AddIdentifierType(string identifierTypeId, bool isSelfSigner);
+
 }

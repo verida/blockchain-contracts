@@ -1,3 +1,7 @@
+2023-04-03 (v0.1.4)
+-------------------
+- Added events for `addTrustedSigner()` and `removeTrustedSigner()`
+
 2023-03-24 (v0.1.3)
 -------------------
 - Solidity upgraded to '0.8.18'

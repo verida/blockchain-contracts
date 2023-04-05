@@ -248,6 +248,32 @@ describe("Verida DID Linkage", () => {
     })
 
     describe("lookup", () => {
+        it("Should reject for invalid identifiers", async () => {
+            const invalidIdentifiers = [
+                'facebook|ab345|df15',  // Double `|` symbols
+                'facebook',             // No `|` symbol
+                'facebook|',            // No identifier
+                '|facebook',            // No identifier type
+            ]
+
+            for(const identifier of invalidIdentifiers) {
+                await expect(
+                    contract.lookup(identifier)
+                ).to.be.revertedWithCustomError(contract, "InvalidIdentifier")
+            }
+        })
+
+        it("Should return empty string for unlinked identifiers", async () => {
+            const unlinkedIdentifiers = [
+                'telegram|25fg57',
+                'linkedin|ffx23'
+            ]
+            for(const identifier of unlinkedIdentifiers) {
+                expect(await contract.lookup(identifier)).to.equal("")
+            }
+
+        })
+
         it("Should return controller for linked identifiers", async () => {
             const did = `did:vda:${signInfo.userAddress}`
 

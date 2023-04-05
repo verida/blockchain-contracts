@@ -7,8 +7,6 @@ import "@openzeppelin/contracts-upgradeable/utils/StringsUpgradeable.sol";
 
 import "@openzeppelin/contracts-upgradeable/utils/structs/EnumerableSetUpgradeable.sol";
 
-// import "hardhat/console.sol";
-
 error RegisteredSigner();
 error UnregisteredSigner();
 error NoSigners();
@@ -23,6 +21,18 @@ contract VDAVerificationContract is OwnableUpgradeable {
 
     /** @notice Trusted signer addresses */
     EnumerableSetUpgradeable.AddressSet internal _trustedSigners;
+
+    /**
+     * @notice Emitted when the contract owner adds a trusted signer
+     * @param signerAddress Address of signer
+     */
+    event AddTrustedSigner(address signerAddress);
+
+    /**
+     * @notice Emitted when the contract owner removes a trusted signer
+     * @param signerAddress Address of signer
+     */
+    event RemoveTrustedSigner(address signerAddress);
     
     /**
      * @notice Initializer for deploying the contract
@@ -35,7 +45,7 @@ contract VDAVerificationContract is OwnableUpgradeable {
 
     /**
      * @notice Initializer for deploying the contract
-     * @dev Initialze the necessary stuffs those are unique to this contract
+     * @dev Initialze the necessary stuffs that are unique to this contract
      */
     function __VDAVerificationContract_init_unchained() internal onlyInitializing {
     }
@@ -50,6 +60,7 @@ contract VDAVerificationContract is OwnableUpgradeable {
             revert RegisteredSigner();
         }
         _trustedSigners.add(didAddress);
+        emit AddTrustedSigner(didAddress);
     }
 
     /**
@@ -62,6 +73,7 @@ contract VDAVerificationContract is OwnableUpgradeable {
             revert UnregisteredSigner();
         }
         _trustedSigners.remove(didAddress);
+        emit RemoveTrustedSigner(didAddress);
     }
 
 
@@ -89,6 +101,10 @@ contract VDAVerificationContract is OwnableUpgradeable {
     ) internal virtual {
         if (_trustedSigners.length() == 0) {
             revert NoSigners();
+        }
+
+        if (data.length == 0 || signature.length == 0 || proof.length == 0) {
+            revert InvalidSignature();
         }
 
         bytes32 dataHash = keccak256(data);
@@ -137,6 +153,10 @@ contract VDAVerificationContract is OwnableUpgradeable {
     ) internal virtual {
         if (validSigners.length == 0) {
             revert NoSigners();
+        }
+
+        if (data.length == 0 || signature.length == 0 || proof.length == 0) {
+            revert InvalidSignature();
         }
 
         bytes32 dataHash = keccak256(data);

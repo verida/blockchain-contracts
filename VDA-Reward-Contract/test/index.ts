@@ -382,13 +382,9 @@ describe("VeridaRewardContract", () => {
                 trustedSigners[0]
             )
 
-            await contract.claim(
-                claimTypes[0].id,
-                credentials[0],
-                receiverAddress[0],
-                signature,
-                proof                
-            )
+            await expect(
+                contract.claim(claimTypes[0].id, credentials[0], receiverAddress[0], signature,proof)
+            ).to.emit(contract, "Claim").withArgs(claimTypes[0].id, credentials[0], receiverAddress[0])
 
             expect(await token.balanceOf(receiverAddress[0])).to.be.equal(claimTypes[0].reward)
             expect(await token.balanceOf(contract.address)).to.be.equal(orgContractBalance.sub(BigNumber.from(claimTypes[0].reward)))

@@ -1,3 +1,9 @@
+2023-04-03 (v0.1.0)
+-------------------
+Updates on audit report
+- Gas optimized
+- Replaced the require statements with custom errors
+
 2023-03-24 (v0.0.3)
 -------------------
 - Solidity upgraded to '0.8.18'
