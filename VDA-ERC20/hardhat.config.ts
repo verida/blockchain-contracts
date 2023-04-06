@@ -7,6 +7,8 @@ import * as dotenv from "dotenv";
 import "@nomiclabs/hardhat-ethers";
 // For upgradeable - deploy
 import "@openzeppelin/hardhat-upgrades";
+// For defender
+import "@openzeppelin/hardhat-defender";
 
 dotenv.config({path: __dirname + '/.env'});
 const {PRIVATE_KEY, ETHERSCAN_API_KEY, POLYGONSCAN_API_KEY, POLYGON_TESTNET_RPC, POLYGON_MAINNET_RPC} = process.env;

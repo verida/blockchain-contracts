@@ -1,0 +1,8 @@
+{
+  "goerli": {
+    "date": "2023/04/06",
+    "Proxy": "0x19D08AF9066FF897e93221eE15Cc5e64402b8dc8",
+    "ProxyAdmin": "0xb76C9451bc0BbFdC3f4E5e7E92239C42bdeE6c72",
+    "Implementation": "0xB2ec2EC65547ec6335488E9f462fc3D53C66B45f"
+  }
+}

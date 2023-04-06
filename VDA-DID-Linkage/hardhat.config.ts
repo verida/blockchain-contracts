@@ -7,6 +7,9 @@ import "@nomicfoundation/hardhat-toolbox";
 import "@nomiclabs/hardhat-ethers";
 // For upgradeable - deploy
 import "@openzeppelin/hardhat-upgrades";
+// For defender
+import "@openzeppelin/hardhat-defender";
+
 
 dotenv.config({path: __dirname + '/.env'});
 const {PRIVATE_KEY, POLYGONSCAN_API_KEY, POLYGON_TESTNET_RPC, POLYGON_MAINNET_RPC} = process.env;
@@ -43,6 +46,11 @@ const config: HardhatUserConfig = {
       accounts: PRIVATE_KEY !== undefined ? [PRIVATE_KEY] : [], 
       gas: 2100000,
       gasPrice: 8000000000
+    },
+    goerli: {
+      url: "https://eth-goerli.public.blastapi.io", //https://goerli.infura.io/v3/
+      chainId: 5,
+      accounts: PRIVATE_KEY !== undefined ? [PRIVATE_KEY] : [],
     },
   },
   gasReporter: {
