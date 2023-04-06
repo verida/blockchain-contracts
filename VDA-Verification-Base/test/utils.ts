@@ -72,9 +72,9 @@ export async function getDIDClient(veridaAccount: Wallet) {
 }
 
 const DEFAULT_ENDPOINTS = [
-    'https://node1-apse2.devnet.verida.tech/did/', 
-    'https://node2-apse2.devnet.verida.tech/did/',
-    'https://node3-apse2.devnet.verida.tech/did/'
+    'https://node1-euw6.gcp.devnet.verida.tech/', 
+    'https://node2-euw6.gcp.devnet.verida.tech/',
+    'https://node3-euw6.gcp.devnet.verida.tech/'
 ]
 
 export async function initVerida(didwallet: Wallet, CONTEXT_NAME: string) {
