@@ -159,10 +159,11 @@ describe("Verida Soulbound", () => {
                 generateProof()
             ])
 
-            const msg = ethers.utils.solidityPack(
-                ['string','address'],
-                [`${sbtType}-${uniqueId}-`, signInfo.userAddress]
-            )
+            // const msg = ethers.utils.solidityPack(
+            //     ['string','address'],
+            //     [`${sbtType}-${uniqueId}-`, signInfo.userAddress]
+            // )
+            const msg = `${sbtType}-${uniqueId}-${signInfo.userAddress}`
             signedData = await signInfo.signKeyring.sign(msg)
         })
 
