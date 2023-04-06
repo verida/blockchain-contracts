@@ -141,7 +141,7 @@ export async function generateProof() : Promise<SignInfo> {
     const signerDid = await signAccount.did()
     const SIGN_CONTEXT_NAME = signVerida.CONTEXT_NAME
 
-    console.log("Signer: ", signWallet.address, " - ", signerDid)
+    // console.log("Signer: ", signWallet.address, " - ", signerDid)
 
     const userVerida = await initVerida(Wallet.createRandom(), 'Verida: Test DID User Context')
     const userWallet = userVerida.didwallet
