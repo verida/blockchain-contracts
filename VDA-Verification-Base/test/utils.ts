@@ -3,7 +3,6 @@ import { AutoAccount } from "@verida/account-node";
 import { Client} from "@verida/client-ts";
 import { EnvironmentType, DIDClientConfig } from '@verida/types'
 
-// import { Wallet } from '@ethersproject/wallet'
 import { Wallet } from "ethers"
 import { JsonRpcProvider } from '@ethersproject/providers'
 
@@ -37,12 +36,12 @@ export async function getDIDClient(veridaAccount: Wallet) {
         veridaAccount.privateKey,
         'web3',
         {
-            privateKey: '383b7ac8d2f4eb6693b2bc8de97d26c69a50f7b10520e11ea97b4f95dd219967'
+            privateKey
         },
         [
-            `https://acacia-dev1.tn.verida.tech/did/`,
-            `https://acacia-dev2.tn.verida.tech/did`,
-            `https://acacia-dev3.tn.verida.tech/did/`
+            `https://node1-euw6.gcp.devnet.verida.tech/did/`,
+            `https://node2-euw6.gcp.devnet.verida.tech/did/`,
+            `https://node3-euw6.gcp.devnet.verida.tech/did/`,
         ]
     )
 
@@ -72,9 +71,9 @@ export async function getDIDClient(veridaAccount: Wallet) {
 }
 
 const DEFAULT_ENDPOINTS = [
-    'https://node1-euw6.gcp.devnet.verida.tech/', 
-    'https://node2-euw6.gcp.devnet.verida.tech/',
-    'https://node3-euw6.gcp.devnet.verida.tech/'
+    'https://node1-euw6.gcp.devnet.verida.tech/did/', 
+    'https://node2-euw6.gcp.devnet.verida.tech/did/', 
+    'https://node3-euw6.gcp.devnet.verida.tech/did/'
 ]
 
 export async function initVerida(didwallet: Wallet, CONTEXT_NAME: string) {
