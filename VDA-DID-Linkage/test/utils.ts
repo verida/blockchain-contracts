@@ -41,9 +41,9 @@ export async function getDIDClient(veridaAccount: Wallet) {
             privateKey
         },
         [
-            `https://node1-euw6.gcp.devnet.verida.tech/`,
-            // `https://node2-euw6.gcp.devnet.verida.tech/`,
-            `https://node3-euw6.gcp.devnet.verida.tech/`
+            `https://node1-euw6.gcp.devnet.verida.tech/did/`,
+            // `https://node2-euw6.gcp.devnet.verida.tech/did/`,
+            `https://node3-euw6.gcp.devnet.verida.tech/did/`
         ]
     )
 
@@ -73,9 +73,9 @@ export async function getDIDClient(veridaAccount: Wallet) {
 }
 
 const DEFAULT_ENDPOINTS = [
-    'https://node1-euw6.gcp.devnet.verida.tech/', 
-    // 'https://node2-euw6.gcp.devnet.verida.tech/', 
-    'https://node3-euw6.gcp.devnet.verida.tech/'
+    'https://node1-euw6.gcp.devnet.verida.tech/did/', 
+    // 'https://node2-euw6.gcp.devnet.verida.tech/did/', 
+    'https://node3-euw6.gcp.devnet.verida.tech/did/'
 ]
 
 export async function initVerida(didwallet: Wallet, CONTEXT_NAME: string) {
@@ -135,7 +135,7 @@ export interface SignInfo {
 
 export async function generateProof() : Promise<SignInfo> {
     //const signWallet = Wallet.createRandom()
-    const signWallet = Wallet.fromMnemonic('devote biology pass disorder fit cherry grace polar wrist trash regret frame')
+    const signWallet = Wallet.fromMnemonic('search foster run lesson hello width piece bridge spring walk divorce garden')
     const signVerida = await initVerida(signWallet, 'Facebook: FB Signing Context')
     const signAccount = signVerida.account
     const signerDid = await signAccount.did()
