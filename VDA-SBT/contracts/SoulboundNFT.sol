@@ -4,6 +4,7 @@ pragma solidity ^0.8.18;
 import "@openzeppelin/contracts-upgradeable/token/ERC721/extensions/IERC721MetadataUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC721/extensions/ERC721URIStorageUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/CountersUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/StringsUpgradeable.sol";
 
 import "@verida/vda-verification-contract/contracts/VDAVerificationContract.sol";
 import "@verida/common-contract/contracts/EnumerableSet.sol";
@@ -235,12 +236,13 @@ contract SoulboundNFT is VDAVerificationContract,
             
             verifyRequest(did, params, requestSignature, requestProof);
 
+            string memory strDID = StringsUpgradeable.toHexString(uint256(uint160(did)));
             params = abi.encodePacked(
                 sbtInfo.sbtType,
                 "-",
                 sbtInfo.uniqueId,
                 "-",
-                did
+                strDID
             );
             verifyData(params, sbtInfo.signedData, sbtInfo.signedProof);
         }

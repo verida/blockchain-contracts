@@ -159,10 +159,7 @@ describe("Verida Soulbound", () => {
                 generateProof()
             ])
 
-            const msg = ethers.utils.solidityPack(
-                ['string','address'],
-                [`${sbtType}-${uniqueId}-`, signInfo.userAddress]
-            )
+            const msg = `${sbtType}-${uniqueId}-${signInfo.userAddress.toLowerCase()}`
             signedData = await signInfo.signKeyring.sign(msg)
         })
 
@@ -371,10 +368,8 @@ describe("Verida Soulbound", () => {
 
         it("Success : same SBT type with different id",async () => {
             const diffId = "-diffId";
-            const msg = ethers.utils.solidityPack(
-                ['string','address'],
-                [`${sbtType}-${diffId}-`, signInfo.userAddress]
-            )
+            const msg = `${sbtType}-${diffId}-${signInfo.userAddress.toLowerCase()}`
+
             const signedData = await signInfo.signKeyring.sign(msg)
             const requestSignature = await getClaimSBTSignature(
                 signInfo.userAddress, 
