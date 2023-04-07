@@ -31,7 +31,7 @@ const veridians = [
         address: "0x89192d655e1274c2C225238c0E6FAB5E527e142a",
         privateKey: "0x47874dd29553904a93829c1e2cab953b5c83e6cff3b5b510e37dc45999684fc5",
         publicKey: "0x041bff559247e3be7f459a55c6339327b5920e4d13c00391f700c87c5861d79b637032674461f31d29f602fd196135c427c5fb779ef3667d580d1ba1c00d5d5d40"
-    }
+    }        
 ]
 
 describe("VDA Verification Proof Test", () => {
@@ -108,7 +108,7 @@ describe("VDA Verification Proof Test", () => {
     describe("Proof test with DIDDocument & DIDClient", () => {
         it("On-chain verification with DIDDocument", async () => {
             //const signWallet = Wallet.createRandom()
-            const signWallet = Wallet.fromMnemonic('devote biology pass disorder fit cherry grace polar wrist trash regret frame')
+            const signWallet = Wallet.fromMnemonic('gym sunny paddle impose aerobic lunar wage leopard cluster cage pass envelope')
             const signVerida = await initVerida(signWallet, 'Verida: Test DID Signing Context')
             const signAccount = signVerida.account
             const signerDid = await signAccount.did()
