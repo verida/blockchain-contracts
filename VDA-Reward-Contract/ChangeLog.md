@@ -1,3 +1,8 @@
+2023-04-06 (v0.3.0)
+-------------------
+- Add scripts for multi-sign support
+- Update `scripts/deploy.ts` script to save address
+
 2023-04-03 (v0.2.0)
 -------------------
 Updates on audit report

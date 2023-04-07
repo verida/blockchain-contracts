@@ -1,7 +1,7 @@
 {
   "name": "@verida/did-linkage-contract",
   "description": "DID linkage contract of Verida",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "author": "Alex J <alex@verida.io, trust2ray@gmail.com>",
   "license": "MIT",
   "repository": {
@@ -21,6 +21,7 @@
     "@nomicfoundation/hardhat-toolbox": "^2.0.0",
     "@nomiclabs/hardhat-ethers": "^2.2.1",
     "@nomiclabs/hardhat-etherscan": "^3.1.2",
+    "@openzeppelin/hardhat-defender": "^1.8.2",
     "@openzeppelin/hardhat-upgrades": "^1.21.0",
     "@typechain/ethers-v5": "^10.1.1",
     "@typechain/hardhat": "^6.1.4",

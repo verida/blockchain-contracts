@@ -1,6 +1,8 @@
-import { ethers, upgrades } from "hardhat";
+import hre, { ethers, upgrades } from "hardhat";
 import { VDARewardContract } from "../typechain-types";
 import * as tokenArtifact from "@verida/erc20-contract/artifacts/contracts/VDA-V1.sol/VeridaToken.json"
+
+import { saveDeployedAddress } from "./utils";
 
 async function main() {
   const rewardTokenAddress = "<Input Verida token address>"
@@ -14,18 +16,13 @@ async function main() {
       }
   )) as VDARewardContract
   await contract.deployed()
+
+  const proxyAddr = contract.address;
+  const adminAddr = await hre.upgrades.erc1967.getAdminAddress(proxyAddr)
+  const implAddr = await hre.upgrades.erc1967.getImplementationAddress(proxyAddr)
+  await saveDeployedAddress(hre.network.name, proxyAddr, adminAddr, implAddr);
+
   console.log('RewardContract deployed at : ', contract.address)
-
-  const signer = (await ethers.getSigners())[0]
-  const tokenContract = new ethers.Contract(rewardTokenAddress, tokenArtifact.abi, signer)
-  
-  const INIT_SUPPLY = ethers.utils.parseUnits(
-    "100000",
-    await tokenContract.decimals()
-  )
-  await tokenContract.mint(contract.address, INIT_SUPPLY)
-
-  console.log('Reward token minted to RewardContract:', INIT_SUPPLY.toString())
 }
 
 // We recommend this pattern to be able to use async/await everywhere
