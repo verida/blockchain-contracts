@@ -28,6 +28,8 @@ interface IStorageNodeRegistry {
      * @param countryCode Unique two-character string code
      * @param regionCode Unique region string code
      * @param datacenterId Unique datacenter identifier that is created by `addDataCenter()` method.
+     * @param lat Latitude
+     * @param long Longitude
      */
     struct StorageNode {
         address didAddress;
@@ -85,7 +87,9 @@ interface IStorageNodeRegistry {
         string indexed endpointUri,
         string countryCode,
         string regionCode,
-        uint datacenterId
+        uint datacenterId,
+        int lat,
+        int long
     );
 
     /**
@@ -94,7 +98,13 @@ interface IStorageNodeRegistry {
      * @param unregisterDateTime The unix timestamp of when the storage node should no logner be available for selection.
         Must be at leaset 28 dayse in the future from calling function point
      */
-    event RemoveNode(address indexed didAddress, uint unregisterDateTime);
+    event RemoveNodeStart(address indexed didAddress, uint unregisterDateTime);
+
+    /**
+     * @notice Emitted when a removing node is completed
+     * @param didAddress DID address that is to be removed from the network
+     */
+    event RemoveNodeComplete(address indexed didAddress);
 
     /**
      * @notice Add a data center to the network. `id` will be auto-incremented.
@@ -139,11 +149,13 @@ interface IStorageNodeRegistry {
      * @param nodeInfo Node information to be added
      * @param requestSignature The request parameters signed by the `didAddress` private key
      * @param requestProof Proof provided by Verida-server
+     * @param authSignature Signature signed by a trusted signer
      */
     function addNode(
         StorageNode calldata nodeInfo,
         bytes calldata requestSignature,
-        bytes calldata requestProof
+        bytes calldata requestProof,
+        bytes calldata authSignature
     ) external;
 
     /**
@@ -152,10 +164,23 @@ interface IStorageNodeRegistry {
      * @param unregisterDateTime The unix timestamp in secods of when the storage node should no logner be available for selection.
         Must be at leaset 28 dayse in the future from calling function point
      * @param requestSignature The request parameters signed by the `didAddress` private key
+     * @param requestProof Proof provided by Verida-server
      */
     function removeNodeStart(
         address didAddress,
         uint unregisterDateTime,
+        bytes calldata requestSignature,
+        bytes calldata requestProof
+    ) external;
+
+    /**
+     * @notice Complete storage node unregisteration
+     * @param didAddress DID address that is to be removed from the network
+     * @param requestSignature The request parameters signed by the `didAddress` private key
+     * @param requestProof Proof provided by Verida-server
+     */
+    function removeNodeComplete(
+        address didAddress,
         bytes calldata requestSignature,
         bytes calldata requestProof
     ) external;

@@ -8,6 +8,8 @@ import "@verida/vda-verification-contract/contracts/VDAVerificationContract.sol"
 
 import "./IStorageNodeRegistry.sol";
 
+import "hardhat/console.sol";
+
 
 /**
  * @title Verida StorageNodeRegistry contract
@@ -16,6 +18,7 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
 
     using CountersUpgradeable for CountersUpgradeable.Counter;
     using EnumerableSetUpgradeable for EnumerableSetUpgradeable.UintSet;
+    using EnumerableSetUpgradeable for EnumerableSetUpgradeable.AddressSet;
 
     /**
      * @notice Datacenter infos by `datacenterId`
@@ -40,7 +43,6 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
      * @dev Contains removed status & number of connected storage nodes
      */
     mapping (uint => DatacenterInfo) private _datacenterInfo;
-
 
     /**
      * @notice StorageNode by nodeId
@@ -91,6 +93,11 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
     uint8 public constant DECIMAL = 8;
 
     /**
+     * @notice Role value for `addNode()` function
+     */
+    bytes32 internal constant ROLE_NODE_PROVIDER = keccak256("NodeProvider");
+
+    /**
      * @notice Additional information for a data center
      * @dev Used internally inside the contract
      * @param isActive True when added. False after removed
@@ -108,16 +115,13 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
     error InvalidLongitude();
     error InvalidDatacenterId(uint id);
     error HasDependingNodes();
-    error removedDatacenterId();
-
     error InvalidEndpointUri();
     error InvalidDIDAddress();
-
     error InvalidUnregisterTime();
 
-    constructor() {
-        _disableInitializers();
-    }
+    // constructor() {
+    //     _disableInitializers();
+    // }
 
     /**
      * @dev initializer of deployment
@@ -127,25 +131,31 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
     }
 
     /**
-     * @notice Check validity of countryCode, regionCode, and geo location
+     * @notice Check validity of country code
      * @param countryCode Unique two-character string code
-     * @param regionCode Unique region string code
-     * @param lat Latitude
-     * @param long Longitude
      */
-    function validateInput(
-        string calldata countryCode, 
-        string calldata regionCode,
-        int lat,
-        int long ) internal pure {
+    function validateCountryCode(string calldata countryCode) internal pure {
         if (bytes(countryCode).length != 2) {
             revert InvalidCountryCode();
         }
+    }
 
+    /**
+     * @notice Check validity of region code
+     * @param regionCode Unique region string code
+     */
+    function validateRegionCode(string calldata regionCode) internal pure {
         if (bytes(regionCode).length == 0) {
             revert InvalidRegionCode();
         }
+    }
 
+    /**
+     * @notice Check validity of latitude and longitude values
+     * @param lat Latitude
+     * @param long Longitude
+     */
+    function validateGeoPosition(int lat, int long) internal pure {
         if ( lat < -90 * int(10 ** DECIMAL) || lat > 90 * int(10 ** DECIMAL)) {
             revert InvalidLatitude();
         }
@@ -160,7 +170,7 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
      * @dev `datacenterId` should be the one that was added by contract owner
      * @param id datacenterId
      */
-    function checkDatacenterId(uint id) internal view {
+    function checkDatacenterIdExistance(uint id) internal view {
         if (!_datacenterInfo[id].isActive) {
             revert InvalidDatacenterId(id);
         }
@@ -180,7 +190,9 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
                 revert InvalidDatacenterName();
             }
 
-            validateInput(data.countryCode, data.regionCode, data.lat, data.long);
+            validateCountryCode(data.countryCode);
+            validateRegionCode(data.regionCode);
+            validateGeoPosition(data.lat, data.long);
         }
 
         _datacenterIdCounter.increment();
@@ -204,25 +216,9 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
      */
     function removeDatacenter(uint datacenterId) external override onlyOwner {
         {
-            checkDatacenterId(datacenterId);
-
-            if (!_datacenterInfo[datacenterId].isActive) {
-                revert removedDatacenterId();
-            }
-
-            EnumerableSetUpgradeable.UintSet storage connectedNodes = _datacenterInfo[datacenterId].connectedNodeIds;
-            bool hasDependencies;
-            uint nodeId;
-            uint count = connectedNodes.length();
-
-
-            for (uint i; i < count && hasDependencies == false; ++i) {
-                nodeId = connectedNodes.at(i);
-                if (_nodeUnregisterTime[nodeId] == 0 || _nodeUnregisterTime[nodeId] < block.timestamp ) {
-                    hasDependencies = true;
-                }
-            }
-            if (hasDependencies) {
+            checkDatacenterIdExistance(datacenterId);
+            
+            if (_datacenterInfo[datacenterId].nodeCount > 0) {
                 revert HasDependingNodes();
             }
         }
@@ -260,6 +256,8 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
      * @dev see { IStorageNodeRegistry }
      */
     function getDataCentersByCountry(string calldata countryCode) external view override returns(Datacenter[] memory) {
+        validateCountryCode(countryCode);
+        
         uint count = _countryDataCenterIds[countryCode].length();
         Datacenter[] memory list = new Datacenter[](count);
 
@@ -276,6 +274,8 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
      * @dev see { IStorageNodeRegistry }
      */
     function getDataCentersByRegion(string calldata regionCode) external view override returns(Datacenter[] memory) {
+        validateRegionCode(regionCode);
+        
         uint count = _regionDataCenterIds[regionCode].length();
         Datacenter[] memory list = new Datacenter[](count);
 
@@ -289,30 +289,69 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
     }
 
     /**
+     * @notice Check the `authSignature` parameter of `addNode()` function
+     * @param didAddress DID address that is associated with the storage node
+     * @param authSignature Signature signed by a trusted signer
+     */
+    function verifyAuthSignature(address didAddress, bytes calldata authSignature) internal view {
+        EnumerableSetUpgradeable.AddressSet storage signers = _trustedSigners;
+
+        if (signers.length() == 0) {
+            revert NoSigners();
+        }
+
+        if (authSignature.length == 0) {
+            revert InvalidSignature();
+        }
+
+        bytes memory rawMsg = abi.encodePacked(didAddress);
+        bytes32 msgHash = keccak256(rawMsg);
+
+        address authSigner = ECDSAUpgradeable.recover(msgHash, authSignature);
+
+        bool isVerified;
+        uint index;
+        
+        while (index < signers.length() && !isVerified) {
+            address account = signers.at(index);
+
+            if (authSigner == account) {
+                isVerified = true;
+                break;
+            }
+
+            unchecked { ++index; }
+        }
+
+        if (!isVerified) {
+            revert InvalidSignature();
+        }   
+    }
+
+    /**
      * @dev see { IStorageNodeRegistry }
      */
     function addNode(
         StorageNode calldata nodeInfo,
         bytes calldata requestSignature,
-        bytes calldata requestProof
+        bytes calldata requestProof,
+        bytes calldata authSignature
     ) external override {
         {
-            validateInput(nodeInfo.countryCode, nodeInfo.regionCode, nodeInfo.lat, nodeInfo.long);
-
-            checkDatacenterId(nodeInfo.datacenterId);
-
             // Check whether endpointUri is empty
             if (bytes(nodeInfo.endpointUri).length == 0) {
                 revert InvalidEndpointUri();
             }
 
+            validateCountryCode(nodeInfo.countryCode);
+            validateRegionCode(nodeInfo.regionCode);
+            checkDatacenterIdExistance(nodeInfo.datacenterId);
+            validateGeoPosition(nodeInfo.lat, nodeInfo.long);
+
+            
             // Check whether didAddress was registered before
-            uint didNodeId = _didNodeId[nodeInfo.didAddress];
-            if (didNodeId != 0) {
-                // Check whether removed
-                if (_nodeUnregisterTime[didNodeId] == 0 || _nodeUnregisterTime[didNodeId] > block.timestamp) {
-                    revert InvalidDIDAddress();
-                }
+            if (_didNodeId[nodeInfo.didAddress] != 0) {
+                revert InvalidDIDAddress();
             }
 
             // Check whether endpoint was registered before
@@ -337,6 +376,8 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
             );
 
             verifyRequest(nodeInfo.didAddress, params, requestSignature, requestProof);
+
+            verifyAuthSignature(nodeInfo.didAddress, authSignature);
         }
 
         {
@@ -357,7 +398,9 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
             nodeInfo.endpointUri, 
             nodeInfo.countryCode, 
             nodeInfo.regionCode, 
-            nodeInfo.datacenterId);
+            nodeInfo.datacenterId,
+            nodeInfo.lat,
+            nodeInfo.long);
     }
 
     /**
@@ -370,24 +413,61 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
         bytes calldata requestProof
     ) external override {
         uint nodeId = _didNodeId[didAddress];
-        {
-            // Check whether didAddress was registered before
-            if (nodeId == 0 || _nodeUnregisterTime[nodeId] > 0) {
-                revert InvalidDIDAddress();
-            }
 
-            if (unregisterDateTime >= (block.timestamp + 28 days)) {
-                revert InvalidUnregisterTime();
-            }
-
-            bytes memory params = abi.encodePacked(didAddress, unregisterDateTime);
-            verifyRequest(didAddress, params, requestSignature, requestProof);
+        // Check whether didAddress was registered before
+        if (nodeId == 0 || _nodeUnregisterTime[nodeId] > 0) {
+            revert InvalidDIDAddress();
         }
+
+        if (unregisterDateTime < (block.timestamp + 28 days)) {
+            revert InvalidUnregisterTime();
+        }
+
+        bytes memory params = abi.encodePacked(didAddress, unregisterDateTime);
+        verifyRequest(didAddress, params, requestSignature, requestProof);
 
         _nodeUnregisterTime[nodeId] = unregisterDateTime;
 
-        emit RemoveNode(didAddress, unregisterDateTime);
+        emit RemoveNodeStart(didAddress, unregisterDateTime);
     }
+
+    /**
+     * @dev see { IStorageNodeRegistry }
+     */
+    function removeNodeComplete(
+        address didAddress,
+        bytes calldata requestSignature,
+        bytes calldata requestProof
+    ) external override {
+        uint nodeId = _didNodeId[didAddress];
+        {
+            if (nodeId == 0) {
+                revert InvalidDIDAddress();
+            }
+
+            if (_nodeUnregisterTime[nodeId] == 0 || _nodeUnregisterTime[nodeId] > block.timestamp) {
+                revert InvalidUnregisterTime();
+            }
+
+            bytes memory params = abi.encodePacked(didAddress);
+            verifyRequest(didAddress, params, requestSignature, requestProof);
+        }
+
+        StorageNode storage nodeInfo = _nodeMap[nodeId];
+
+        --_datacenterInfo[nodeInfo.datacenterId].nodeCount;
+
+        _countryNodeIds[nodeInfo.countryCode].remove(nodeId);
+        _regionNodeIds[nodeInfo.regionCode].remove(nodeId);
+        delete _endpointNodeId[nodeInfo.endpointUri];
+        delete _didNodeId[didAddress];
+        delete _nodeMap[nodeId];
+
+        delete _nodeUnregisterTime[nodeId];
+
+        emit RemoveNodeComplete(didAddress);
+    }
+
 
     /**
      * @dev see { IStorageNodeRegistry }
@@ -399,7 +479,7 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
             revert InvalidDIDAddress();
         }
 
-        if (_nodeUnregisterTime[nodeId] > 0 && block.timestamp >= _nodeUnregisterTime[nodeId]) {
+        if (_nodeUnregisterTime[nodeId] > 0) {
             revert InvalidDIDAddress();
         }
 
@@ -416,7 +496,7 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
             revert InvalidEndpointUri();
         }
 
-        if (_nodeUnregisterTime[nodeId] > 0 && block.timestamp >= _nodeUnregisterTime[nodeId]) {
+        if (_nodeUnregisterTime[nodeId] > 0) {
             revert InvalidEndpointUri();
         }
 
@@ -431,7 +511,7 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
             uint nodeId;
             for (uint i; i < count; ++i) {
                 nodeId = ids.at(i);
-                if (_nodeUnregisterTime[nodeId] > 0 && block.timestamp >= _nodeUnregisterTime[nodeId]) {
+                if (_nodeUnregisterTime[nodeId] > 0) {
                     ++removedCount;
                 }
             }
@@ -443,7 +523,7 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
             uint index;
             for (uint i; i < count; ++i) {
                 nodeId = ids.at(i);
-                if (_nodeUnregisterTime[nodeId] == 0 || block.timestamp < _nodeUnregisterTime[nodeId]) {
+                if (_nodeUnregisterTime[nodeId] == 0) {
                     nodeList[index] = _nodeMap[nodeId];
                     ++index;
                 }
