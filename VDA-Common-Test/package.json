@@ -1,0 +1,33 @@
+{
+  "name": "@verida/contract-test-utils",
+  "version": "1.0.0",
+  "description": "Common utils for contract tests",
+  "main": "dist/index.js",
+  "author": "Alex J",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:verida/blockchain-contracts.git"
+  },
+  "bugs": {
+    "url": "https://github.com/verida/verida-js/issues"
+  },
+  "homepage": "https://github.com/verida/verida-js#readme",
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "dist"
+  ],
+  "devDependencies": {
+    "@verida/account-node": "^2.3.4",
+    "@verida/client-ts": "^2.3.4",
+    "@verida/did-client": "^2.3.4",
+    "@verida/keyring": "^2.3.1",
+    "@verida/types": "^2.3.1",
+    "typescript": "^5.0.4"
+  },
+  "scripts": {
+    "build": "rm -rf dist && tsc"
+  }
+}
