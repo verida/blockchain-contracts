@@ -5,15 +5,13 @@ import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import hre, { ethers , upgrades } from "hardhat"
 import { Wallet } from 'ethers'
 
-import { generateProof, SignInfo } from "./utils"
-import { Keyring } from "@verida/keyring";
-import { VeridaDIDLinkage, VeridaDIDLinkage__factory } from "../typechain-types";
+import { generateProof, SignInfo } from "@verida/contract-test-utils";
+
+import { VeridaDIDLinkage } from "../typechain-types";
 
 import EncryptionUtils from "@verida/encryption-utils";
 
 chai.use(chaiAsPromised);
-
-export const zeroAddress = "0x0000000000000000000000000000000000000000"
 
 let contract: VeridaDIDLinkage
 
