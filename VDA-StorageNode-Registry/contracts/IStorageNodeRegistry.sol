@@ -148,7 +148,7 @@ interface IStorageNodeRegistry {
      * @dev A did can register only one storage-node
      * @param nodeInfo Node information to be added
      * @param requestSignature The request parameters signed by the `didAddress` private key
-     * @param requestProof Proof provided by Verida-server
+     * @param requestProof Used to verify request
      * @param authSignature Signature signed by a trusted signer
      */
     function addNode(
@@ -164,7 +164,7 @@ interface IStorageNodeRegistry {
      * @param unregisterDateTime The unix timestamp in secods of when the storage node should no logner be available for selection.
         Must be at leaset 28 dayse in the future from calling function point
      * @param requestSignature The request parameters signed by the `didAddress` private key
-     * @param requestProof Proof provided by Verida-server
+     * @param requestProof Used to verify request
      */
     function removeNodeStart(
         address didAddress,
@@ -177,7 +177,7 @@ interface IStorageNodeRegistry {
      * @notice Complete storage node unregisteration
      * @param didAddress DID address that is to be removed from the network
      * @param requestSignature The request parameters signed by the `didAddress` private key
-     * @param requestProof Proof provided by Verida-server
+     * @param requestProof Used to verify request
      */
     function removeNodeComplete(
         address didAddress,
@@ -193,7 +193,7 @@ interface IStorageNodeRegistry {
     function getNodeByAddress(address didAddress) external view returns(StorageNode memory);
 
     /**
-     * @notice Returns a storage node for didAddress
+     * @notice Returns a storage node for endpoint uri
      * @param endpointUri The storage node endpoint
      * @return StorageNode Returns storage node
      */
