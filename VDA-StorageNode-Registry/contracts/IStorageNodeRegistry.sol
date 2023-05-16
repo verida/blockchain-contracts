@@ -112,7 +112,7 @@ interface IStorageNodeRegistry {
      * @param data Datacenter info
      * @return datacenterId Created datacetnerId
      */
-    function addDatacenter(Datacenter calldata data) external returns(uint);
+    function addDatacenter(Datacenter calldata data) external payable returns(uint);
 
     /**
      * @notice Remove a data center
@@ -120,7 +120,7 @@ interface IStorageNodeRegistry {
      *  Will only remove the data center if there are no storage nodes using this datacenterId
      * @param datacenterId datacenterId created by `addDatacenter()` function
      */
-    function removeDatacenter(uint datacenterId) external;
+    function removeDatacenter(uint datacenterId) external payable;
 
     /**
      * @notice Return an array of `Datacenter` structs for given array of datacenterIds

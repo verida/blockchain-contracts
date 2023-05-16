@@ -93,11 +93,6 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
     uint8 public constant DECIMAL = 8;
 
     /**
-     * @notice Role value for `addNode()` function
-     */
-    bytes32 internal constant ROLE_NODE_PROVIDER = keccak256("NodeProvider");
-
-    /**
      * @notice Additional information for a data center
      * @dev Used internally inside the contract
      * @param isActive True when added. False after removed
@@ -179,7 +174,7 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
     /**
      * @dev see { IStorageNodeRegistry }
      */
-    function addDatacenter(Datacenter calldata data) external override onlyOwner 
+    function addDatacenter(Datacenter calldata data) external payable onlyOwner override
          returns(uint) {
         {
             if (bytes(data.name).length == 0) {
@@ -214,11 +209,11 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
     /**
      * @dev see { IStorageNodeRegistry }
      */
-    function removeDatacenter(uint datacenterId) external override onlyOwner {
+    function removeDatacenter(uint datacenterId) external payable onlyOwner override {
         {
             checkDatacenterIdExistance(datacenterId);
             
-            if (_datacenterInfo[datacenterId].nodeCount > 0) {
+            if (_datacenterInfo[datacenterId].nodeCount != 0) {
                 revert HasDependingNodes();
             }
         }
@@ -415,7 +410,7 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
         uint nodeId = _didNodeId[didAddress];
 
         // Check whether didAddress was registered before
-        if (nodeId == 0 || _nodeUnregisterTime[nodeId] > 0) {
+        if (nodeId == 0 || _nodeUnregisterTime[nodeId] != 0) {
             revert InvalidDIDAddress();
         }
 
@@ -479,7 +474,7 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
             revert InvalidDIDAddress();
         }
 
-        if (_nodeUnregisterTime[nodeId] > 0) {
+        if (_nodeUnregisterTime[nodeId] != 0) {
             revert InvalidDIDAddress();
         }
 
@@ -496,7 +491,7 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
             revert InvalidEndpointUri();
         }
 
-        if (_nodeUnregisterTime[nodeId] > 0) {
+        if (_nodeUnregisterTime[nodeId] != 0) {
             revert InvalidEndpointUri();
         }
 
@@ -511,7 +506,7 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
             uint nodeId;
             for (uint i; i < count; ++i) {
                 nodeId = ids.at(i);
-                if (_nodeUnregisterTime[nodeId] > 0) {
+                if (_nodeUnregisterTime[nodeId] != 0) {
                     ++removedCount;
                 }
             }
