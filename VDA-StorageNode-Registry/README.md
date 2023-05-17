@@ -11,6 +11,7 @@ Contract owner has following abilities:
 ## Dependencies
 
 This contract has dependencies to following verida contracts:
+
 - `@verida/vda-verification-contract`
 
 ## Testing

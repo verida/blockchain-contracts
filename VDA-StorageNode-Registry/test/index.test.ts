@@ -886,7 +886,7 @@ describe("Verida StorageNodeRegistry", function () {
                     ).to.be.revertedWithCustomError(contract, "InvalidDIDAddress");
                 })
 
-                it("Failed: removenode not started", async () => {
+                it("Failed: Remove node not started", async () => {
                     await expect(
                         contract.removeNodeComplete(user.address, "0x00", "0x00")
                     ).to.be.revertedWithCustomError(contract, "InvalidUnregisterTime");
