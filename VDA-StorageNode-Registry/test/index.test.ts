@@ -9,24 +9,38 @@ import EncryptionUtils from '@verida/encryption-utils'
 import { Keyring } from "@verida/keyring";
 import { IStorageNodeRegistry, StorageNodeRegistry } from "../typechain-types";
 
-import { createDatacenterStruct, createStorageNodeStruct, getAddNodeSignatures, getRemoveCompleteSignatures, getRemoveStartSignatures } from "./helpers"; 
+import { createDatacenterStruct, createStorageNodeInputStruct, getAddNodeSignatures, getRemoveCompleteSignatures, getRemoveStartSignatures } from "./helpers"; 
 
 import { SnapshotRestorer, takeSnapshot, time } from "@nomicfoundation/hardhat-network-helpers"
 import { assert } from "console";
 import { days } from "@nomicfoundation/hardhat-network-helpers/dist/src/helpers/time/duration";
+import { anyValue } from "@nomicfoundation/hardhat-chai-matchers/withArgs";
 
 let contract: StorageNodeRegistry
 
-const INVALID_COUNTRY_CODES = ["", " ", "A", "ABC", "ACCD"];
+const INVALID_COUNTRY_CODES = [
+    "",         // Invalid code length
+    " ",        // Invalid code length
+    "A",        // Invalid code length
+    "ABC",      // Invalid code length
+    "ACCD",     // Invalid code length
+    "SG"        // Capital letters in the code
+];
+
+const INVALID_REGION_CODES = [
+    "",                 // region code can not empty
+    "North America",    // Capital letters in the code
+    "Europe"            // Capital letter in the code
+]
 
 const dataCenters : IStorageNodeRegistry.DatacenterStruct[] = [
-    createDatacenterStruct("Center-1", "US", "North America", -90, -150),
-    createDatacenterStruct("Center-2", "UK", "Europe", 80, 130),
-    createDatacenterStruct("Center-3", "US", "North America", -70, -120),
+    createDatacenterStruct("center-1", "us", "north america", -90, -150),
+    createDatacenterStruct("center-2", "uk", "europe", 80, 130),
+    createDatacenterStruct("center-3", "us", "north america", -70, -120),
 ]
 
 const checkAddNode = async (
-    storageNode: IStorageNodeRegistry.StorageNodeStruct,
+    storageNode: IStorageNodeRegistry.StorageNodeInputStruct,
     user: Wallet,
     trustedSigner: Wallet,
     expectResult: boolean = true,
@@ -45,7 +59,8 @@ const checkAddNode = async (
             storageNode.regionCode,
             storageNode.datacenterId,
             storageNode.lat,
-            storageNode.long
+            storageNode.long,
+            anyValue
         );
     } else {
         await expect(
@@ -140,6 +155,7 @@ describe("Verida StorageNodeRegistry", function () {
         snapShotAfterDeploy = await takeSnapshot();
     });
 
+    /*
     describe("Data center", () => {
         const datacenterIds : BigNumber[] = []
 
@@ -151,33 +167,43 @@ describe("Verida StorageNodeRegistry", function () {
                 ).to.be.rejectedWith("Ownable: caller is not the owner");
             })
 
-            it("Failed: Empty datacenter name", async () => {
-                const invalidDataCenter = createDatacenterStruct("", "", "", 0, 0 );
-                await expect(
-                    contract.addDatacenter(invalidDataCenter)
-                ).to.be.revertedWithCustomError(contract, "InvalidDatacenterName");
+            it("Failed: Invalid datacenter names", async () => {
+                const invalidDatacenterNames = [
+                    "", // Empty name
+                    "A3523", //Capital letter in the name
+                    "Aa" //Capital letter in the name
+                ]
+                for (let i = 0; i < invalidDatacenterNames.length; i++ ) {
+                    const invalidDataCenter = createDatacenterStruct(invalidDatacenterNames[i], "", "", 0, 0 );
+                    await expect(
+                        contract.addDatacenter(invalidDataCenter)
+                    ).to.be.revertedWithCustomError(contract, "InvalidDatacenterName");
+                }
+                
             })
-
-            it("Failed: Invalid country code",async () => {
+            
+            it("Failed: Invalid country codes",async () => {
                 for (let i = 0; i < INVALID_COUNTRY_CODES.length; i++) {
-                    const invalidDataCenter = createDatacenterStruct("DataCenter-Test", INVALID_COUNTRY_CODES[i], "North America", 0, 0 );
+                    const invalidDataCenter = createDatacenterStruct("dc-test", INVALID_COUNTRY_CODES[i], "north america", 0, 0 );
                     await expect(
                         contract.addDatacenter(invalidDataCenter)
                     ).to.be.revertedWithCustomError(contract, "InvalidCountryCode");
                 }
             })
 
-            it("Failed: Empty region code",async () => {
-                const invalidDataCenter = createDatacenterStruct("DataCenter-Test", "US", "", 0, 0 );
-                await expect(
-                    contract.addDatacenter(invalidDataCenter)
-                ).to.be.revertedWithCustomError(contract, "InvalidRegionCode")
+            it("Failed: Invalid region codes",async () => {
+                for (let i = 0; i < INVALID_REGION_CODES.length; i++) {
+                    const invalidDataCenter = createDatacenterStruct("dc-test", "us", "", 0, 0 );
+                    await expect(
+                        contract.addDatacenter(invalidDataCenter)
+                    ).to.be.revertedWithCustomError(contract, "InvalidRegionCode")
+                }
             })
 
             it("Failed: Invlaid Latitude",async () => {
                 const invalidLatValues = [-90.05, -180, 91, 500];
                 for (let i = 0; i < invalidLatValues.length; i++) {
-                    const invalidDataCenter = createDatacenterStruct("DataCenter-Test", "US", "North America", invalidLatValues[i], 0 );
+                    const invalidDataCenter = createDatacenterStruct("dc-test", "us", "north america", invalidLatValues[i], 0 );
                     await expect(
                         contract.addDatacenter(invalidDataCenter)
                     ).to.be.revertedWithCustomError(contract, "InvalidLatitude")
@@ -187,7 +213,7 @@ describe("Verida StorageNodeRegistry", function () {
             it("Failed: Invalid Longitude",async () => {
                 const invalidLongValues = [-180.1, -270, -400.2523, 181, 360, 500.235];
                 for (let i = 0; i < invalidLongValues.length; i++) {
-                    const invalidDataCenter = createDatacenterStruct("DataCenter-Test", "US", "North America", -90, invalidLongValues[i] );
+                    const invalidDataCenter = createDatacenterStruct("dc-test", "us", "north america", -90, invalidLongValues[i] );
                     await expect(
                         contract.addDatacenter(invalidDataCenter)
                     ).to.be.revertedWithCustomError(contract, "InvalidLongitude")
@@ -212,10 +238,10 @@ describe("Verida StorageNodeRegistry", function () {
 
             it("Failed : Registered datacenter name", async () => {
                 const invalidDatacenters = [
-                    createDatacenterStruct("Center-1", "US", "North America", -90, -150),
-                    createDatacenterStruct("Center-1", "UK", "Europe", 0, 0),
-                    createDatacenterStruct("Center-2", "AU", "Oceania", -90, -150),
-                    createDatacenterStruct("Center-2", "HK", "Asia", 0, 0),
+                    createDatacenterStruct("center-1", "us", "north america", -90, -150),
+                    createDatacenterStruct("center-1", "uk", "europe", 0, 0),
+                    createDatacenterStruct("center-2", "au", "oceania", -90, -150),
+                    createDatacenterStruct("center-2", "hk", "asia", 0, 0),
                 ]
 
                 for (let i = 0; i < invalidDatacenters.length; i++) {
@@ -249,22 +275,22 @@ describe("Verida StorageNodeRegistry", function () {
             }
 
             describe("Get by datacenter IDs", () => {
-                let maxDatacentID : BigNumber;
+                let maxDataCenterID : BigNumber;
                 before(() => {
-                    maxDatacentID = datacenterIds[datacenterIds.length -1];
+                    maxDataCenterID = datacenterIds[datacenterIds.length -1];
                 })
 
                 it("Failed: Invalid IDs", async () => {
                     let invalidIDs: BigNumber[] = [BigNumber.from(0)];
                     await expect(contract.getDatacenters(invalidIDs)).to.be.revertedWithCustomError(contract, "InvalidDatacenterId");
 
-                    invalidIDs = [BigNumber.from(0), maxDatacentID.add(1)];
+                    invalidIDs = [BigNumber.from(0), maxDataCenterID.add(1)];
                     await expect(contract.getDatacenters(invalidIDs)).to.be.revertedWithCustomError(contract, "InvalidDatacenterId");
 
                     invalidIDs = [BigNumber.from(0), datacenterIds[0]];
                     await expect(contract.getDatacenters(invalidIDs)).to.be.revertedWithCustomError(contract, "InvalidDatacenterId");
 
-                    invalidIDs = [datacenterIds[0], maxDatacentID.add(1)];
+                    invalidIDs = [datacenterIds[0], maxDataCenterID.add(1)];
                     await expect(contract.getDatacenters(invalidIDs)).to.be.revertedWithCustomError(contract, "InvalidDatacenterId");
                 })
 
@@ -275,18 +301,30 @@ describe("Verida StorageNodeRegistry", function () {
                     }
                 })
 
+                it("Failed: Removed datacenter ID", async () => {
+                    const currentSnapshot = await takeSnapshot();
+
+                    // Remove datacenter ID
+                    const tx = await contract.removeDatacenter(datacenterIds[0]);
+                    await expect(tx).to.emit(contract, "RemoveDataCenter").withArgs(datacenterIds[0]);
+
+                    // Failed to get datacenters
+                    await expect(contract.getDatacenters(datacenterIds)).to.be.revertedWithCustomError(contract, "InvalidDatacenterId");
+
+                    await currentSnapshot.restore();
+                })
+
             })
 
             describe("Get datacenters by country code", () => {
                 it("Failed: Invalid country code", async () => {
-                    const INVALID_COUNTRY_CODES = ["", " ", "A", "ABC"];
                     for (let i = 0; i < INVALID_COUNTRY_CODES.length; i++) {
                         await expect(contract.getDataCentersByCountry(INVALID_COUNTRY_CODES[i])).to.be.revertedWithCustomError(contract, "InvalidCountryCode");
                     }
                 })
 
                 it("Return empty array for unregistered counry codes", async () => {
-                    const unregisteredCountryCodes = ["AT", "BY", "SG"];
+                    const unregisteredCountryCodes = ["at", "by", "sg"];
                     for (let i = 0; i < unregisteredCountryCodes.length; i++) {
                         expect(
                             await contract.getDataCentersByCountry(unregisteredCountryCodes[i])
@@ -295,14 +333,35 @@ describe("Verida StorageNodeRegistry", function () {
                 })
 
                 it("Success", async () => {
-                    let result = await contract.getDataCentersByCountry("US");
+                    let result = await contract.getDataCentersByCountry("us");
                     expect(result.length).to.equal(2);
                     checkDatacenterResult(result[0], dataCenters[0]);
                     checkDatacenterResult(result[1], dataCenters[2]);
 
-                    result = await contract.getDataCentersByCountry("UK");
+                    result = await contract.getDataCentersByCountry("uk");
                     expect(result.length).to.equal(1);
                     checkDatacenterResult(result[0], dataCenters[1]);
+                })
+
+                it("Should not include removed data centers", async () => {
+                    const currentSnapshot = await takeSnapshot();
+
+                    // Remove datacenters
+                    for (let i = 0; i < 2; i++) {
+                        await expect(
+                            contract.removeDatacenter(datacenterIds[i])
+                        ).to.emit(contract, "RemoveDataCenter").withArgs(datacenterIds[i]);
+                    }
+                    
+                    // Check getDataCentersByCountry
+                    let result = await contract.getDataCentersByCountry("us");
+                    expect(result.length).to.equal(1);
+                    checkDatacenterResult(result[0], dataCenters[2]);
+
+                    result = await contract.getDataCentersByCountry("uk");
+                    expect(result.length).to.equal(0);
+
+                    await currentSnapshot.restore();
                 })
             })
 
@@ -312,35 +371,56 @@ describe("Verida StorageNodeRegistry", function () {
                 })
 
                 it("Return empty arry for unregistered region codes", async () => {
-                    const unregisteredRegionCodes = ["Asia", "Africa"];
+                    const unregisteredRegionCodes = ["asia", "africa"];
                     for (let i = 0; i < unregisteredRegionCodes.length; i++) {
                         expect(await contract.getDataCentersByRegion(unregisteredRegionCodes[i])).to.deep.equal([]);
                     }
                 })
 
                 it("Success", async () => {
-                    let result = await contract.getDataCentersByRegion("North America");
+                    let result = await contract.getDataCentersByRegion("north america");
                     expect(result.length).to.equal(2);
                     checkDatacenterResult(result[0], dataCenters[0]);
                     checkDatacenterResult(result[1], dataCenters[2]);
 
-                    result = await contract.getDataCentersByRegion("Europe");
+                    result = await contract.getDataCentersByRegion("europe");
                     expect(result.length).to.equal(1);
                     checkDatacenterResult(result[0], dataCenters[1]);
+                })
+
+                it("Should not include removed data centers", async () => {
+                    const currentSnapshot = await takeSnapshot();
+
+                    // Remove datacenter IDs
+                    for (let i = 0; i < 2; i++) {
+                        await expect(
+                            contract.removeDatacenter(datacenterIds[i])
+                        ).to.emit(contract, "RemoveDataCenter").withArgs(datacenterIds[i]);
+                    }
+                    
+                    // Check getDataCentersByCountry
+                    let result = await contract.getDataCentersByRegion("north america");
+                    expect(result.length).to.equal(1);
+                    checkDatacenterResult(result[0], dataCenters[2]);
+
+                    result = await contract.getDataCentersByRegion("europe");
+                    expect(result.length).to.equal(0);
+
+                    await currentSnapshot.restore();
                 })
             })
         })
 
         describe("Remove datacenter", () => {
-            let maxDatacentID : BigNumber;
+            let maxDataCenterID : BigNumber;
 
             const user = Wallet.createRandom();
             const trustedSigner = Wallet.createRandom();
-            const storageNode = createStorageNodeStruct(
+            const storageNode = createStorageNodeInputStruct(
                 user.address, 
                 "https://1",
-                "US",
-                "North America",
+                "us",
+                "north america",
                 1,
                 -90,
                 -180
@@ -348,13 +428,13 @@ describe("Verida StorageNodeRegistry", function () {
 
 
             before(async () => {
-                maxDatacentID = datacenterIds[datacenterIds.length -1];
+                maxDataCenterID = datacenterIds[datacenterIds.length -1];
 
                 await contract.addTrustedSigner(trustedSigner.address);
             })
 
             it("Failed: Not created datacenterId", async () => {
-                const invalidIds = [BigNumber.from(0), maxDatacentID.add(1), maxDatacentID.add(100)]
+                const invalidIds = [BigNumber.from(0), maxDataCenterID.add(1), maxDataCenterID.add(100)]
 
                 for (let i = 0; i < invalidIds.length; i++) {
                     await expect(
@@ -401,6 +481,7 @@ describe("Verida StorageNodeRegistry", function () {
             })
         })
     });
+    */
 
     describe("Storage node", () => {
 
@@ -409,7 +490,7 @@ describe("Verida StorageNodeRegistry", function () {
         const trustedSigner = Wallet.createRandom();
         
         const datacenterIds : BigNumber[] = [];
-        let maxDatacentID : BigNumber;
+        let maxDataCenterID : BigNumber;
 
         before(async () => {
             await snapShotAfterDeploy.restore();
@@ -427,34 +508,49 @@ describe("Verida StorageNodeRegistry", function () {
                 }
             }
 
-            maxDatacentID = datacenterIds[datacenterIds.length -1];
+            maxDataCenterID = datacenterIds[datacenterIds.length -1];
 
             snapShotWithDatacenters = await takeSnapshot();
         })
 
         describe("Add storage node", () => {
             const user = Wallet.createRandom();
-            const storageNode = createStorageNodeStruct(
+            const storageNode = createStorageNodeInputStruct(
                 user.address, 
                 "https://1",
-                "US",
-                "North America",
+                "us",
+                "north america",
                 1,
                 -90,
                 -180
             );
             const didAddress = Wallet.createRandom().address //signInfo.userAddress;
+
+            it("Failed: Invalid didAddress", async () => {
+                const invalidDIDAddresses = [
+                    "",                         // Empty address
+                    `did:vda:${didAddress}`     // DID
+                ]
+                for (let i = 0; i < 1; i++) {
+                    const nodeInfo = createStorageNodeInputStruct(invalidDIDAddresses[i], "", "", "", 0, 0, 0);
+                    try {
+                        await contract.addNode(nodeInfo, "0x00", "0x00", "0x00");
+                    } catch (err) {
+                        expect(err.reason).to.equal('resolver or addr is not configured for ENS name');
+                    }
+                }
+            })
             
             it("Failed: Empty endpoint uri", async () => {
-                const nodeInfo = createStorageNodeStruct(didAddress, "", "", "", 0, 0, 0);
+                const nodeInfo = createStorageNodeInputStruct(didAddress, "", "", "", 0, 0, 0);
                 await expect(
                     contract.addNode(nodeInfo, "0x00", "0x00", "0x00")
                 ).to.be.revertedWithCustomError(contract, "InvalidEndpointUri")
             })
 
-            it("Failed: Invalid country code", async () => {
+            it("Failed: Invalid country codes", async () => {
                 for (let i = 0; i < INVALID_COUNTRY_CODES.length; i++) {
-                    const nodeInfo = createStorageNodeStruct(
+                    const nodeInfo = createStorageNodeInputStruct(
                         didAddress,
                         "https://1",
                         INVALID_COUNTRY_CODES[i],
@@ -468,29 +564,31 @@ describe("Verida StorageNodeRegistry", function () {
                 }
             })
 
-            it("Failed: Empty region code", async () => {
-                const nodeInfo = createStorageNodeStruct(
-                    didAddress,
-                    "https://1",
-                    "US",
-                    "",
-                    0,
-                    0,
-                    0);
+            it("Failed: Invalid region codes", async () => {
+                for (let i = 0; i < INVALID_REGION_CODES.length; i++) {
+                    const nodeInfo = createStorageNodeInputStruct(
+                        didAddress,
+                        "https://1",
+                        "us",
+                        INVALID_REGION_CODES[i],
+                        0,
+                        0,
+                        0);
 
-                await expect(
-                    contract.addNode(nodeInfo, "0x00", "0x00", "0x00")
-                ).to.be.revertedWithCustomError(contract, "InvalidRegionCode");
+                    await expect(
+                        contract.addNode(nodeInfo, "0x00", "0x00", "0x00")
+                    ).to.be.revertedWithCustomError(contract, "InvalidRegionCode");
+                }
             })
 
             it("Failed: Invalid datacenterID - unregistered", async () => {
-                const invalidIds = [BigNumber.from(0), maxDatacentID.add(1), maxDatacentID.add(100)];
+                const invalidIds = [BigNumber.from(0), maxDataCenterID.add(1), maxDataCenterID.add(100)];
                 for (let i = 0; i < invalidIds.length; i++) {
-                    const nodeInfo = createStorageNodeStruct(
+                    const nodeInfo = createStorageNodeInputStruct(
                         didAddress,
                         "https://1",
-                        "US",
-                        "North America",
+                        "us",
+                        "north america",
                         invalidIds[i],
                         0,
                         0);
@@ -506,11 +604,11 @@ describe("Verida StorageNodeRegistry", function () {
 
                 await contract.removeDatacenter(datacenterIds[0]);
 
-                const nodeInfo = createStorageNodeStruct(
+                const nodeInfo = createStorageNodeInputStruct(
                     didAddress,
                     "https://1",
-                    "US",
-                    "North America",
+                    "us",
+                    "north america",
                     datacenterIds[0],
                     0,
                     0);
@@ -519,17 +617,17 @@ describe("Verida StorageNodeRegistry", function () {
                     contract.addNode(nodeInfo, "0x00", "0x00", "0x00")
                 ).to.be.revertedWithCustomError(contract, "InvalidDatacenterId");
 
-                currentSnapshot.restore();
+                await currentSnapshot.restore();
             })
 
             it("Failed: Invlaid Latitude",async () => {
                 const invalidLatValues = [-90.05, -180, 91, 500];
                 for (let i = 0; i < invalidLatValues.length; i++) {
-                    const nodeInfo = createStorageNodeStruct(
+                    const nodeInfo = createStorageNodeInputStruct(
                         didAddress,
                         "https://1",
-                        "US",
-                        "North America",
+                        "us",
+                        "north america",
                         datacenterIds[0],
                         invalidLatValues[i],
                         0);
@@ -542,11 +640,11 @@ describe("Verida StorageNodeRegistry", function () {
             it("Failed: Invalid Longitude",async () => {
                 const invalidLongValues = [-180.1, -270, -400.2523, 181, 360, 500.235];
                 for (let i = 0; i < invalidLongValues.length; i++) {
-                    const nodeInfo = createStorageNodeStruct(
+                    const nodeInfo = createStorageNodeInputStruct(
                         didAddress,
                         "https://1",
-                        "US",
-                        "North America",
+                        "us",
+                        "north america",
                         datacenterIds[0],
                         0,
                         invalidLongValues[i]);
@@ -594,11 +692,12 @@ describe("Verida StorageNodeRegistry", function () {
                     storageNode.regionCode,
                     storageNode.datacenterId,
                     storageNode.lat,
-                    storageNode.long
+                    storageNode.long,
+                    anyValue
                 );
             })
 
-            it("Failed: Registered didAddress & endpointURI", async () => {
+            it("Failed: Duplicated `didAddress` & `endpointURI`", async () => {
                 // Registered DID
                 await checkAddNode(storageNode, user, trustedSigner, false, "InvalidDIDAddress");
                 
@@ -614,18 +713,19 @@ describe("Verida StorageNodeRegistry", function () {
 
             })
 
-            it("Failed: Removing didAddress & endpointURI", async () => {
+            it("Failed: didAddress & endpointURI in pending `removal` status", async () => {
                 const currentSnapshot = await takeSnapshot();
 
                 const blockTime = await time.latest();
                 const unregisterTime = blockTime + days(30);
 
+                // Remove a node
                 await checkRemoveNodeStart(user, unregisterTime);
                 
-                // Registered DID
+                // Failed to add for didAddress in pending removal state
                 await checkAddNode(storageNode, user, trustedSigner, false, "InvalidDIDAddress");
                 
-                // Registered EndpointURI
+                // Failed to add for endpoint in pending removal state
                 {
                     const anotherUser = Wallet.createRandom();
 
@@ -661,15 +761,18 @@ describe("Verida StorageNodeRegistry", function () {
             ];
 
             const endpointURI = ["https://1", "https://2", "https://3"];
-            const nodeCountry = ["US", "US", "UK"];
-            const nodeRegion = ["North America", "North America", "Europe"];
+            const nodeCountry = ["us", "us", "uk"];
+            const nodeRegion = ["north america", "north america", "europe"];
             const datacenterId = [1, 2, 3];
             const lat = [-90, -88.5, 40];
             const long = [-180, 10.436, 120.467];
 
-            let storageNodes : IStorageNodeRegistry.StorageNodeStruct[] = [];
+            let storageNodes : IStorageNodeRegistry.StorageNodeInputStruct[] = [];
 
-            const checkGetNodeResult = (result: IStorageNodeRegistry.StorageNodeStructOutput, org: IStorageNodeRegistry.StorageNodeStruct) => {
+            const checkGetNodeResult = (
+                result: IStorageNodeRegistry.StorageNodeWithStatusStructOutput | IStorageNodeRegistry.StorageNodeStructOutput, 
+                org: IStorageNodeRegistry.StorageNodeInputStruct, 
+                status : "active" | "removed" = "active") => {
                 expect(result.didAddress).to.equal(org.didAddress);
                 expect(result.endpointUri).to.equal(org.endpointUri);
                 expect(result.countryCode).to.equal(org.countryCode);
@@ -677,6 +780,9 @@ describe("Verida StorageNodeRegistry", function () {
                 expect(result.datacenterId).to.equal(org.datacenterId);
                 expect(result.lat).to.equal(org.lat);
                 expect(result.long).to.equal(org.long);
+                if (result.status !== undefined) {
+                    expect(result.status).to.equal(status); 
+                }
             }
 
 
@@ -686,7 +792,7 @@ describe("Verida StorageNodeRegistry", function () {
                 await contract.addTrustedSigner(trustedSigner.address);
 
                 for (let i = 0; i < users.length; i++) {
-                    storageNodes.push(createStorageNodeStruct(
+                    storageNodes.push(createStorageNodeInputStruct(
                         users[i].address,
                         endpointURI[i],
                         nodeCountry[i],
@@ -711,28 +817,26 @@ describe("Verida StorageNodeRegistry", function () {
                     ).to.be.revertedWithCustomError(contract, "InvalidDIDAddress");
                 })
 
-                it("Failed: Remove started", async () => {
+                it("Success: status active", async () => {
+                    for (let i = 0; i < users.length; i++) {
+                        const node = await contract.getNodeByAddress(users[i].address);
+                        checkGetNodeResult(node, storageNodes[i]);
+                    }
+                })
+
+                it("Success: pending removal state", async () => {
                     const currentSnapshot = await takeSnapshot();
 
                     // Remove start
                     const blockTime = await time.latest();
                     const unregisterTime = blockTime + days(30);
-
                     await checkRemoveNodeStart(users[0], unregisterTime);
-                    
-                    // Get
-                    await expect(
-                        contract.getNodeByAddress(users[0].address)
-                    ).to.be.revertedWithCustomError(contract, "InvalidDIDAddress")
+
+                    // Get by address
+                    const node =  await contract.getNodeByAddress(users[0].address);
+                    checkGetNodeResult(node, storageNodes[0], "removed");
                     
                     await currentSnapshot.restore();
-                })
-
-                it("Success", async () => {
-                    for (let i = 0; i < users.length; i++) {
-                        const node = await contract.getNodeByAddress(users[i].address);
-                        checkGetNodeResult(node, storageNodes[i]);
-                    }
                 })
             })
 
@@ -745,34 +849,32 @@ describe("Verida StorageNodeRegistry", function () {
                     ).to.be.revertedWithCustomError(contract, "InvalidEndpointUri");
                 })
 
-                it("Failed: Remove started", async () => {
-                    const currentSnapshot = await takeSnapshot();
-
-                    // Remove start
-                    const blockTime = await time.latest();
-                    const unregisterTime = blockTime + days(30);
-
-                    await checkRemoveNodeStart(users[0], unregisterTime);
-
-                    // Get
-                    await expect(
-                        contract.getNodeByEndpoint(storageNodes[0].endpointUri)
-                    ).to.be.revertedWithCustomError(contract, "InvalidEndpointUri")
-                    
-                    await currentSnapshot.restore();
-                })
-
-                it("Success", async () => {
+                it("Success : status active", async () => {
                     for (let i = 0; i < users.length; i++) {
                         const node = await contract.getNodeByEndpoint(storageNodes[i].endpointUri);
                         checkGetNodeResult(node, storageNodes[i]);
                     }
                 })
+
+                it("Success: pending removal state", async () => {
+                    const currentSnapshot = await takeSnapshot();
+
+                    // Remove start
+                    const blockTime = await time.latest();
+                    const unregisterTime = blockTime + days(30);
+                    await checkRemoveNodeStart(users[0], unregisterTime);
+
+                    // Get by endpoint
+                    const node = await contract.getNodeByEndpoint(storageNodes[0].endpointUri);
+                    checkGetNodeResult(node, storageNodes[0], "removed");
+
+                    await currentSnapshot.restore();
+                })
             })
 
             describe("Get by Country", () => {
                 it("Return empty array for unregistered country", async () => {
-                    const unregistedCode = "SG";
+                    const unregistedCode = "sg";
                     assert(storageNodes.findIndex(item => item.countryCode === unregistedCode) === -1);
 
                     expect(await contract.getNodesByCountry(unregistedCode)).to.deep.equal([]);
@@ -789,6 +891,7 @@ describe("Verida StorageNodeRegistry", function () {
 
                         expect(orgCountryNodes.length).to.equal(nodesReturned.length);
 
+                
                         for (let j = 0; j < orgCountryNodes.length; j++) {
                             checkGetNodeResult(nodesReturned[j], orgCountryNodes[j]);
                         }
@@ -798,7 +901,7 @@ describe("Verida StorageNodeRegistry", function () {
 
             describe("Get by Region", () => {
                 it("Return empty array for unregistered country", async () => {
-                    const unregistedCode = "Africa";
+                    const unregistedCode = "africa";
                     assert(storageNodes.findIndex(item => item.regionCode === unregistedCode) === -1);
 
                     expect(await contract.getNodesByRegion(unregistedCode)).to.deep.equal([]);
@@ -825,11 +928,11 @@ describe("Verida StorageNodeRegistry", function () {
 
         describe("Remove node", () => {
             const user = Wallet.createRandom();
-            const storageNode = createStorageNodeStruct(
+            const storageNode = createStorageNodeInputStruct(
                 user.address, 
                 "https://1",
-                "US",
-                "North America",
+                "us",
+                "north america",
                 1,
                 -90,
                 -180

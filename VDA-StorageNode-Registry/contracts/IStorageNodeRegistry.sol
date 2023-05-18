@@ -20,7 +20,7 @@ interface IStorageNodeRegistry {
         int lat;
         int long;
     }
-    
+
     /**
      * @notice Struct representing a storage node
      * @param didAddress DID address that is associated with the storage node
@@ -30,6 +30,7 @@ interface IStorageNodeRegistry {
      * @param datacenterId Unique datacenter identifier that is created by `addDataCenter()` method.
      * @param lat Latitude
      * @param long Longitude
+     * @param establishmentDate Node added time in seconds
      */
     struct StorageNode {
         address didAddress;
@@ -39,17 +40,55 @@ interface IStorageNodeRegistry {
         uint datacenterId;
         int lat;
         int long;
+        uint establishmentDate;
     }
 
-    // /**
-    //  * @notice Additional information for a storage node
-    //  * @dev Used internally inside the contract
-    //  * @param expired Expired time. 0 means not expired
-    //  */
-    // struct StorageNodeInfo {
-    //     uint expired;
-    // }
+    /**
+     * @notice Struct for StorageNodeInput
+     * @dev Used in `addNode()` function
+     * @param didAddress DID address that is associated with the storage node
+     * @param endpointUri The storage node endpoint
+     * @param countryCode Unique two-character string code
+     * @param regionCode Unique region string code
+     * @param datacenterId Unique datacenter identifier that is created by `addDataCenter()` method.
+     * @param lat Latitude
+     * @param long Longitude
+     */
+    struct StorageNodeInput {
+        address didAddress;
+        string endpointUri;
+        string countryCode;
+        string regionCode;
+        uint datacenterId;
+        int lat;
+        int long;
+    }
 
+    /**
+     * @notice StorageNode struct with additional field of `status`
+     * @dev Used as output in `getNodeByAddress()` and `getNodeByEndpoint()` functions
+     * @param didAddress DID address that is associated with the storage node
+     * @param endpointUri The storage node endpoint
+     * @param countryCode Unique two-character string code
+     * @param regionCode Unique region string code
+     * @param datacenterId Unique datacenter identifier that is created by `addDataCenter()` method.
+     * @param lat Latitude
+     * @param long Longitude
+     * @param establishmentDate Node added time in seconds
+     * @param status "active" if node is active. "removed" if node is in pending removal state
+     */
+    struct StorageNodeWithStatus {
+        address didAddress;
+        string endpointUri;
+        string countryCode;
+        string regionCode;
+        uint datacenterId;
+        int lat;
+        int long;
+        uint establishmentDate;
+        string status;
+    }
+    
     /**
      * @notice Emitted when a datacenter added
      * @param datacenterId Added datacenterId
@@ -89,7 +128,8 @@ interface IStorageNodeRegistry {
         string regionCode,
         uint datacenterId,
         int lat,
-        int long
+        int long,
+        uint establishmentDate
     );
 
     /**
@@ -152,7 +192,7 @@ interface IStorageNodeRegistry {
      * @param authSignature Signature signed by a trusted signer
      */
     function addNode(
-        StorageNode calldata nodeInfo,
+        StorageNodeInput calldata nodeInfo,
         bytes calldata requestSignature,
         bytes calldata requestProof,
         bytes calldata authSignature
@@ -188,16 +228,16 @@ interface IStorageNodeRegistry {
     /**
      * @notice Returns a storage node for didAddress
      * @param didAddress DID address that is associated with the storage node
-     * @return StorageNode Returns storage node
+     * @return StorageNodeWithStatus Returns storage node
      */
-    function getNodeByAddress(address didAddress) external view returns(StorageNode memory);
+    function getNodeByAddress(address didAddress) external view returns(StorageNodeWithStatus memory);
 
     /**
      * @notice Returns a storage node for endpoint uri
      * @param endpointUri The storage node endpoint
-     * @return StorageNode Returns storage node
+     * @return StorageNodeWithStatus Returns storage node
      */
-    function getNodeByEndpoint(string calldata endpointUri) external view returns(StorageNode memory);
+    function getNodeByEndpoint(string calldata endpointUri) external view returns(StorageNodeWithStatus memory);
 
     /**
      * @notice Return an array of `Storagenode` structs for countryCode

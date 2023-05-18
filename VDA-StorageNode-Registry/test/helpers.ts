@@ -21,14 +21,14 @@ export function createDatacenterStruct(
     }
 }
 
-export function createStorageNodeStruct(
+export function createStorageNodeInputStruct(
     address: string,
     endpointUri: string,
     countryCode: string,
     regionCode: string,
     datacenterId: BigNumberish,
     lat: number,
-    long: number) : IStorageNodeRegistry.StorageNodeStruct {
+    long: number) : IStorageNodeRegistry.StorageNodeInputStruct {
     
     return {
         didAddress: address,
@@ -48,7 +48,7 @@ export interface RequestSignature {
 }
 
 export function getAddNodeSignatures(
-    node: IStorageNodeRegistry.StorageNodeStruct,
+    node: IStorageNodeRegistry.StorageNodeInputStruct,
     nonce: BigNumberish,
     user : Wallet,
     signer : Wallet

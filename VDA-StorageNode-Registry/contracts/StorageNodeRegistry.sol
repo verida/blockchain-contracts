@@ -126,11 +126,28 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
     }
 
     /**
+     * @notice Check whether the value is lowercase string
+     * @param value String value to check
+     * @return true if value is lowercase
+     */
+    function isLowerCase(string calldata value) internal pure returns(bool) {
+        bytes memory _baseBytes = bytes(value);
+        for (uint i; i < _baseBytes.length;) {
+            if (_baseBytes[i] >= 0x41 && _baseBytes[i] <= 0x5A) {
+                return false;
+            }
+            unchecked { ++i; }
+        }
+
+        return true;
+    }
+
+    /**
      * @notice Check validity of country code
      * @param countryCode Unique two-character string code
      */
     function validateCountryCode(string calldata countryCode) internal pure {
-        if (bytes(countryCode).length != 2) {
+        if (bytes(countryCode).length != 2 || !isLowerCase(countryCode)) {
             revert InvalidCountryCode();
         }
     }
@@ -140,7 +157,7 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
      * @param regionCode Unique region string code
      */
     function validateRegionCode(string calldata regionCode) internal pure {
-        if (bytes(regionCode).length == 0) {
+        if (bytes(regionCode).length == 0 || !isLowerCase(regionCode)) {
             revert InvalidRegionCode();
         }
     }
@@ -177,7 +194,7 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
     function addDatacenter(Datacenter calldata data) external payable onlyOwner override
          returns(uint) {
         {
-            if (bytes(data.name).length == 0) {
+            if (bytes(data.name).length == 0 || !isLowerCase(data.name)) {
                 revert InvalidDatacenterName();
             }
 
@@ -327,7 +344,7 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
      * @dev see { IStorageNodeRegistry }
      */
     function addNode(
-        StorageNode calldata nodeInfo,
+        StorageNodeInput calldata nodeInfo,
         bytes calldata requestSignature,
         bytes calldata requestProof,
         bytes calldata authSignature
@@ -379,7 +396,15 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
             _nodeIdCounter.increment();
             uint nodeId = _nodeIdCounter.current();
 
-            _nodeMap[nodeId] = nodeInfo;
+            _nodeMap[nodeId].didAddress = nodeInfo.didAddress;
+            _nodeMap[nodeId].endpointUri = nodeInfo.endpointUri;
+            _nodeMap[nodeId].countryCode = nodeInfo.countryCode;
+            _nodeMap[nodeId].regionCode = nodeInfo.regionCode;
+            _nodeMap[nodeId].datacenterId = nodeInfo.datacenterId;
+            _nodeMap[nodeId].lat = nodeInfo.lat;
+            _nodeMap[nodeId].long = nodeInfo.long;
+            _nodeMap[nodeId].establishmentDate = block.timestamp;
+
             _didNodeId[nodeInfo.didAddress] = nodeId;
             _endpointNodeId[nodeInfo.endpointUri] = nodeId;
             _countryNodeIds[nodeInfo.countryCode].add(nodeId);
@@ -395,7 +420,9 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
             nodeInfo.regionCode, 
             nodeInfo.datacenterId,
             nodeInfo.lat,
-            nodeInfo.long);
+            nodeInfo.long,
+            block.timestamp
+            );
     }
 
     /**
@@ -463,42 +490,58 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
         emit RemoveNodeComplete(didAddress);
     }
 
+    /**
+     * @notice Clone StorageNode struct with additional field of `status`
+     * @dev Used for `getNodeByAddress()` and `getNodeByEndpoint()` functions only
+     * @param nodeId StorageNode Id
+     * @return result StorageNodeWithStatus
+     */
+    function cloneNodeWithStatus(uint nodeId) private view returns(StorageNodeWithStatus memory result) {
+        StorageNode storage node = _nodeMap[nodeId];
+        result.didAddress = node.didAddress;
+        result.endpointUri = node.endpointUri;
+        result.countryCode = node.countryCode;
+        result.regionCode = node.regionCode;
+        result.datacenterId = node.datacenterId;
+        result.lat = node.lat;
+        result.long = node.long;
+        result.establishmentDate = node.establishmentDate;
+        if (_nodeUnregisterTime[nodeId] != 0) {
+            result.status = "removed";
+        } else {
+            result.status = "active";
+        }
+    }
 
     /**
      * @dev see { IStorageNodeRegistry }
      */
-    function getNodeByAddress(address didAddress) external view override returns(StorageNode memory) {
+    function getNodeByAddress(address didAddress) external view override returns(StorageNodeWithStatus memory) {
+        // function getNodeByAddress(address didAddress) external view override returns(StorageNode memory, string memory) {
         uint nodeId = _didNodeId[didAddress];
 
         if (nodeId == 0) {
             revert InvalidDIDAddress();
         }
 
-        if (_nodeUnregisterTime[nodeId] != 0) {
-            revert InvalidDIDAddress();
-        }
-
-        return _nodeMap[nodeId];
+        return cloneNodeWithStatus(nodeId);
+        // return (_nodeMap[nodeId], "active");
     }
 
     /**
      * @dev see { IStorageNodeRegistry }
      */
-    function getNodeByEndpoint(string calldata endpointUri) external view override returns(StorageNode memory) {
+    function getNodeByEndpoint(string calldata endpointUri) external view override returns(StorageNodeWithStatus memory) {
         uint nodeId = _endpointNodeId[endpointUri];
 
         if (nodeId == 0) {
             revert InvalidEndpointUri();
         }
 
-        if (_nodeUnregisterTime[nodeId] != 0) {
-            revert InvalidEndpointUri();
-        }
-
-        return _nodeMap[nodeId];
+        return cloneNodeWithStatus(nodeId);
     }
 
-    function filtrActiveStorageNodes(EnumerableSetUpgradeable.UintSet storage ids) internal view returns(StorageNode[] memory) {
+    function filterActiveStorageNodes(EnumerableSetUpgradeable.UintSet storage ids) internal view returns(StorageNode[] memory) {
         uint count = ids.length();
         uint removedCount;
 
@@ -532,14 +575,14 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
      * @dev see { IStorageNodeRegistry }
      */
     function getNodesByCountry(string calldata countryCode) external view override returns(StorageNode[] memory) {
-        return filtrActiveStorageNodes(_countryNodeIds[countryCode]);
+        return filterActiveStorageNodes(_countryNodeIds[countryCode]);
     }
 
     /**
      * @dev see { IStorageNodeRegistry }
      */
     function getNodesByRegion(string calldata regionCode) external view override returns(StorageNode[] memory) {
-        return filtrActiveStorageNodes(_regionNodeIds[regionCode]);
+        return filterActiveStorageNodes(_regionNodeIds[regionCode]);
     }
 
 }
