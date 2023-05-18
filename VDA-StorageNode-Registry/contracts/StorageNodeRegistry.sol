@@ -491,56 +491,51 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
     }
 
     /**
-     * @notice Clone StorageNode struct with additional field of `status`
-     * @dev Used for `getNodeByAddress()` and `getNodeByEndpoint()` functions only
-     * @param nodeId StorageNode Id
-     * @return result StorageNodeWithStatus
+     * @notice Create tuple for StorageNode with status
+     * @param nodeId StorageNode ID created by `addNode()` function
+     * @return StorageNode StoargeNode struct
+     * @return string Status string
      */
-    function cloneNodeWithStatus(uint nodeId) private view returns(StorageNodeWithStatus memory result) {
-        StorageNode storage node = _nodeMap[nodeId];
-        result.didAddress = node.didAddress;
-        result.endpointUri = node.endpointUri;
-        result.countryCode = node.countryCode;
-        result.regionCode = node.regionCode;
-        result.datacenterId = node.datacenterId;
-        result.lat = node.lat;
-        result.long = node.long;
-        result.establishmentDate = node.establishmentDate;
+    function getNodeWithStatus(uint nodeId) private view returns(StorageNode memory, string memory) {
+        string memory status = "active";
         if (_nodeUnregisterTime[nodeId] != 0) {
-            result.status = "removed";
-        } else {
-            result.status = "active";
+            status = "removed";
         }
-    }
 
+        return (_nodeMap[nodeId], status);
+    }
+    
     /**
      * @dev see { IStorageNodeRegistry }
      */
-    function getNodeByAddress(address didAddress) external view override returns(StorageNodeWithStatus memory) {
-        // function getNodeByAddress(address didAddress) external view override returns(StorageNode memory, string memory) {
+    function getNodeByAddress(address didAddress) external view override returns(StorageNode memory, string memory) {
         uint nodeId = _didNodeId[didAddress];
-
         if (nodeId == 0) {
             revert InvalidDIDAddress();
         }
 
-        return cloneNodeWithStatus(nodeId);
-        // return (_nodeMap[nodeId], "active");
+        return getNodeWithStatus(nodeId);
     }
 
     /**
      * @dev see { IStorageNodeRegistry }
      */
-    function getNodeByEndpoint(string calldata endpointUri) external view override returns(StorageNodeWithStatus memory) {
+    function getNodeByEndpoint(string calldata endpointUri) external view override returns(StorageNode memory, string memory) {
         uint nodeId = _endpointNodeId[endpointUri];
 
         if (nodeId == 0) {
             revert InvalidEndpointUri();
         }
 
-        return cloneNodeWithStatus(nodeId);
+        return getNodeWithStatus(nodeId);
     }
 
+    /**
+     * @notice Filter active node IDs from set
+     * @dev Used for `getNodesByCountry()` and `getNodesByRegion()` functions
+     * @param ids ID set
+     * @return StorageNode[] Array of active storage nodes
+     */
     function filterActiveStorageNodes(EnumerableSetUpgradeable.UintSet storage ids) internal view returns(StorageNode[] memory) {
         uint count = ids.length();
         uint removedCount;

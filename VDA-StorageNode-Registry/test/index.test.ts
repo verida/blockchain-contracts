@@ -770,9 +770,8 @@ describe("Verida StorageNodeRegistry", function () {
             let storageNodes : IStorageNodeRegistry.StorageNodeInputStruct[] = [];
 
             const checkGetNodeResult = (
-                result: IStorageNodeRegistry.StorageNodeWithStatusStructOutput | IStorageNodeRegistry.StorageNodeStructOutput, 
-                org: IStorageNodeRegistry.StorageNodeInputStruct, 
-                status : "active" | "removed" = "active") => {
+                result: IStorageNodeRegistry.StorageNodeStructOutput, 
+                org: IStorageNodeRegistry.StorageNodeInputStruct, ) => {
                 expect(result.didAddress).to.equal(org.didAddress);
                 expect(result.endpointUri).to.equal(org.endpointUri);
                 expect(result.countryCode).to.equal(org.countryCode);
@@ -780,9 +779,6 @@ describe("Verida StorageNodeRegistry", function () {
                 expect(result.datacenterId).to.equal(org.datacenterId);
                 expect(result.lat).to.equal(org.lat);
                 expect(result.long).to.equal(org.long);
-                if (result.status !== undefined) {
-                    expect(result.status).to.equal(status); 
-                }
             }
 
 
@@ -819,8 +815,10 @@ describe("Verida StorageNodeRegistry", function () {
 
                 it("Success: status active", async () => {
                     for (let i = 0; i < users.length; i++) {
-                        const node = await contract.getNodeByAddress(users[i].address);
-                        checkGetNodeResult(node, storageNodes[i]);
+                        const result = await contract.getNodeByAddress(users[i].address);
+                        checkGetNodeResult(result[0], storageNodes[i]);
+
+                        expect(result[1]).to.equal("active");
                     }
                 })
 
@@ -833,8 +831,10 @@ describe("Verida StorageNodeRegistry", function () {
                     await checkRemoveNodeStart(users[0], unregisterTime);
 
                     // Get by address
-                    const node =  await contract.getNodeByAddress(users[0].address);
-                    checkGetNodeResult(node, storageNodes[0], "removed");
+                    const result =  await contract.getNodeByAddress(users[0].address);
+                    checkGetNodeResult(result[0], storageNodes[0]);
+
+                    expect(result[1]).to.equal("removed");
                     
                     await currentSnapshot.restore();
                 })
@@ -851,8 +851,9 @@ describe("Verida StorageNodeRegistry", function () {
 
                 it("Success : status active", async () => {
                     for (let i = 0; i < users.length; i++) {
-                        const node = await contract.getNodeByEndpoint(storageNodes[i].endpointUri);
-                        checkGetNodeResult(node, storageNodes[i]);
+                        const result = await contract.getNodeByEndpoint(storageNodes[i].endpointUri);
+                        checkGetNodeResult(result[0], storageNodes[i]);
+                        expect(result[1]).to.equal("active");
                     }
                 })
 
@@ -865,8 +866,9 @@ describe("Verida StorageNodeRegistry", function () {
                     await checkRemoveNodeStart(users[0], unregisterTime);
 
                     // Get by endpoint
-                    const node = await contract.getNodeByEndpoint(storageNodes[0].endpointUri);
-                    checkGetNodeResult(node, storageNodes[0], "removed");
+                    const result = await contract.getNodeByEndpoint(storageNodes[0].endpointUri);
+                    checkGetNodeResult(result[0], storageNodes[0]);
+                    expect(result[1]).to.equal("removed");
 
                     await currentSnapshot.restore();
                 })

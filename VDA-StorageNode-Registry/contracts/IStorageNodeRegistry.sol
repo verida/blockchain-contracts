@@ -65,31 +65,6 @@ interface IStorageNodeRegistry {
     }
 
     /**
-     * @notice StorageNode struct with additional field of `status`
-     * @dev Used as output in `getNodeByAddress()` and `getNodeByEndpoint()` functions
-     * @param didAddress DID address that is associated with the storage node
-     * @param endpointUri The storage node endpoint
-     * @param countryCode Unique two-character string code
-     * @param regionCode Unique region string code
-     * @param datacenterId Unique datacenter identifier that is created by `addDataCenter()` method.
-     * @param lat Latitude
-     * @param long Longitude
-     * @param establishmentDate Node added time in seconds
-     * @param status "active" if node is active. "removed" if node is in pending removal state
-     */
-    struct StorageNodeWithStatus {
-        address didAddress;
-        string endpointUri;
-        string countryCode;
-        string regionCode;
-        uint datacenterId;
-        int lat;
-        int long;
-        uint establishmentDate;
-        string status;
-    }
-    
-    /**
      * @notice Emitted when a datacenter added
      * @param datacenterId Added datacenterId
      * @param name Datacenter name
@@ -228,16 +203,18 @@ interface IStorageNodeRegistry {
     /**
      * @notice Returns a storage node for didAddress
      * @param didAddress DID address that is associated with the storage node
-     * @return StorageNodeWithStatus Returns storage node
+     * @return StorageNode Returns storage node
+     * @return string Status - "active" or "removed"
      */
-    function getNodeByAddress(address didAddress) external view returns(StorageNodeWithStatus memory);
+    function getNodeByAddress(address didAddress) external view returns(StorageNode memory, string memory);
 
     /**
      * @notice Returns a storage node for endpoint uri
      * @param endpointUri The storage node endpoint
-     * @return StorageNodeWithStatus Returns storage node
+     * @return StorageNode Returns storage node
+     * @return string Status - "active" or "removed"
      */
-    function getNodeByEndpoint(string calldata endpointUri) external view returns(StorageNodeWithStatus memory);
+    function getNodeByEndpoint(string calldata endpointUri) external view returns(StorageNode memory, string memory);
 
     /**
      * @notice Return an array of `Storagenode` structs for countryCode
