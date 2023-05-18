@@ -155,7 +155,6 @@ describe("Verida StorageNodeRegistry", function () {
         snapShotAfterDeploy = await takeSnapshot();
     });
 
-    /*
     describe("Data center", () => {
         const datacenterIds : BigNumber[] = []
 
@@ -481,7 +480,6 @@ describe("Verida StorageNodeRegistry", function () {
             })
         })
     });
-    */
 
     describe("Storage node", () => {
 
