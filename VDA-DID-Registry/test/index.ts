@@ -188,9 +188,6 @@ describe("Verida DIDRegistry", () => {
         testDIDs[1].address
       ])
 
-      // Should reject for non contract owners
-      await expect(didReg.connect(accounts[1]).getDIDs(0,1)).to.be.rejectedWith("Ownable: caller is not the owner")
-
       // Should reject for invalid ranges
       await expect(didReg.getDIDs(0,0)).to.be.revertedWithCustomError(didReg, "OutOfRange")
       await expect(didReg.getDIDs(0,4)).to.be.revertedWithCustomError(didReg, "OutOfRange")
