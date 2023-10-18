@@ -14,9 +14,9 @@ async function upgrade() {
   console.log("Call Overrides: ", callOverrides)
 
   // CHange these values for the upgrade. 
-  const contractProxyDeployed = ""
+  const contractProxyDeployed = "0x08CB4462958e6462Cc899862393f0b3bB6664efD"
   const oldContract = "VeridaDIDRegistry"
-  const newContract = "VeridaDIDRegistryV1"
+  const newContract = "VeridaDIDRegistryV2"
 
   const contractFactoryOLD = await ethers.getContractFactory(oldContract);
   const contractFactoryOLDAttached = contractFactoryOLD.attach(contractProxyDeployed);
@@ -36,7 +36,7 @@ async function upgrade() {
   console.log(oldContract + " upgraded to " + newContract + " via transaction hash: " + contractUpgradeCall.deployTransaction.hash)
 
   // const contractFactoryNewAttached = contractFactoryNew.attach(contractProxyDeployed);
-  console.log("Read version of upgraded contract : " + await contractUpgradeCall.getVersion())
+  // console.log("Read version of upgraded contract : " + await contractUpgradeCall.getVersion())
 }
 
 // We recommend this pattern to be able to use async/await everywhere
