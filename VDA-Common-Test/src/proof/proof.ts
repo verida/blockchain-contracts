@@ -4,7 +4,7 @@ import { Client} from "@verida/client-ts";
 import { EnvironmentType, DIDClientConfig } from '@verida/types'
 
 import { Wallet } from "ethers"
-import { JsonRpcProvider } from '@ethersproject/providers'
+import { Keyring } from "@verida/keyring";
 
 if (process.env.PRIVATE_KEY === undefined) {
     throw new Error('PRIVATE_KEY not defined in env')
@@ -16,9 +16,6 @@ if (rpcUrl === undefined) {
     throw new Error('RPC url is not defined in env')
 }
 console.log('RPC URL :', rpcUrl)
-
-const provider = new JsonRpcProvider(rpcUrl);
-const txSigner = new Wallet(privateKey, provider)
 
 export async function getDIDClient(veridaAccount: Wallet) {
     
@@ -40,8 +37,8 @@ export async function getDIDClient(veridaAccount: Wallet) {
         },
         [
             `https://node1-euw6.gcp.devnet.verida.tech/did/`,
-            `https://node2-euw6.gcp.devnet.verida.tech/did/`,
-            `https://node3-euw6.gcp.devnet.verida.tech/did/`,
+            // `https://node2-euw6.gcp.devnet.verida.tech/did/`,
+            `https://node3-euw6.gcp.devnet.verida.tech/did/`
         ]
     )
 
@@ -72,21 +69,12 @@ export async function getDIDClient(veridaAccount: Wallet) {
 
 const DEFAULT_ENDPOINTS = [
     'https://node1-euw6.gcp.devnet.verida.tech/did/', 
-    'https://node2-euw6.gcp.devnet.verida.tech/did/', 
+    // 'https://node2-euw6.gcp.devnet.verida.tech/did/', 
     'https://node3-euw6.gcp.devnet.verida.tech/did/'
 ]
 
 export async function initVerida(didwallet: Wallet, CONTEXT_NAME: string) {
     const account = new AutoAccount({
-        defaultDatabaseServer: {
-            type: 'VeridaDatabase',
-            endpointUri: DEFAULT_ENDPOINTS
-        },
-        defaultMessageServer: {
-            type: 'VeridaMessage',
-            endpointUri: DEFAULT_ENDPOINTS
-        },
-    }, {
         privateKey: didwallet.privateKey,
         environment: EnvironmentType.TESTNET,
         didClientConfig: {
@@ -119,5 +107,52 @@ export async function initVerida(didwallet: Wallet, CONTEXT_NAME: string) {
         client,
         context,
         CONTEXT_NAME
+    }
+}
+
+export interface SignInfo {
+    signKeyring : Keyring
+    signerAddress: string
+    signerProof?: string
+    userKeyring: Keyring
+    userAddress: string
+    userProof?:  string
+}
+
+export async function generateProof() : Promise<SignInfo> {
+    //const signWallet = Wallet.createRandom()
+    const signWallet = Wallet.fromMnemonic('search foster run lesson hello width piece bridge spring walk divorce garden')
+    const signVerida = await initVerida(signWallet, 'Facebook: FB Signing Context')
+    const signAccount = signVerida.account
+    const signerDid = await signAccount.did()
+    const SIGN_CONTEXT_NAME = signVerida.CONTEXT_NAME
+
+    // console.log("Signer: ", signWallet.address, " - ", signerDid)
+
+    const userVerida = await initVerida(Wallet.createRandom(), 'Verida: Test DID User Context')
+    const userWallet = userVerida.didwallet
+    const userAccount = userVerida.account
+    const userDid = await userAccount.did()
+    const USER_CONTEXT_NAME = userVerida.CONTEXT_NAME
+    const userKeyring = await userAccount.keyring(USER_CONTEXT_NAME)
+
+    // Build a keyring of the signing wallet
+    const didClient = await signAccount.getDidClient()
+    const signKeyring = await signAccount.keyring(SIGN_CONTEXT_NAME)
+
+    const signerDoc = await didClient.get(signerDid)
+    const signerProof = signerDoc.locateContextProof(SIGN_CONTEXT_NAME)
+
+    // Get the keys of the signing wallet
+    const userDoc = await didClient.get(userDid)
+    const userProof = userDoc.locateContextProof(USER_CONTEXT_NAME)
+
+    return {
+        signKeyring,
+        signerAddress: signWallet.address.toLowerCase(),
+        signerProof,
+        userKeyring,
+        userAddress: userWallet.address.toLowerCase(),
+        userProof,
     }
 }

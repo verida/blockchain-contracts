@@ -1,3 +1,7 @@
+2023-05-10 (v0.1.5)
+-------------------
+- Update test code using `@verida/contract-test-utils`
+
 2023-04-03 (v0.1.4)
 -------------------
 - Added events for `addTrustedSigner()` and `removeTrustedSigner()`

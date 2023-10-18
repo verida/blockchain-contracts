@@ -6,7 +6,7 @@ import EncryptionUtils from '@verida/encryption-utils'
 import { ethers , upgrades } from "hardhat"
 import { TestContract } from "../typechain-types";
 import { Keyring } from "@verida/keyring";
-import { initVerida } from "./utils"
+import { initVerida } from "@verida/contract-test-utils"
 import { Wallet } from "ethers"
 
 let accountList : SignerWithAddress[];

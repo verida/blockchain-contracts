@@ -5,7 +5,7 @@ import hre, { ethers , upgrades } from "hardhat"
 import { BigNumber, Wallet } from 'ethers'
 import { SoulboundNFT } from "../typechain-types";
 
-import { generateProof, SignInfo } from "./utils"
+import { generateProof, SignInfo } from "@verida/contract-test-utils"
 import EncryptionUtils from '@verida/encryption-utils'
 import { Keyring } from "@verida/keyring";
 

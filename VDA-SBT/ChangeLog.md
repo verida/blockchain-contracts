@@ -1,3 +1,7 @@
+2023-05-10 (v0.2.1)
+-------------------
+- Update test code using `@verida/contract-test-utils`
+
 2023-04-06 (v0.2.0)
 -------------------
 - Added scripts for multi-sign support
