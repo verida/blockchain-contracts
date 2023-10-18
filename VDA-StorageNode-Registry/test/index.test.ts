@@ -2,14 +2,14 @@ import { expect } from "chai";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 
 import hre, { ethers , upgrades } from "hardhat"
-import { BigNumber, Wallet } from 'ethers'
+import { BigNumber, BigNumberish, Wallet } from 'ethers'
 
 import { generateProof, SignInfo } from "./proof"
 import EncryptionUtils from '@verida/encryption-utils'
 import { Keyring } from "@verida/keyring";
-import { IStorageNodeRegistry, StorageNodeRegistry } from "../typechain-types";
+import { IStorageNodeRegistry, MockToken, StorageNodeRegistry } from "../typechain-types";
 
-import { createDatacenterStruct, createStorageNodeInputStruct, getAddNodeSignatures, getRemoveCompleteSignatures, getRemoveStartSignatures } from "./helpers"; 
+import { createDatacenterStruct, createStorageNodeInputStruct, getAddNodeSignatures, getRemoveCompleteSignatures, getRemoveStartSignatures, getWithdrawSignatures } from "./helpers"; 
 
 import { SnapshotRestorer, takeSnapshot, time } from "@nomicfoundation/hardhat-network-helpers"
 import { assert } from "console";
@@ -17,6 +17,7 @@ import { days } from "@nomicfoundation/hardhat-network-helpers/dist/src/helpers/
 import { anyValue } from "@nomicfoundation/hardhat-chai-matchers/withArgs";
 
 let contract: StorageNodeRegistry
+let token: MockToken
 
 const INVALID_COUNTRY_CODES = [
     "",         // Invalid code length
@@ -60,6 +61,7 @@ const checkAddNode = async (
             storageNode.datacenterId,
             storageNode.lat,
             storageNode.long,
+            storageNode.numberSlots,
             anyValue
         );
     } else {
@@ -92,6 +94,7 @@ const checkRemoveNodeStart = async (
 
 const checkRemoveNodeComplete = async (
     user: Wallet,
+    requestor: SignerWithAddress,
     expectResult: boolean = true,
     revertError: string | null = null
 ) => {
@@ -100,14 +103,16 @@ const checkRemoveNodeComplete = async (
 
     if (expectResult === true) {
         await expect(
-            contract.removeNodeComplete(user.address, requestSignature, requestProof)
+            contract.connect(requestor).removeNodeComplete(user.address, requestSignature, requestProof)
         ).to.emit(contract, "RemoveNodeComplete").withArgs(user.address);
     } else {
         await expect(
-            contract.removeNodeComplete(user.address, requestSignature, requestProof)
+            contract.connect(requestor).removeNodeComplete(user.address, requestSignature, requestProof)
         ).to.be.revertedWithCustomError(contract, revertError!);
     }
 }
+
+const VALID_NUMBER_SLOTS = 20000;
 
 describe("Verida StorageNodeRegistry", function () {
 
@@ -119,24 +124,58 @@ describe("Verida StorageNodeRegistry", function () {
     let signInfo : SignInfo
 
     let snapShotAfterDeploy: SnapshotRestorer
+
+    const deployToken = async () : Promise<MockToken> => {
+        const tokenFactory = await ethers.getContractFactory("MockToken")
+        const token = (await upgrades.deployProxy(
+            tokenFactory,
+            ["VdaToken", "VDA"],
+            {
+                initializer: "initialize"
+            }
+        )) as MockToken
+        await token.deployed();
+
+        return token;
+    }
     
-    
-    const deployContract = async (isReset = false) : Promise<StorageNodeRegistry> => {
+    const deployContract = async (isReset = false) : Promise<[MockToken, StorageNodeRegistry]> => {
         if (isReset) {
             // reset chain before every test
             await hre.network.provider.send("hardhat_reset");
         }
 
+        const token = await deployToken();
+
         const contractFactory = await ethers.getContractFactory("StorageNodeRegistry")
         const contract = (await upgrades.deployProxy(
             contractFactory,
+            [token.address],
             {
-                initializer: "initialize"
+                initializer: "initialize"   
             }
         )) as StorageNodeRegistry;
         await contract.deployed();
 
-        return contract
+        return [token, contract];
+    }
+
+    const slotTokenAmount = async (numberSlot: BigNumberish) : Promise<BigNumber> => {
+        const decimal = await token.decimals()
+        const stakePerSlot = await contract.getStakePerSlot();
+        let tokenAmount = BigNumber.from(10);
+        tokenAmount = tokenAmount.pow(decimal);
+        tokenAmount = tokenAmount.mul(numberSlot)
+        tokenAmount = tokenAmount.mul(stakePerSlot)
+        return tokenAmount;
+    }
+
+    const approveToken =async (numberSlot: BigNumberish, from: SignerWithAddress, to: string, isMinting = false) => {
+        const tokenAmount = await slotTokenAmount(numberSlot);
+        if (isMinting) {
+            await token.mint(from.address, tokenAmount.toString());
+        }
+        await token.connect(from).approve(to, tokenAmount.toString());
     }
 
     before(async () => {
@@ -150,11 +189,14 @@ describe("Verida StorageNodeRegistry", function () {
             accountList[4]
         ];
         
-        contract = await deployContract();
-
+        [token, contract] = await deployContract();
+                
         snapShotAfterDeploy = await takeSnapshot();
+        
+        await token.mint(owner.address, BigNumber.from("1000000000000000000000"));
     });
 
+    /*
     describe("Data center", () => {
         const datacenterIds : BigNumber[] = []
 
@@ -422,7 +464,8 @@ describe("Verida StorageNodeRegistry", function () {
                 "north america",
                 1,
                 -90,
-                -180
+                -180,
+                20000
             );
 
 
@@ -456,6 +499,15 @@ describe("Verida StorageNodeRegistry", function () {
 
             it("Failed: Has depending nodes", async () => {
                 storageNode.datacenterId = datacenterIds[1];
+
+                const decimal = await token.decimals()
+                const stakePerSlot = await contract.getStakePerSlot();
+                let tokenAmount = BigNumber.from(10);
+                tokenAmount = tokenAmount.pow(decimal);
+                tokenAmount = tokenAmount.mul(BigNumber.from(storageNode.numberSlots))
+                tokenAmount = tokenAmount.mul(stakePerSlot)
+                await token.approve(contract.address, tokenAmount.toString());
+
                 // Add storage node 
                 await checkAddNode(storageNode, user, trustedSigner, true);
 
@@ -471,7 +523,7 @@ describe("Verida StorageNodeRegistry", function () {
                 
                 // Remove complete
                 await time.increaseTo(unregisterTime);
-                await checkRemoveNodeComplete(user);
+                await checkRemoveNodeComplete(user, owner);
 
                 // Success to remove datacenter
                 await expect(
@@ -480,6 +532,7 @@ describe("Verida StorageNodeRegistry", function () {
             })
         })
     });
+    */
 
     describe("Storage node", () => {
 
@@ -520,234 +573,423 @@ describe("Verida StorageNodeRegistry", function () {
                 "north america",
                 1,
                 -90,
-                -180
+                -180,
+                VALID_NUMBER_SLOTS
             );
             const didAddress = Wallet.createRandom().address //signInfo.userAddress;
 
-            it("Failed: Invalid didAddress", async () => {
-                const invalidDIDAddresses = [
-                    "",                         // Empty address
-                    `did:vda:${didAddress}`     // DID
-                ]
-                for (let i = 0; i < 1; i++) {
-                    const nodeInfo = createStorageNodeInputStruct(invalidDIDAddresses[i], "", "", "", 0, 0, 0);
-                    try {
-                        await contract.addNode(nodeInfo, "0x00", "0x00", "0x00");
-                    } catch (err) {
-                        expect(err.reason).to.equal('resolver or addr is not configured for ENS name');
+            describe("Failed for invalid arguments", () => {
+                it("Failed: Invalid didAddress", async () => {
+                    const invalidDIDAddresses = [
+                        "",                         // Empty address
+                        `did:vda:${didAddress}`     // DID
+                    ]
+                    for (let i = 0; i < 1; i++) {
+                        const nodeInfo = createStorageNodeInputStruct(invalidDIDAddresses[i], "", "", "", 0, 0, 0, 1);
+                        try {
+                            await contract.addNode(nodeInfo, "0x00", "0x00", "0x00");
+                        } catch (err) {
+                            expect(err.reason).to.equal('resolver or addr is not configured for ENS name');
+                        }
                     }
-                }
-            })
-            
-            it("Failed: Empty endpoint uri", async () => {
-                const nodeInfo = createStorageNodeInputStruct(didAddress, "", "", "", 0, 0, 0);
-                await expect(
-                    contract.addNode(nodeInfo, "0x00", "0x00", "0x00")
-                ).to.be.revertedWithCustomError(contract, "InvalidEndpointUri")
-            })
-
-            it("Failed: Invalid country codes", async () => {
-                for (let i = 0; i < INVALID_COUNTRY_CODES.length; i++) {
-                    const nodeInfo = createStorageNodeInputStruct(
-                        didAddress,
-                        "https://1",
-                        INVALID_COUNTRY_CODES[i],
-                        "",
-                        0,
-                        0,
-                        0);
+                })
+                
+                it("Failed: Empty endpoint uri", async () => {
+                    const nodeInfo = createStorageNodeInputStruct(didAddress, "", "", "", 0, 0, 0, 1);
                     await expect(
                         contract.addNode(nodeInfo, "0x00", "0x00", "0x00")
-                    ).to.be.revertedWithCustomError(contract, "InvalidCountryCode");
-                }
-            })
-
-            it("Failed: Invalid region codes", async () => {
-                for (let i = 0; i < INVALID_REGION_CODES.length; i++) {
-                    const nodeInfo = createStorageNodeInputStruct(
-                        didAddress,
-                        "https://1",
-                        "us",
-                        INVALID_REGION_CODES[i],
-                        0,
-                        0,
-                        0);
-
-                    await expect(
-                        contract.addNode(nodeInfo, "0x00", "0x00", "0x00")
-                    ).to.be.revertedWithCustomError(contract, "InvalidRegionCode");
-                }
-            })
-
-            it("Failed: Invalid datacenterID - unregistered", async () => {
-                const invalidIds = [BigNumber.from(0), maxDataCenterID.add(1), maxDataCenterID.add(100)];
-                for (let i = 0; i < invalidIds.length; i++) {
+                    ).to.be.revertedWithCustomError(contract, "InvalidEndpointUri")
+                })
+    
+                it("Failed: Invalid country codes", async () => {
+                    for (let i = 0; i < INVALID_COUNTRY_CODES.length; i++) {
+                        const nodeInfo = createStorageNodeInputStruct(
+                            didAddress,
+                            "https://1",
+                            INVALID_COUNTRY_CODES[i],
+                            "",
+                            0,
+                            0,
+                            0,
+                            1);
+                        await expect(
+                            contract.addNode(nodeInfo, "0x00", "0x00", "0x00")
+                        ).to.be.revertedWithCustomError(contract, "InvalidCountryCode");
+                    }
+                })
+    
+                it("Failed: Invalid region codes", async () => {
+                    for (let i = 0; i < INVALID_REGION_CODES.length; i++) {
+                        const nodeInfo = createStorageNodeInputStruct(
+                            didAddress,
+                            "https://1",
+                            "us",
+                            INVALID_REGION_CODES[i],
+                            0,
+                            0,
+                            0,
+                            1);
+    
+                        await expect(
+                            contract.addNode(nodeInfo, "0x00", "0x00", "0x00")
+                        ).to.be.revertedWithCustomError(contract, "InvalidRegionCode");
+                    }
+                })
+    
+                it("Failed: Invalid datacenterID - unregistered", async () => {
+                    const invalidIds = [BigNumber.from(0), maxDataCenterID.add(1), maxDataCenterID.add(100)];
+                    for (let i = 0; i < invalidIds.length; i++) {
+                        const nodeInfo = createStorageNodeInputStruct(
+                            didAddress,
+                            "https://1",
+                            "us",
+                            "north america",
+                            invalidIds[i],
+                            0,
+                            0,
+                            1);
+    
+                        await expect(
+                            contract.addNode(nodeInfo, "0x00", "0x00", "0x00")
+                        ).to.be.revertedWithCustomError(contract, "InvalidDatacenterId");
+                    }
+                })
+    
+                it("Failed: Invalid datacenterID - removed", async () => {
+                    const currentSnapshot = await takeSnapshot();
+    
+                    await contract.removeDatacenter(datacenterIds[0]);
+    
                     const nodeInfo = createStorageNodeInputStruct(
                         didAddress,
                         "https://1",
                         "us",
                         "north america",
-                        invalidIds[i],
+                        datacenterIds[0],
                         0,
-                        0);
-
+                        0,
+                        1);
+    
                     await expect(
                         contract.addNode(nodeInfo, "0x00", "0x00", "0x00")
                     ).to.be.revertedWithCustomError(contract, "InvalidDatacenterId");
-                }
+    
+                    await currentSnapshot.restore();
+                })
+    
+                it("Failed: Invlaid Latitude",async () => {
+                    const invalidLatValues = [-90.05, -180, 91, 500];
+                    for (let i = 0; i < invalidLatValues.length; i++) {
+                        const nodeInfo = createStorageNodeInputStruct(
+                            didAddress,
+                            "https://1",
+                            "us",
+                            "north america",
+                            datacenterIds[0],
+                            invalidLatValues[i],
+                            0,
+                            1);
+                        await expect(
+                            contract.addNode(nodeInfo, "0x00", "0x00", "0x00")
+                        ).to.be.revertedWithCustomError(contract, "InvalidLatitude")
+                    }
+                })
+    
+                it("Failed: Invalid Longitude",async () => {
+                    const invalidLongValues = [-180.1, -270, -400.2523, 181, 360, 500.235];
+                    for (let i = 0; i < invalidLongValues.length; i++) {
+                        const nodeInfo = createStorageNodeInputStruct(
+                            didAddress,
+                            "https://1",
+                            "us",
+                            "north america",
+                            datacenterIds[0],
+                            0,
+                            invalidLongValues[i],
+                            1);
+                        await expect(
+                            contract.addNode(nodeInfo, "0x00", "0x00", "0x00")
+                        ).to.be.revertedWithCustomError(contract, "InvalidLongitude")
+                    }
+                })
+    
+                it("Failed: Invalid numberSlots",async () => {
+                    const invalidSlots = [0, 100, 20001];
+                    for (let i = 0; i < invalidSlots.length; i++) {
+                        const nodeInfo = createStorageNodeInputStruct(
+                            didAddress,
+                            "https://1",
+                            "us",
+                            "north america",
+                            datacenterIds[0],
+                            0,
+                            0,
+                            invalidSlots[i]);
+                        await expect(
+                            contract.addNode(nodeInfo, "0x00", "0x00", "0x00")
+                        ).to.be.revertedWithCustomError(contract, "InvalidNumberSlots")
+                    }
+                    
+                })
+    
+                it("Failed: No trusted signer",async () => {
+                    const nonce = await contract.nonce(user.address);
+                    
+                    const { requestSignature, requestProof, authSignature } = getAddNodeSignatures(storageNode, nonce, user, trustedSigner);
+    
+                    await expect(
+                        contract.addNode(storageNode, requestSignature, requestProof, authSignature)
+                    ).to.be.revertedWithCustomError(contract, "NoSigners");
+                })
+    
+                it("Failed: Invalid auth signature",async () => {
+                    await contract.addTrustedSigner(trustedSigner.address);
+    
+                    const badSigner = Wallet.createRandom();
+    
+                    const nonce = await contract.nonce(user.address);
+    
+                    const { requestSignature, requestProof, authSignature } = getAddNodeSignatures(storageNode, nonce, user, badSigner);
+    
+                    await expect(
+                        contract.addNode(storageNode, requestSignature, requestProof, authSignature)
+                    ).to.be.revertedWithCustomError(contract, "InvalidSignature");
+                })
             })
 
-            it("Failed: Invalid datacenterID - removed", async () => {
+            describe("Test when the staking is not required", () => {
+                before(async () => {
+                    await snapShotWithDatacenters.restore();
+                    await contract.addTrustedSigner(trustedSigner.address);
+
+                    expect(await contract.isStakingRequired()).to.be.eq(false);
+                })
+
+                it("Success", async () => {
+                    const requestorBeforeTokenAmount = await token.balanceOf(owner.address);
+                    // Add node
+                    await checkAddNode(storageNode, user, trustedSigner, true);
+    
+                    const requestAfterTokenAmount = await token.balanceOf(owner.address);
+                    // Check token amount of requestor not changed
+                    expect(requestAfterTokenAmount).to.be.equal(requestorBeforeTokenAmount);
+                })
+    
+                it("Failed: Duplicated `didAddress` & `endpointURI`", async () => {
+                    // Registered DID
+                    await checkAddNode(storageNode, user, trustedSigner, false, "InvalidDIDAddress");
+                    
+                    // Registered EndpointURI
+                    {
+                        const anotherUser = Wallet.createRandom();
+    
+                        const nodeInfo = {...storageNode};
+                        nodeInfo.didAddress = anotherUser.address;
+    
+                        await checkAddNode(nodeInfo, anotherUser, trustedSigner, false, "InvalidEndpointUri");
+                    }
+    
+                })
+    
+                it("Failed: didAddress & endpointURI in pending `removal` status", async () => {
+                    const currentSnapshot = await takeSnapshot();
+    
+                    const blockTime = await time.latest();
+                    const unregisterTime = blockTime + days(30);
+    
+                    // Remove a node
+                    await checkRemoveNodeStart(user, unregisterTime);
+                    
+                    // Failed to add for didAddress in pending removal state
+                    await checkAddNode(storageNode, user, trustedSigner, false, "InvalidDIDAddress");
+                    
+                    // Failed to add for endpoint in pending removal state
+                    {
+                        const anotherUser = Wallet.createRandom();
+    
+                        const nodeInfo = {...storageNode};
+                        nodeInfo.didAddress = anotherUser.address;
+    
+                        await checkAddNode(nodeInfo, anotherUser, trustedSigner, false, "InvalidEndpointUri");
+                    }
+                    await currentSnapshot.restore();
+                })
+    
+                it("Success: For remove completed didAddress & endpointURI", async () => {
+                    const blockTime = await time.latest();
+                    const unregisterTime = blockTime + days(30);
+                    
+                    // Remove start
+                    await checkRemoveNodeStart(user, unregisterTime)
+    
+                    // Remove complete
+                    await time.increaseTo(unregisterTime);
+                    await checkRemoveNodeComplete(user, owner);
+    
+                    // Add success
+                    await checkAddNode(storageNode, user, trustedSigner, true);
+                })
+            })
+
+            describe("Test when the staking is required", () => {
+                before(async () => {
+                    await snapShotWithDatacenters.restore();
+                    await contract.addTrustedSigner(trustedSigner.address);
+
+                    await expect(
+                        contract.setStakingRequired(true)
+                    ).to.emit(contract, "UpdateStakingRequired").withArgs(true);
+                })
+
+                it("Failed: Token not allowed from requestor",async () => {
+                    const nonce = await contract.nonce(user.address);
+    
+                    const { requestSignature, requestProof, authSignature } = getAddNodeSignatures(storageNode, nonce, user, trustedSigner);
+
+                    await expect(
+                        contract.addNode(storageNode, requestSignature, requestProof, authSignature)
+                    ).to.be.revertedWith("ERC20: insufficient allowance");
+                })
+    
+                it("Success", async () => {
+                    const stakeTokenAmount = await slotTokenAmount(BigNumber.from(storageNode.numberSlots))
+                    
+                    // Approve Token
+                    await approveToken(BigNumber.from(storageNode.numberSlots), owner, contract.address, true);
+    
+                    const requestorBeforeTokenAmount = await token.balanceOf(owner.address);
+                    // Add node
+                    await checkAddNode(storageNode, user, trustedSigner, true);
+    
+                    const requestAfterTokenAmount = await token.balanceOf(owner.address);
+                    // Check token amount updated
+                    expect(requestAfterTokenAmount).to.be.equal(requestorBeforeTokenAmount.sub(stakeTokenAmount));
+                })
+    
+                it("Failed: Duplicated `didAddress` & `endpointURI`", async () => {
+                    // Registered DID
+                    await checkAddNode(storageNode, user, trustedSigner, false, "InvalidDIDAddress");
+                    
+                    // Registered EndpointURI
+                    {
+                        const anotherUser = Wallet.createRandom();
+    
+                        const nodeInfo = {...storageNode};
+                        nodeInfo.didAddress = anotherUser.address;
+    
+                        await checkAddNode(nodeInfo, anotherUser, trustedSigner, false, "InvalidEndpointUri");
+                    }
+    
+                })
+    
+                it("Failed: didAddress & endpointURI in pending `removal` status", async () => {
+                    const currentSnapshot = await takeSnapshot();
+    
+                    const blockTime = await time.latest();
+                    const unregisterTime = blockTime + days(30);
+    
+                    // Remove a node
+                    await checkRemoveNodeStart(user, unregisterTime);
+                    
+                    // Failed to add for didAddress in pending removal state
+                    await checkAddNode(storageNode, user, trustedSigner, false, "InvalidDIDAddress");
+                    
+                    // Failed to add for endpoint in pending removal state
+                    {
+                        const anotherUser = Wallet.createRandom();
+    
+                        const nodeInfo = {...storageNode};
+                        nodeInfo.didAddress = anotherUser.address;
+    
+                        await checkAddNode(nodeInfo, anotherUser, trustedSigner, false, "InvalidEndpointUri");
+                    }
+                    await currentSnapshot.restore();
+                })
+    
+                it("Success: For remove completed didAddress & endpointURI", async () => {
+                    const blockTime = await time.latest();
+                    const unregisterTime = blockTime + days(30);
+                    
+                    // Remove start
+                    await checkRemoveNodeStart(user, unregisterTime)
+    
+                    // Remove complete
+                    await time.increaseTo(unregisterTime);
+                    await checkRemoveNodeComplete(user, owner);
+    
+                    // Approve Token
+                    await approveToken(BigNumber.from(storageNode.numberSlots), owner, contract.address);
+    
+                    // Add success
+                    await checkAddNode(storageNode, user, trustedSigner, true);
+                })
+            })
+        })
+
+        describe("Update STAKE_PER_SLOT", () => {
+            const STAKE_PER_SLOT = 100;
+            it("Failed: Only contract owner allowed",async () => {
+                await expect(
+                    contract.connect(accounts[1]).updateStakePerSlot(100)
+                ).to.be.revertedWith('Ownable: caller is not the owner');
+            })
+
+            it("Failed: 0 not available",async () => {
+                await expect(
+                    contract.updateStakePerSlot(0)
+                ).to.be.revertedWithCustomError(contract, "InvalidValue")
+            })
+
+            it("Failed: Same value",async () => {
+                const stakePerSlot = await contract.getStakePerSlot();
+
+                await expect(
+                    contract.updateStakePerSlot(stakePerSlot)
+                ).to.be.revertedWithCustomError(contract, "InvalidValue")
+            })
+
+            it("Success",async () => {
+                await expect(
+                    contract.updateStakePerSlot(STAKE_PER_SLOT)
+                ).to.emit(contract, "UpdateStakePerSlot").withArgs(STAKE_PER_SLOT);
+            })
+        })
+
+        describe("Update TokenAddress", () => {
+            it("Failed: Only contract owner allowed",async () => {
+                await expect(
+                    contract.connect(accounts[1]).updateTokenAddress(Wallet.createRandom().address)
+                ).to.be.revertedWith('Ownable: caller is not the owner');
+            })
+
+            it("Failed: Zero address not available",async () => {
+                await expect(
+                    contract.updateTokenAddress(ethers.constants.AddressZero)
+                ).to.be.revertedWithCustomError(contract, "InvalidTokenAddress")
+            })
+
+            it("Failed: Same value",async () => {
+                const curVal = await contract.vdaTokenAddress();
+
+                await expect(
+                    contract.updateTokenAddress(curVal)
+                ).to.be.revertedWithCustomError(contract, "InvalidTokenAddress")
+            })
+
+            it("Success",async () => {
                 const currentSnapshot = await takeSnapshot();
 
-                await contract.removeDatacenter(datacenterIds[0]);
+                const orgAddress = await contract.vdaTokenAddress();
 
-                const nodeInfo = createStorageNodeInputStruct(
-                    didAddress,
-                    "https://1",
-                    "us",
-                    "north america",
-                    datacenterIds[0],
-                    0,
-                    0);
-
+                const newToken = await deployToken();
                 await expect(
-                    contract.addNode(nodeInfo, "0x00", "0x00", "0x00")
-                ).to.be.revertedWithCustomError(contract, "InvalidDatacenterId");
-
-                await currentSnapshot.restore();
-            })
-
-            it("Failed: Invlaid Latitude",async () => {
-                const invalidLatValues = [-90.05, -180, 91, 500];
-                for (let i = 0; i < invalidLatValues.length; i++) {
-                    const nodeInfo = createStorageNodeInputStruct(
-                        didAddress,
-                        "https://1",
-                        "us",
-                        "north america",
-                        datacenterIds[0],
-                        invalidLatValues[i],
-                        0);
-                    await expect(
-                        contract.addNode(nodeInfo, "0x00", "0x00", "0x00")
-                    ).to.be.revertedWithCustomError(contract, "InvalidLatitude")
-                }
-            })
-
-            it("Failed: Invalid Longitude",async () => {
-                const invalidLongValues = [-180.1, -270, -400.2523, 181, 360, 500.235];
-                for (let i = 0; i < invalidLongValues.length; i++) {
-                    const nodeInfo = createStorageNodeInputStruct(
-                        didAddress,
-                        "https://1",
-                        "us",
-                        "north america",
-                        datacenterIds[0],
-                        0,
-                        invalidLongValues[i]);
-                    await expect(
-                        contract.addNode(nodeInfo, "0x00", "0x00", "0x00")
-                    ).to.be.revertedWithCustomError(contract, "InvalidLongitude")
-                }
-            })
-
-            it("Failed: No trusted signer",async () => {
-                const nonce = await contract.nonce(user.address);
-                
-                const { requestSignature, requestProof, authSignature } = getAddNodeSignatures(storageNode, nonce, user, trustedSigner);
-
-                await expect(
-                    contract.addNode(storageNode, requestSignature, requestProof, authSignature)
-                ).to.be.revertedWithCustomError(contract, "NoSigners");
-            })
-
-            it("Failed: Invalid auth signature",async () => {
-                await contract.addTrustedSigner(trustedSigner.address);
-
-                const badSigner = Wallet.createRandom();
-
-                const nonce = await contract.nonce(user.address);
-
-                const { requestSignature, requestProof, authSignature } = getAddNodeSignatures(storageNode, nonce, user, badSigner);
-
-                await expect(
-                    contract.addNode(storageNode, requestSignature, requestProof, authSignature)
-                ).to.be.revertedWithCustomError(contract, "InvalidSignature");
-            })
-
-            it("Success", async () => {
-                const nonce = await contract.nonce(user.address);
-
-                const { requestSignature, requestProof, authSignature } = getAddNodeSignatures(storageNode, nonce, user, trustedSigner);
-
-                const tx = await contract.addNode(storageNode, requestSignature, requestProof, authSignature);
-
-                await expect(tx).to.emit(contract, "AddNode").withArgs(
-                    storageNode.didAddress,
-                    storageNode.endpointUri,
-                    storageNode.countryCode,
-                    storageNode.regionCode,
-                    storageNode.datacenterId,
-                    storageNode.lat,
-                    storageNode.long,
-                    anyValue
+                    contract.updateTokenAddress(newToken.address)
+                ).to.emit(contract, "UpdateTokenAddress").withArgs(
+                    orgAddress,
+                    newToken.address
                 );
-            })
 
-            it("Failed: Duplicated `didAddress` & `endpointURI`", async () => {
-                // Registered DID
-                await checkAddNode(storageNode, user, trustedSigner, false, "InvalidDIDAddress");
-                
-                // Registered EndpointURI
-                {
-                    const anotherUser = Wallet.createRandom();
-
-                    const nodeInfo = {...storageNode};
-                    nodeInfo.didAddress = anotherUser.address;
-
-                    await checkAddNode(nodeInfo, anotherUser, trustedSigner, false, "InvalidEndpointUri");
-                }
-
-            })
-
-            it("Failed: didAddress & endpointURI in pending `removal` status", async () => {
-                const currentSnapshot = await takeSnapshot();
-
-                const blockTime = await time.latest();
-                const unregisterTime = blockTime + days(30);
-
-                // Remove a node
-                await checkRemoveNodeStart(user, unregisterTime);
-                
-                // Failed to add for didAddress in pending removal state
-                await checkAddNode(storageNode, user, trustedSigner, false, "InvalidDIDAddress");
-                
-                // Failed to add for endpoint in pending removal state
-                {
-                    const anotherUser = Wallet.createRandom();
-
-                    const nodeInfo = {...storageNode};
-                    nodeInfo.didAddress = anotherUser.address;
-
-                    await checkAddNode(nodeInfo, anotherUser, trustedSigner, false, "InvalidEndpointUri");
-                }
                 await currentSnapshot.restore();
-            })
-
-            it("Success: For remove completed didAddress & endpointURI", async () => {
-                const blockTime = await time.latest();
-                const unregisterTime = blockTime + days(30);
-                
-                // Remove start
-                await checkRemoveNodeStart(user, unregisterTime)
-
-                // Remove complete
-                await time.increaseTo(unregisterTime);
-                await checkRemoveNodeComplete(user);
-
-                // Add success
-                await checkAddNode(storageNode, user, trustedSigner, true);
             })
         })
 
@@ -793,11 +1035,13 @@ describe("Verida StorageNodeRegistry", function () {
                         nodeRegion[i],
                         datacenterId[i],
                         lat[i],
-                        long[i])
+                        long[i],
+                        VALID_NUMBER_SLOTS)
                     );
                 }
 
                 for (let i = 0; i < users.length; i++) {
+                    await approveToken(1, owner, contract.address, true);
                     await checkAddNode(storageNodes[i], users[i], trustedSigner, true);
                 }
             })
@@ -926,6 +1170,291 @@ describe("Verida StorageNodeRegistry", function () {
             })
         })
 
+        describe("Get balance", () => {
+            const user = Wallet.createRandom();
+            const storageNode = createStorageNodeInputStruct(
+                user.address, 
+                "https://1",
+                "us",
+                "north america",
+                1,
+                -90,
+                -180,
+                VALID_NUMBER_SLOTS
+            );
+            let requestor : SignerWithAddress;
+
+            before(async () => {
+                requestor = accounts[1];
+
+                await snapShotWithDatacenters.restore();
+                await contract.addTrustedSigner(trustedSigner.address);
+            })
+
+            it("0 for unregistered DID addresses",async () => {
+                expect(await contract.getBalance(Wallet.createRandom().address)).to.be.eq(0);
+            })
+
+            it("0 when Staking is not required",async () => {
+                const currentSnapshot = await takeSnapshot();
+                
+                await checkAddNode(storageNode, user, trustedSigner, true);
+                expect(await contract.getBalance(user.address)).to.eq(0);
+
+                await currentSnapshot.restore();
+            })
+
+            it("Success", async () => {
+                // Set stakig as required
+                await contract.setStakingRequired(true);
+
+                // Approve Token
+                await approveToken(BigNumber.from(storageNode.numberSlots), owner, contract.address, true);
+                // Add node
+                await checkAddNode(storageNode, user, trustedSigner, true);
+
+                expect(await contract.getBalance(user.address)).to.not.eq(0);
+            })
+            
+        })
+
+        describe("Deposit", () => {
+            const user = Wallet.createRandom();
+            const storageNode = createStorageNodeInputStruct(
+                user.address, 
+                "https://1",
+                "us",
+                "north america",
+                1,
+                -90,
+                -180,
+                VALID_NUMBER_SLOTS
+            );
+            let requestor : SignerWithAddress;
+
+            before(async () => {
+                requestor = accounts[1];
+
+                await snapShotWithDatacenters.restore();
+                await contract.addTrustedSigner(trustedSigner.address);
+
+                // Approve Token
+                await approveToken(BigNumber.from(storageNode.numberSlots), owner, contract.address, true);
+                // Add node
+                await checkAddNode(storageNode, user, trustedSigner, true);
+
+                // Mint 10000 tokens to the requestor
+                await token.mint(requestor.address, BigNumber.from("10000000000000000000000"));
+            })
+
+            it("Failed : unregistered DID", async () => {
+                const randomDID = Wallet.createRandom().address;
+                await expect(
+                    contract.connect(requestor).depoistToken(randomDID, 1)
+                ).to.be.revertedWithCustomError(contract, "InvalidDIDAddress");
+            })
+
+            it("Failed : token not approved", async () => {
+                await expect(
+                    contract.connect(requestor).depoistToken(user.address, 100)
+                ).to.be.revertedWith("ERC20: insufficient allowance");
+            })
+
+            it("Success", async () => {
+                const depositAmount = 100;
+                // Approve token
+                await token.connect(requestor).approve(contract.address, depositAmount);
+
+                // Deposit
+                await expect(
+                    contract.connect(requestor).depoistToken(user.address, depositAmount)
+                ).to.emit(contract, "TokenDeposited").withArgs(
+                    user.address,
+                    requestor.address,
+                    depositAmount
+                );
+            })
+            
+        })
+
+        describe("StakingRequired", () => {
+            it("setStakingRequired() & isStakingRequired()",async () => {
+                expect(await contract.isStakingRequired()).to.be.eq(false);
+
+                await expect(
+                    contract.setStakingRequired(true)
+                ).to.emit(contract, "UpdateStakingRequired").withArgs(true);
+
+                expect(await contract.isStakingRequired()).to.be.eq(true);
+                
+            })
+        })
+
+        describe("MinSlots and MaxSlots", () => {
+            let min : BigNumber
+            let max : BigNumber
+            before(async () => {
+                [min, max] = await contract.getNumberSlotsRange();
+            })
+
+            describe("Update minSlots", () => {
+                it("Failed : 0 is not available",async () => {
+                    await expect(
+                        contract.updateMinSlots(0)
+                    ).to.be.revertedWithCustomError(contract, "InvalidValue");
+                })
+
+                it("Failed : Current value is not available",async () => {
+                    await expect(
+                        contract.updateMinSlots(min)
+                    ).to.be.revertedWithCustomError(contract, "InvalidValue");
+                })
+
+                it("Failed : Value is bigger than maxSlots",async () => {
+                    await expect(
+                        contract.updateMinSlots(max.add(1))
+                    ).to.be.revertedWithCustomError(contract, "InvalidValue");
+                })
+
+                it("Success",async () => {
+                    await expect(
+                        contract.updateMinSlots(min.sub(1))
+                    ).to.emit(contract, "UpdateMinSlots").withArgs(min.sub(1));
+
+                    const [updateMin, updatedMax] = await contract.getNumberSlotsRange();
+                    expect(updateMin).to.be.eq(min.sub(1));
+                    expect(updatedMax).to.be.eq(max);
+
+                    // For maxSlots test
+                    min = updateMin;
+                })
+            })
+
+            describe("Update maxSlots", () => {
+                it("Failed : 0 is not available",async () => {
+                    await expect(
+                        contract.updateMaxSlots(0)
+                    ).to.be.revertedWithCustomError(contract, "InvalidValue");
+                })
+
+                it("Failed : Current value is not available",async () => {
+                    await expect(
+                        contract.updateMaxSlots(max)
+                    ).to.be.revertedWithCustomError(contract, "InvalidValue");
+                })
+
+                it("Failed : Value is less than minSlots",async () => {
+                    await expect(
+                        contract.updateMaxSlots(min.sub(1))
+                    ).to.be.revertedWithCustomError(contract, "InvalidValue");
+                })
+
+                it("Success",async () => {
+                    await expect(
+                        contract.updateMaxSlots(max.add(1))
+                    ).to.emit(contract, "UpdateMaxSlots").withArgs(max.add(1));
+
+                    const [updateMin, updatedMax] = await contract.getNumberSlotsRange();
+                    expect(updateMin).to.be.eq(min);
+                    expect(updatedMax).to.be.eq(max.add(1));
+                })
+            })
+        })
+
+        describe("Withdraw", () => {
+            const user = Wallet.createRandom();
+            const storageNode = createStorageNodeInputStruct(
+                user.address, 
+                "https://1",
+                "us",
+                "north america",
+                1,
+                -90,
+                -180,
+                VALID_NUMBER_SLOTS
+            );
+            let requestor : SignerWithAddress;
+
+            before(async () => {
+                requestor = accounts[1];
+
+                await snapShotWithDatacenters.restore();
+                await contract.addTrustedSigner(trustedSigner.address);
+
+                // Set staking as required
+                await contract.setStakingRequired(true);
+
+                // Approve Token
+                await approveToken(BigNumber.from(storageNode.numberSlots), owner, contract.address, true);
+                // Add node
+                await checkAddNode(storageNode, user, trustedSigner, true);
+            })
+
+            it("Failed : unregistered DID",async () => {
+                const randomDID = Wallet.createRandom().address
+
+                await expect(
+                    contract.withdrawExcessToken(randomDID, "0x00", "0x00")
+                ).to.be.revertedWithCustomError(contract, "InvalidDIDAddress");
+            })
+
+            // No need to test invalid signature, because this feature was tested in the VerifcationContract
+            // it("Failed : Invalid signature",async () => {
+
+            //     const badSigner = Wallet.createRandom();
+            //     const nonce = await contract.nonce(badSigner.address);
+
+            //     const {requestSignature, requestProof} = getWithdrawSignatures(badSigner, nonce);
+
+            //     await expect(
+            //         contract.withdrawExcessToken(user.address, requestSignature, requestProof)
+            //     ).to.be.revertedWithCustomError(contract, "InvalidSignature");
+                
+            // })
+
+            it("Failed : No excess token",async () => {
+                const nonce = await contract.nonce(user.address);
+
+                expect(await contract.excessTokenAmount(user.address)).to.be.eq(0);
+
+                const {requestSignature, requestProof} = getWithdrawSignatures(user, nonce);
+                await expect(
+                    contract.withdrawExcessToken(user.address, requestSignature, requestProof)
+                ).to.be.revertedWithCustomError(contract, "NoExcessTokenAmount");
+            })
+
+
+            it("Success",async () => {
+                // Confirm current excess token amount is zero
+                expect(await contract.excessTokenAmount(user.address)).to.be.eq(0);
+
+                let stakePerSlot = await contract.getStakePerSlot();
+                // Decrease STAKE_PER_SLOT
+                stakePerSlot = stakePerSlot.sub(10);
+                await contract.updateStakePerSlot(stakePerSlot);
+
+                // Confirm current excess token amount is not zero
+                const excessTokenAmount = await contract.excessTokenAmount(user.address);
+                expect(excessTokenAmount).to.not.eq(0);
+
+                const orgRequestorTokenAmount = await token.balanceOf(requestor.address);
+
+                // Withdraw
+                const nonce = await contract.nonce(user.address);
+                const {requestSignature, requestProof} = getWithdrawSignatures(user, nonce);
+                await expect(
+                    contract.connect(requestor).withdrawExcessToken(user.address, requestSignature, requestProof)
+                ).to.emit(contract, "TokenWithdrawn").withArgs(
+                    user.address,
+                    requestor.address,
+                    excessTokenAmount);
+                
+                // Check excess tokens are released to requestor
+                const curRequestorTokenAmount = await token.balanceOf(requestor.address);
+                expect(curRequestorTokenAmount).to.be.eq(orgRequestorTokenAmount.add(excessTokenAmount));
+            })
+        })
+
         describe("Remove node", () => {
             const user = Wallet.createRandom();
             const storageNode = createStorageNodeInputStruct(
@@ -935,105 +1464,280 @@ describe("Verida StorageNodeRegistry", function () {
                 "north america",
                 1,
                 -90,
-                -180
+                -180,
+                VALID_NUMBER_SLOTS
             );
 
-            before(async () => {
-                await snapShotWithDatacenters.restore();
+            describe("Test when staking is not required", () => {
+                before(async () => {
+                    await snapShotWithDatacenters.restore();
+    
+                    await contract.addTrustedSigner(trustedSigner.address);
 
-                await contract.addTrustedSigner(trustedSigner.address);
-
-                // Register a node
-                await checkAddNode(storageNode, user, trustedSigner, true);
-            })
-
-            describe("Remove node start", () => {
-                it("Failed: Unregistered address", async () => {
-                    const temp = Wallet.createRandom();
-
-                    await expect(
-                        contract.removeNodeStart(temp.address, 0, "0x00", "0x00")
-                    ).to.be.revertedWithCustomError(contract, "InvalidDIDAddress");
+                    // Confirm that staking is not required
+                    expect(await contract.isStakingRequired()).to.be.eq(false);
+                  
+                    await checkAddNode(storageNode, user, trustedSigner, true);
                 })
-
-                it("Failed: Invalid Unregister Time", async () => {
-                    const blockTime = await time.latest();
-
-                    const invalidTimes = [0, blockTime, blockTime + days(10), blockTime + days(27)];
-
-                    for (let i = 0; i < invalidTimes.length; i++) {
+    
+                describe("Remove node start", () => {
+                    it("Failed: Unregistered address", async () => {
+                        const temp = Wallet.createRandom();
+    
                         await expect(
-                            contract.removeNodeStart(user.address, 0, "0x00", "0x00")
-                        ).to.be.revertedWithCustomError(contract, "InvalidUnregisterTime");
-                    }
+                            contract.removeNodeStart(temp.address, 0, "0x00", "0x00")
+                        ).to.be.revertedWithCustomError(contract, "InvalidDIDAddress");
+                    })
+    
+                    it("Failed: Invalid Unregister Time", async () => {
+                        const blockTime = await time.latest();
+    
+                        const invalidTimes = [0, blockTime, blockTime + days(10), blockTime + days(27)];
+    
+                        for (let i = 0; i < invalidTimes.length; i++) {
+                            await expect(
+                                contract.removeNodeStart(user.address, 0, "0x00", "0x00")
+                            ).to.be.revertedWithCustomError(contract, "InvalidUnregisterTime");
+                        }
+                    })
+    
+                    it("Success", async () => {
+                        const currentSnapshot = await takeSnapshot();
+    
+                        const blockTime = await time.latest();
+                        const unregisterTime = blockTime + days(30);
+    
+                        await checkRemoveNodeStart(user, unregisterTime);
+                        
+                        await currentSnapshot.restore();
+                    })
                 })
-
-                it("Success", async () => {
-                    const currentSnapshot = await takeSnapshot();
-
-                    const blockTime = await time.latest();
-                    const unregisterTime = blockTime + days(30);
-
-                    await checkRemoveNodeStart(user, unregisterTime);
+    
+                describe("Remove node complete", () => {
+                    let snapShotRemoveStarted: SnapshotRestorer
+    
+                    const checkRemoveComplete =async (requestor: SignerWithAddress) => {
+                        const requestorOrgTokenAmount = await token.balanceOf(requestor.address);
+    
+                        // complete remove node
+                        await checkRemoveNodeComplete(user, requestor);
+    
+                        // Confirm requstor token has not changed
+                        const requestorCurTokenAmount = await token.balanceOf(requestor.address);
+                        expect(requestorCurTokenAmount).to.be.equal(requestorOrgTokenAmount);
+                    }
+    
+                    it("Failed: Unregistered address", async () => {
+                        const temp = Wallet.createRandom();
+    
+                        await expect(
+                            contract.removeNodeComplete(temp.address, "0x00", "0x00")
+                        ).to.be.revertedWithCustomError(contract, "InvalidDIDAddress");
+                    })
+    
+                    it("Failed: Remove node not started", async () => {
+                        await expect(
+                            contract.removeNodeComplete(user.address, "0x00", "0x00")
+                        ).to.be.revertedWithCustomError(contract, "InvalidUnregisterTime");
+                    })
+    
+                    it("Failed: Before remove time", async () => {
+                        const currentSnapshot = await takeSnapshot();
+    
+                        // Remove node start
+                        const blockTime = await time.latest();
+                        const unregisterTime = blockTime + days(30);
+    
+                        await checkRemoveNodeStart(user, unregisterTime);
+    
+                        // Remove node not completed
+                        await expect(
+                            contract.removeNodeComplete(user.address, "0x00", "0x00")
+                        ).to.be.revertedWithCustomError(contract, "InvalidUnregisterTime")
+    
+                        // After 10 days from start
+                        await time.increaseTo(blockTime + days(10));
+                        await expect(
+                            contract.removeNodeComplete(user.address, "0x00", "0x00")
+                        ).to.be.revertedWithCustomError(contract, "InvalidUnregisterTime")
+    
+                        // After 20 days from start
+                        await time.increaseTo(blockTime + days(20));
+                        await expect(
+                            contract.removeNodeComplete(user.address, "0x00", "0x00")
+                        ).to.be.revertedWithCustomError(contract, "InvalidUnregisterTime")
+    
+                        await currentSnapshot.restore();
+                    })
+    
+                    it("Success", async () => {
+                        // Remove node start
+                        const blockTime = await time.latest();
+                        const unregisterTime = blockTime + days(30);
+                        await checkRemoveNodeStart(user, unregisterTime);
+    
+                        // After 31 days
+                        await time.increaseTo(blockTime + days(31));
+    
+                        snapShotRemoveStarted = await takeSnapshot();
+    
+                        await checkRemoveComplete(accounts[0]);
+                    })  
                     
-                    await currentSnapshot.restore();
+                    it("Success after stakingRequired is enabled", async () => {
+                        await snapShotRemoveStarted.restore();
+
+                        await contract.setStakingRequired(true);
+    
+                        await checkRemoveComplete(accounts[0]);
+                    })  
                 })
             })
 
-            describe("Remove node complete", () => {
-                it("Failed: Unregistered address", async () => {
-                    const temp = Wallet.createRandom();
+            describe("Test when staking is required", () => {
+                before(async () => {
+                    await snapShotWithDatacenters.restore();
+    
+                    await contract.addTrustedSigner(trustedSigner.address);
 
-                    await expect(
-                        contract.removeNodeComplete(temp.address, "0x00", "0x00")
-                    ).to.be.revertedWithCustomError(contract, "InvalidDIDAddress");
+                    // Set staking as required
+                    await contract.setStakingRequired(true);
+    
+                    // Register a node
+                    await approveToken(BigNumber.from(storageNode.numberSlots), owner, contract.address, true);
+                    await checkAddNode(storageNode, user, trustedSigner, true);
                 })
-
-                it("Failed: Remove node not started", async () => {
-                    await expect(
-                        contract.removeNodeComplete(user.address, "0x00", "0x00")
-                    ).to.be.revertedWithCustomError(contract, "InvalidUnregisterTime");
+    
+                describe("Remove node start", () => {
+                    it("Failed: Unregistered address", async () => {
+                        const temp = Wallet.createRandom();
+    
+                        await expect(
+                            contract.removeNodeStart(temp.address, 0, "0x00", "0x00")
+                        ).to.be.revertedWithCustomError(contract, "InvalidDIDAddress");
+                    })
+    
+                    it("Failed: Invalid Unregister Time", async () => {
+                        const blockTime = await time.latest();
+    
+                        const invalidTimes = [0, blockTime, blockTime + days(10), blockTime + days(27)];
+    
+                        for (let i = 0; i < invalidTimes.length; i++) {
+                            await expect(
+                                contract.removeNodeStart(user.address, 0, "0x00", "0x00")
+                            ).to.be.revertedWithCustomError(contract, "InvalidUnregisterTime");
+                        }
+                    })
+    
+                    it("Success", async () => {
+                        const currentSnapshot = await takeSnapshot();
+    
+                        const blockTime = await time.latest();
+                        const unregisterTime = blockTime + days(30);
+    
+                        await checkRemoveNodeStart(user, unregisterTime);
+                        
+                        await currentSnapshot.restore();
+                    })
                 })
-
-                it("Failed: Before remove time", async () => {
-                    const currentSnapshot = await takeSnapshot();
-
-                    // Remove node start
-                    const blockTime = await time.latest();
-                    const unregisterTime = blockTime + days(30);
-
-                    await checkRemoveNodeStart(user, unregisterTime);
-
-                    // Remove node not completed
-                    await expect(
-                        contract.removeNodeComplete(user.address, "0x00", "0x00")
-                    ).to.be.revertedWithCustomError(contract, "InvalidUnregisterTime")
-
-                    // After 10 days from start
-                    await time.increaseTo(blockTime + days(10));
-                    await expect(
-                        contract.removeNodeComplete(user.address, "0x00", "0x00")
-                    ).to.be.revertedWithCustomError(contract, "InvalidUnregisterTime")
-
-                    // After 20 days from start
-                    await time.increaseTo(blockTime + days(20));
-                    await expect(
-                        contract.removeNodeComplete(user.address, "0x00", "0x00")
-                    ).to.be.revertedWithCustomError(contract, "InvalidUnregisterTime")
-
-                    await currentSnapshot.restore();
-                })
-
-                it("Success", async () => {
-                    // Remove node start
-                    const blockTime = await time.latest();
-                    const unregisterTime = blockTime + days(30);
-                    await checkRemoveNodeStart(user, unregisterTime);
-                    
-                    // After 31 days
-                    await time.increaseTo(blockTime + days(31));
-
-                    await checkRemoveNodeComplete(user);
+    
+                describe("Remove node complete", () => {
+                    let snapShotRemoveStarted: SnapshotRestorer
+    
+                    const checkRemoveComplete =async (requestor: SignerWithAddress) => {
+                        const requestorOrgTokenAmount = await token.balanceOf(requestor.address);
+    
+                        const stakedTokenAmount = await contract.getBalance(user.address);
+    
+                        // complete remove node
+                        await checkRemoveNodeComplete(user, requestor);
+    
+                        // Confirm requstor received the staked token
+                        const requestorCurTokenAmount = await token.balanceOf(requestor.address);
+                        expect(requestorCurTokenAmount).to.be.equal(requestorOrgTokenAmount.add(stakedTokenAmount));
+                    }
+    
+                    it("Failed: Unregistered address", async () => {
+                        const temp = Wallet.createRandom();
+    
+                        await expect(
+                            contract.removeNodeComplete(temp.address, "0x00", "0x00")
+                        ).to.be.revertedWithCustomError(contract, "InvalidDIDAddress");
+                    })
+    
+                    it("Failed: Remove node not started", async () => {
+                        await expect(
+                            contract.removeNodeComplete(user.address, "0x00", "0x00")
+                        ).to.be.revertedWithCustomError(contract, "InvalidUnregisterTime");
+                    })
+    
+                    it("Failed: Before remove time", async () => {
+                        const currentSnapshot = await takeSnapshot();
+    
+                        // Remove node start
+                        const blockTime = await time.latest();
+                        const unregisterTime = blockTime + days(30);
+    
+                        await checkRemoveNodeStart(user, unregisterTime);
+    
+                        // Remove node not completed
+                        await expect(
+                            contract.removeNodeComplete(user.address, "0x00", "0x00")
+                        ).to.be.revertedWithCustomError(contract, "InvalidUnregisterTime")
+    
+                        // After 10 days from start
+                        await time.increaseTo(blockTime + days(10));
+                        await expect(
+                            contract.removeNodeComplete(user.address, "0x00", "0x00")
+                        ).to.be.revertedWithCustomError(contract, "InvalidUnregisterTime")
+    
+                        // After 20 days from start
+                        await time.increaseTo(blockTime + days(20));
+                        await expect(
+                            contract.removeNodeComplete(user.address, "0x00", "0x00")
+                        ).to.be.revertedWithCustomError(contract, "InvalidUnregisterTime")
+    
+                        await currentSnapshot.restore();
+                    })
+    
+                    it("Success when STAKE_PER_SLOT has no changes", async () => {
+                        // Remove node start
+                        const blockTime = await time.latest();
+                        const unregisterTime = blockTime + days(30);
+                        await checkRemoveNodeStart(user, unregisterTime);
+    
+                        // After 31 days
+                        await time.increaseTo(blockTime + days(31));
+    
+                        snapShotRemoveStarted = await takeSnapshot();
+    
+                        await checkRemoveComplete(accounts[0]);
+                    })
+    
+                    it("Success when STAKE_PER_SLOT increased",async () => {
+                        await snapShotRemoveStarted.restore();
+    
+                        // Increase STAKE_PER_SLOT
+                        let stakePerSlot = await contract.getStakePerSlot();
+                        stakePerSlot = stakePerSlot.add(10);
+                        await contract.updateStakePerSlot(stakePerSlot);
+    
+                        await checkRemoveComplete(accounts[1]);
+                    })
+    
+                    it("Success when STAKE_PER_SLOT decreased",async () => {
+                        await snapShotRemoveStarted.restore();
+    
+                        // Decrease STAKE_PER_SLOT
+                        let stakePerSlot = await contract.getStakePerSlot();
+                        stakePerSlot = stakePerSlot.sub(10);
+                        await contract.updateStakePerSlot(stakePerSlot);
+    
+                        // Confirm excess tokens
+                        expect(await contract.excessTokenAmount(user.address)).to.not.eq(0);
+    
+                        await checkRemoveComplete(accounts[2]);
+                    })
                 })
             })
         })

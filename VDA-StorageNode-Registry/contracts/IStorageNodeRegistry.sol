@@ -30,6 +30,7 @@ interface IStorageNodeRegistry {
      * @param datacenterId Unique datacenter identifier that is created by `addDataCenter()` method.
      * @param lat Latitude
      * @param long Longitude
+     * @param numberSlots Number of slots indicationg how many storage slots the node will provide
      * @param establishmentDate Node added time in seconds
      */
     struct StorageNode {
@@ -40,6 +41,7 @@ interface IStorageNodeRegistry {
         uint datacenterId;
         int lat;
         int long;
+        uint numberSlots;
         uint establishmentDate;
     }
 
@@ -53,6 +55,7 @@ interface IStorageNodeRegistry {
      * @param datacenterId Unique datacenter identifier that is created by `addDataCenter()` method.
      * @param lat Latitude
      * @param long Longitude
+     * @param numberSlots Number of slots indicationg how many storage slots the node will provide
      */
     struct StorageNodeInput {
         address didAddress;
@@ -62,6 +65,7 @@ interface IStorageNodeRegistry {
         uint datacenterId;
         int lat;
         int long;
+        uint numberSlots;
     }
 
     /**
@@ -95,6 +99,8 @@ interface IStorageNodeRegistry {
      * @param countryCode Unique two-character string code
      * @param regionCode Unique region string code
      * @param datacenterId Unique datacenter identifier that is created by `addDataCenter()` method.
+     * @param numberSlots Number of slots indicationg how many storage slots the node will provide
+     * @param establishmentDate Node added time in seconds
      */
     event AddNode(
         address indexed didAddress, 
@@ -104,6 +110,7 @@ interface IStorageNodeRegistry {
         uint datacenterId,
         int lat,
         int long,
+        uint numberSlots,
         uint establishmentDate
     );
 
@@ -120,6 +127,53 @@ interface IStorageNodeRegistry {
      * @param didAddress DID address that is to be removed from the network
      */
     event RemoveNodeComplete(address indexed didAddress);
+
+    /**
+     * @notice Emitted when the `isStakingRequired` value of `_slotInfo` is updated
+     * @param newVal New value updated
+     */
+    event UpdateStakingRequired(bool newVal);
+
+    /**
+     * @notice Emitted when the `STAKE_PER_SLOT` value of `_slotInfo` is updated
+     * @param newVal New value updated
+     */
+    event UpdateStakePerSlot(uint newVal);
+
+    /**
+     * @notice Emitted when the `MIN_SLOTS` value of `_slotInfo` is updated
+     * @param newVal New value updated
+     */
+    event UpdateMinSlots(uint newVal);
+
+    /**
+     * @notice Emitted when the `MAX_SLOTS` value of `_slotInfo` is updated
+     * @param newVal New value updated
+     */
+    event UpdateMaxSlots(uint newVal);
+
+    /**
+     * @notice Emitted when the excess tokens are withdrawn
+     * @param didAddress DID address
+     * @param to Token receiving address
+     * @param amount Withdrawn amount
+     */
+    event TokenWithdrawn(address indexed didAddress, address to, uint amount);
+
+    /**
+     * @notice Emitted when the tokens are deposited
+     * @param didAddress DID address
+     * @param from Wallet address from which tokens are deposited
+     * @param amount Deposited amount
+     */
+    event TokenDeposited(address indexed didAddress, address from, uint amount);
+
+    /**
+     * @notice Emitted when the Verida token address is updated
+     * @param oldAddress Original token address
+     * @param newAddress Updated address
+     */
+    event UpdateTokenAddress(address oldAddress, address newAddress);
 
     /**
      * @notice Add a data center to the network. `id` will be auto-incremented.
@@ -229,4 +283,97 @@ interface IStorageNodeRegistry {
      * @return StorageNode[] An array of `Storagenode` structs
      */
     function getNodesByRegion(string calldata regionCode) external view returns(StorageNode[] memory);
+
+    /**
+     * @notice Returns whether staking is required to call `addNode()` function
+     * @return bool The value of required status
+     */
+    function isStakingRequired() external view returns(bool);
+
+    /**
+     * @notice Update the `isStakingRequired` value of `_slotInfo` struct
+     * @dev Only the contract owner is allowed to call this function
+     * @param isRequired The new value to be updated
+     */
+    function setStakingRequired(bool isRequired) external;
+
+    /**
+     * @notice Returns the `STAKE_PER_SLOT` value of `_slotInfo` struct
+     * @return uint Required token amount for one slot
+     */
+    function getStakePerSlot() external view returns(uint);
+    
+    /**
+     * @notice Update the `STAKE_PER_SLOT` value of `_slotInfo` struct
+     * @dev Only the contract owner is allowed to call this function
+     * @param newVal The new value to be updated
+     */
+    function updateStakePerSlot(uint newVal) external;
+
+    /**
+     * @notice Return the range of `NumberSlots` value by pair of minimum and maximum value
+     * @dev Return the `MinSlots` and `MaxSlots` value of `_slotInfo` struct
+     * @return uint available minimum value of `NumberSlots`
+     * @return uint available maximum value of `NumberSlots`
+     */
+    function getNumberSlotsRange() external view returns(uint, uint);
+
+    /**
+     * @notice Update the `MIN_SLOTS` value of `_slotInfo` struct
+     * @dev Only the contract owner is allowed to call this function
+     * @param minSlots The new value to be updated
+     */
+    function updateMinSlots(uint minSlots) external;
+
+    /**
+     * @notice Update the `MAX_SLOTS` value of `_slotInfo` struct
+     * @dev Only the contract owner is allowed to call this function
+     * @param maxSlots The new value to be updated
+     */
+    function updateMaxSlots(uint maxSlots) external;
+
+    /**
+     * @notice Update the Verida token contract address
+     * @dev Only the owner of the contract is allowed to call this function
+     * @param newTokenAddress New token contract address
+     */
+    function updateTokenAddress(address newTokenAddress) external;
+
+    /**
+     * @notice Returns the amount of staked token.
+     * @dev Will return 0 for unregistered dids
+     * @param didAddress DID address that addedn a storage node
+     * @return uint Amount of staked token
+     */
+    function getBalance(address didAddress) external view returns(uint);
+
+    /**
+     * @notice Returns the amount of excess tokens. This happens when the `STAKE_PER_SLOT` value decreased
+     * @param didAddress DID address
+     * @return uint Excess token amount. 0 if no excess tokens
+     */
+    function excessTokenAmount(address didAddress) external view returns(uint);
+
+    /**
+     * @notice Withdraw the excess tokens to the requestor
+     * @dev Will return the exces tokens to the `tx.origin`
+     * @param didAddress DID address
+     * @param requestSignature The request parameters signed by the `didAddress` private key
+     * @param requestProof Used to verify request
+     */
+    function withdrawExcessToken(
+        address didAddress, 
+        bytes calldata requestSignature,
+        bytes calldata requestProof
+    ) external;
+
+    /**
+     * @notice Depoist verida tokens to the didAddress
+     * @dev Work for only the registered DIDs
+     * @param didAddress DID address
+     * @param tokenAmount Depositing amount of Verida token
+     */
+    function depoistToken(address didAddress, uint tokenAmount) external;
+
+    
 }

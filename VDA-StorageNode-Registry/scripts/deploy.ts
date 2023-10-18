@@ -2,12 +2,20 @@ import hre, { ethers, upgrades } from "hardhat";
 import { saveDeployedAddress } from "./utils";
 
 async function main() {
+  const vdaTokenAddress = '0x<Vda token address>';
+
   const contractFactory = await ethers.getContractFactory("StorageNodeRegistry");
-  const contract = await upgrades.deployProxy(contractFactory, {
-    initializer: "initialize",
-    timeout: 0,
-    pollingInterval: 5000,
-  });
+  const contract = await upgrades.deployProxy(
+    contractFactory,
+    [vdaTokenAddress],
+    {
+      initializer: "initialize",
+      timeout: 0,
+      pollingInterval: 5000,
+    }
+  );
+
+  
 
   await contract.deployed();
 

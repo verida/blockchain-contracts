@@ -28,7 +28,8 @@ export function createStorageNodeInputStruct(
     regionCode: string,
     datacenterId: BigNumberish,
     lat: number,
-    long: number) : IStorageNodeRegistry.StorageNodeInputStruct {
+    long: number,
+    numberSlots: number) : IStorageNodeRegistry.StorageNodeInputStruct {
     
     return {
         didAddress: address,
@@ -38,6 +39,7 @@ export function createStorageNodeInputStruct(
         datacenterId,
         lat: ethers.utils.parseUnits(lat.toString(), CONTRACT_DECIMAL),
         long: ethers.utils.parseUnits(long.toString(), CONTRACT_DECIMAL),
+        numberSlots: numberSlots
     }
 }
 
@@ -54,8 +56,8 @@ export function getAddNodeSignatures(
     signer : Wallet
 ) : RequestSignature {
     const rawmsg = ethers.utils.solidityPack(
-        ["address", "string", "uint", "int", "int", "uint"],
-        [node.didAddress, `${node.endpointUri}${node.countryCode}${node.regionCode}`, node.datacenterId, node.lat, node.long, nonce]
+        ["address", "string", "uint", "int", "int", "uint", "uint"],
+        [node.didAddress, `${node.endpointUri}${node.countryCode}${node.regionCode}`, node.datacenterId, node.lat, node.long, node.numberSlots, nonce]
     );
 
     const privateKeyBuffer = new Uint8Array(Buffer.from(user.privateKey.slice(2), 'hex'));
@@ -105,6 +107,27 @@ export function getRemoveStartSignatures(
 }
 
 export function getRemoveCompleteSignatures(
+    user: Wallet,
+    nonce: BigNumberish
+) : RemoveSignature {
+    const rawMsg = ethers.utils.solidityPack(
+        ["address", "uint"],
+        [user.address, nonce]
+    );
+
+    const privateKeyBuffer = new Uint8Array(Buffer.from(user.privateKey.slice(2), 'hex'));
+    const requestSignature = EncryptionUtils.signData(rawMsg, privateKeyBuffer);
+
+    const proofString = `${user.address}${user.address}`.toLowerCase();
+    const requestProof = EncryptionUtils.signData(proofString, privateKeyBuffer);
+
+    return {
+        requestSignature,
+        requestProof
+    }
+}
+
+export function getWithdrawSignatures(
     user: Wallet,
     nonce: BigNumberish
 ) : RemoveSignature {
