@@ -2,18 +2,18 @@ import { expect } from "chai";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 
 import hre, { ethers , upgrades } from "hardhat"
-import { BigNumber, BigNumberish, Wallet } from 'ethers'
+import { BigNumber, BigNumberish, logger, Wallet } from 'ethers'
 
 import { generateProof, SignInfo } from "./proof"
 import EncryptionUtils from '@verida/encryption-utils'
 import { Keyring } from "@verida/keyring";
 import { IStorageNodeRegistry, MockToken, StorageNodeRegistry } from "../typechain-types";
 
-import { createDatacenterStruct, createStorageNodeInputStruct, getAddNodeSignatures, getRemoveCompleteSignatures, getRemoveStartSignatures, getWithdrawSignatures } from "./helpers"; 
+import { createDatacenterStruct, createStorageNodeInputStruct, getAddNodeSignatures, getLogNodeIssueSignatures, getRemoveCompleteSignatures, getRemoveStartSignatures, getWithdrawSignatures } from "./helpers"; 
 
 import { SnapshotRestorer, takeSnapshot, time } from "@nomicfoundation/hardhat-network-helpers"
 import { assert } from "console";
-import { days } from "@nomicfoundation/hardhat-network-helpers/dist/src/helpers/time/duration";
+import { days, hours, minutes } from "@nomicfoundation/hardhat-network-helpers/dist/src/helpers/time/duration";
 import { anyValue } from "@nomicfoundation/hardhat-chai-matchers/withArgs";
 
 let contract: StorageNodeRegistry
@@ -161,12 +161,8 @@ describe("Verida StorageNodeRegistry", function () {
     }
 
     const slotTokenAmount = async (numberSlot: BigNumberish) : Promise<BigNumber> => {
-        const decimal = await token.decimals()
         const stakePerSlot = await contract.getStakePerSlot();
-        let tokenAmount = BigNumber.from(10);
-        tokenAmount = tokenAmount.pow(decimal);
-        tokenAmount = tokenAmount.mul(numberSlot)
-        tokenAmount = tokenAmount.mul(stakePerSlot)
+        let tokenAmount = stakePerSlot.mul(numberSlot);
         return tokenAmount;
     }
 
@@ -196,7 +192,6 @@ describe("Verida StorageNodeRegistry", function () {
         await token.mint(owner.address, BigNumber.from("1000000000000000000000"));
     });
 
-    /*
     describe("Data center", () => {
         const datacenterIds : BigNumber[] = []
 
@@ -532,7 +527,6 @@ describe("Verida StorageNodeRegistry", function () {
             })
         })
     });
-    */
 
     describe("Storage node", () => {
 
@@ -927,10 +921,10 @@ describe("Verida StorageNodeRegistry", function () {
         })
 
         describe("Update STAKE_PER_SLOT", () => {
-            const STAKE_PER_SLOT = 100;
+            const STAKE_PER_SLOT = BigNumber.from(10).pow(18).mul(100);
             it("Failed: Only contract owner allowed",async () => {
                 await expect(
-                    contract.connect(accounts[1]).updateStakePerSlot(100)
+                    contract.connect(accounts[1]).updateStakePerSlot(STAKE_PER_SLOT)
                 ).to.be.revertedWith('Ownable: caller is not the owner');
             })
 
@@ -1390,39 +1384,43 @@ describe("Verida StorageNodeRegistry", function () {
                 await checkAddNode(storageNode, user, trustedSigner, true);
             })
 
-            it("Failed : unregistered DID",async () => {
-                const randomDID = Wallet.createRandom().address
-
-                await expect(
-                    contract.withdrawExcessToken(randomDID, "0x00", "0x00")
-                ).to.be.revertedWithCustomError(contract, "InvalidDIDAddress");
-            })
-
-            // No need to test invalid signature, because this feature was tested in the VerifcationContract
-            // it("Failed : Invalid signature",async () => {
-
-            //     const badSigner = Wallet.createRandom();
-            //     const nonce = await contract.nonce(badSigner.address);
-
-            //     const {requestSignature, requestProof} = getWithdrawSignatures(badSigner, nonce);
-
-            //     await expect(
-            //         contract.withdrawExcessToken(user.address, requestSignature, requestProof)
-            //     ).to.be.revertedWithCustomError(contract, "InvalidSignature");
-                
-            // })
-
             it("Failed : No excess token",async () => {
                 const nonce = await contract.nonce(user.address);
+                const amount = 10;
 
                 expect(await contract.excessTokenAmount(user.address)).to.be.eq(0);
 
-                const {requestSignature, requestProof} = getWithdrawSignatures(user, nonce);
+                const {requestSignature, requestProof} = getWithdrawSignatures(user, amount, nonce);
                 await expect(
-                    contract.withdrawExcessToken(user.address, requestSignature, requestProof)
+                    contract.withdraw(user.address, amount, requestSignature, requestProof)
                 ).to.be.revertedWithCustomError(contract, "NoExcessTokenAmount");
             })
 
+            it("Failed : Amount is bigger than excess token amount",async () => {
+                const currentSnapshot = await takeSnapshot();
+
+                // Confirm current excess token amount is zero
+                expect(await contract.excessTokenAmount(user.address)).to.be.eq(0);
+
+                let stakePerSlot = await contract.getStakePerSlot();
+                // Decrease STAKE_PER_SLOT
+                stakePerSlot = stakePerSlot.sub(10);
+                await contract.updateStakePerSlot(stakePerSlot);
+
+                // Confirm current excess token amount is not zero
+                const excessTokenAmount = await contract.excessTokenAmount(user.address);
+                expect(excessTokenAmount).to.not.eq(0);
+
+                const amount = excessTokenAmount.add(10);
+
+                const nonce = await contract.nonce(user.address);
+                const {requestSignature, requestProof} = getWithdrawSignatures(user, amount, nonce);
+                await expect(
+                    contract.connect(requestor).withdraw(user.address, amount, requestSignature, requestProof)
+                ).to.be.revertedWithCustomError(contract, "InvalidAmount");
+                
+                await currentSnapshot.restore();
+            })
 
             it("Success",async () => {
                 // Confirm current excess token amount is zero
@@ -1437,13 +1435,15 @@ describe("Verida StorageNodeRegistry", function () {
                 const excessTokenAmount = await contract.excessTokenAmount(user.address);
                 expect(excessTokenAmount).to.not.eq(0);
 
+                const amount = excessTokenAmount;
+
                 const orgRequestorTokenAmount = await token.balanceOf(requestor.address);
 
                 // Withdraw
                 const nonce = await contract.nonce(user.address);
-                const {requestSignature, requestProof} = getWithdrawSignatures(user, nonce);
+                const {requestSignature, requestProof} = getWithdrawSignatures(user, amount, nonce);
                 await expect(
-                    contract.connect(requestor).withdrawExcessToken(user.address, requestSignature, requestProof)
+                    contract.connect(requestor).withdraw(user.address, amount, requestSignature, requestProof)
                 ).to.emit(contract, "TokenWithdrawn").withArgs(
                     user.address,
                     requestor.address,
@@ -1453,7 +1453,440 @@ describe("Verida StorageNodeRegistry", function () {
                 const curRequestorTokenAmount = await token.balanceOf(requestor.address);
                 expect(curRequestorTokenAmount).to.be.eq(orgRequestorTokenAmount.add(excessTokenAmount));
             })
-        })
+        });
+
+        describe("Node issue", () => {
+            const node = Wallet.createRandom();
+            const storageNode = createStorageNodeInputStruct(
+                node.address, 
+                "https://1",
+                "us",
+                "north america",
+                1,
+                -90,
+                -180,
+                VALID_NUMBER_SLOTS
+            );
+            let requestor : SignerWithAddress;
+
+            let snapShotWithNodeAdded : SnapshotRestorer;
+
+            const checkLogNodeIssue = async (
+                requestor: SignerWithAddress,
+                logger: Wallet,
+                nodeDID: string,
+                reasonCode: BigNumberish,
+                needMintToRequestor: boolean = false,
+                expectResult: boolean = true,
+                revertError: string | null = null
+            ) => {
+                // Mint token to requestor
+                if (needMintToRequestor === true)  {
+                    const nodeIssueFee = await contract.getNodeIssueFee();
+                    // Mint tokens to the requestor
+                    await token.mint(requestor.address, nodeIssueFee);
+                    // Make requestor approve tokens to the contract
+                    await token.connect(requestor).approve(contract.address, nodeIssueFee);
+                }
+
+                const nonce = await contract.nonce(logger.address);
+                const { requestSignature, requestProof } = getLogNodeIssueSignatures(logger, nodeDID, reasonCode, nonce);
+            
+                if (expectResult === true) {
+                    const tx = await contract.connect(requestor).logNodeIssue(logger.address, nodeDID, reasonCode, requestSignature, requestProof);
+            
+                    await expect(tx).to.emit(contract, "LoggedNodeIssue").withArgs(
+                        logger.address,
+                        nodeDID,
+                        reasonCode
+                    );
+                } else {
+                    await expect(
+                        contract.connect(requestor).logNodeIssue(logger.address, nodeDID, reasonCode, requestSignature, requestProof)
+                    ).to.be.revertedWithCustomError(contract, revertError!);
+                }
+            }
+
+            before(async () => {
+                requestor = accounts[1];
+
+                await snapShotWithDatacenters.restore();
+                await contract.addTrustedSigner(trustedSigner.address);
+
+                // Set staking as required
+                await contract.setStakingRequired(true);
+
+                // Approve Token
+                await approveToken(BigNumber.from(storageNode.numberSlots), owner, contract.address, true);
+                // Add node
+                await checkAddNode(storageNode, node, trustedSigner, true);
+
+                snapShotWithNodeAdded = await takeSnapshot();
+            })
+
+            describe("Update node issue fee", () => {
+                it("Failed : non-owner",async () => {
+                    await expect(
+                        contract.connect(accounts[0]).updateNodeIssueFee(1)
+                    ).to.be.revertedWith("Ownable: caller is not the owner");
+                })
+
+                it("Failed : 0 is not allowed",async () => {
+                    await expect(
+                        contract.updateNodeIssueFee(0)
+                    ).to.be.revertedWithCustomError(contract, "InvalidValue");
+                })
+
+                it("Failed : Update to current value",async () => {
+                    const currentNodeIssueFee = await contract.getNodeIssueFee();
+
+                    await expect(
+                        contract.updateNodeIssueFee(currentNodeIssueFee)
+                    ).to.be.revertedWithCustomError(contract, "InvalidValue");
+                })
+
+                it("Success",async () => {
+                    const fee = 6; // 5 VDA token
+                    const tokenDecimal = await token.decimals();
+
+                    const feeValue = BigNumber.from(10).pow(tokenDecimal).mul(fee);
+
+                    const curFee = await contract.getNodeIssueFee();
+
+                    expect(feeValue).not.to.eq(curFee);
+
+                    await expect(
+                        contract.updateNodeIssueFee(feeValue)
+                    ).to.emit(contract, "UpdateNodeIssueFee").withArgs(
+                        curFee, 
+                        feeValue
+                    );
+                })
+            })
+
+            describe("Update log duration for same node", () => {
+                it("Failed : non-owner",async () => {
+                    await expect(
+                        contract.connect(accounts[0]).updateSameNodeLogDuration(hours(1))
+                    ).to.be.revertedWith("Ownable: caller is not the owner");
+                })
+
+                it("Failed : 0 is not allowed",async () => {
+                    await expect(
+                        contract.updateSameNodeLogDuration(0)
+                    ).to.be.revertedWithCustomError(contract, "InvalidValue");
+                })
+
+                it("Failed : Update to current value",async () => {
+                    const currentSameNodeLogDuration = await contract.getSameNodeLogDuration();
+
+                    await expect(
+                        contract.updateSameNodeLogDuration(currentSameNodeLogDuration)
+                    ).to.be.revertedWithCustomError(contract, "InvalidValue");
+                })
+
+                it("Success",async () => {
+                    const curDuration = await contract.getSameNodeLogDuration();
+                    const duration = hours(2);
+                    await expect(
+                        contract.updateSameNodeLogDuration(duration)
+                    ).to.emit(contract, "UpdateSameNodeLogDuration").withArgs(
+                        curDuration,
+                        duration
+                    );
+                })
+            })
+
+            describe("Log node issue", () => {
+                let requestor: SignerWithAddress;
+
+                const logger = Wallet.createRandom();
+
+                let snapShotWithOneLogged : SnapshotRestorer;
+
+                before(async () => {
+                    requestor = accounts[1];
+                    const FEE_AMOUNT = await contract.getNodeIssueFee();
+
+                    await snapShotWithNodeAdded.restore();
+                })
+
+                it("Failed : Invalid node DID",async () => {
+                    const randomNodeDID = Wallet.createRandom().address;
+                    await checkLogNodeIssue(requestor, logger, randomNodeDID, 10, false, false, "InvalidDIDAddress");
+                })
+
+                it("Failed : Token not approved or insufficient",async () => {
+                    const nonce = await contract.nonce(logger.address);
+                    const { requestSignature, requestProof } = getLogNodeIssueSignatures(logger, node.address, 10, nonce);
+                    await expect(
+                        contract.connect(requestor).logNodeIssue(logger.address, node.address, 10, requestSignature, requestProof)
+                    ).to.be.rejectedWith("ERC20: insufficient allowance");
+                })
+
+                it("Success",async () => {
+                    await checkLogNodeIssue(requestor, logger, node.address, 10, true);
+
+                    snapShotWithOneLogged = await takeSnapshot();
+                })
+
+                it("Failed : 1 hour log limit for same node DID",async () => {
+                    let curBlockTime = await time.latest();
+
+                    // Failed in an hour
+                    await checkLogNodeIssue(requestor, logger, node.address, 10, true, false, "InvalidSameNodeTime");
+
+                    // Success after 1 hour
+                    curBlockTime = curBlockTime + hours(1);
+                    time.increaseTo(curBlockTime);
+                    await checkLogNodeIssue(requestor, logger, node.address, 10, true);
+                })
+
+                it("Failed : 4 logs limit in 24 hour",async () => {
+                    await snapShotWithOneLogged.restore();
+
+                    const nodes = [Wallet.createRandom(), Wallet.createRandom(), Wallet.createRandom(), Wallet.createRandom()];
+
+                    // Add different nodes for test
+                    for (let i = 0; i < nodes.length; i++) {
+                        const storageNode = createStorageNodeInputStruct(
+                            nodes[i].address, 
+                            "https://1" + i,
+                            "us",
+                            "north america",
+                            1,
+                            -90,
+                            -180,
+                            VALID_NUMBER_SLOTS
+                        );
+                        // Approve Token
+                        await approveToken(BigNumber.from(storageNode.numberSlots), owner, contract.address, true);
+                        // Add node
+                        await checkAddNode(storageNode, nodes[i], trustedSigner, true);
+                    }
+
+                    const curBlockTime = await time.latest();
+
+                    // Add 3 logs
+                    for (let i = 0; i < 3; i++) {
+                        const reasonCode = 20;
+                        await checkLogNodeIssue(requestor, logger, nodes[i].address, reasonCode, true);
+                    }
+
+                    // Failed for 5th logs in 24 hour
+                    await checkLogNodeIssue(requestor, logger, nodes[3].address, 20, true, false, "TimeNotElapsed");
+
+                    // Success after 24 hours condition
+                    await time.increaseTo(curBlockTime + hours(24));
+                    await checkLogNodeIssue(requestor, logger, nodes[3].address, 20, true);
+                })
+            })
+
+            describe("Slash", () => {
+                const REASON_CODE = 10;
+                const INVALID_REASON_CODE = 11;
+
+                const moreInfoURL = "https://slash"
+                
+                let requestors : SignerWithAddress[] = [];
+                const loggers = [Wallet.createRandom(), Wallet.createRandom()];
+
+                before(async () => {
+                    await snapShotWithNodeAdded.restore();
+                    // Add requestors. Requestors can be the same
+                    for (let i = 0; i < loggers.length; i++) {
+                        requestors.push(accounts[i]);
+                    }
+                })
+
+                it("Failed : non-owner",async () => {
+                    await expect(
+                        contract.connect(accounts[0]).slash(node.address, REASON_CODE, 10, moreInfoURL)
+                    ).to.be.revertedWith("Ownable: caller is not the owner");
+                })
+
+                it("Failed : Amount can not be 0",async () => {
+                    await expect(
+                        contract.slash(node.address, REASON_CODE, 0, moreInfoURL)
+                    ).to.be.revertedWithCustomError(contract, "InvalidAmount");
+                })
+
+                it("Failed : Amount can not be bigger than the node's staked amount", async () => {
+                    const currentAmount = await contract.getBalance(node.address);
+                    await expect(
+                        contract.slash(node.address, REASON_CODE, currentAmount.add(1), moreInfoURL)
+                    ).to.be.revertedWithCustomError(contract, "InvalidAmount");
+                })
+
+                it("Failed : Invalid reason code",async () => {
+                    const currentAmount = await contract.getBalance(node.address);
+                    await expect(
+                        contract.slash(node.address, INVALID_REASON_CODE, currentAmount, moreInfoURL)
+                    ).to.be.revertedWithCustomError(contract, "InvalidReasonCode");
+                })
+
+                it("Success : same portion for 2 loggers",async () => {
+                    const currentSnapshot = await takeSnapshot();
+
+                    // Log issues for same node & reason code with same node fee
+                    for (let i = 0; i < loggers.length; i++) {
+                        await checkLogNodeIssue(requestors[i], loggers[i], node.address, REASON_CODE, true);
+                    }
+
+                    const loggerOrgBalances : BigNumber[] = [];
+                    for (let i = 0; i < loggers.length; i++) {
+                        loggerOrgBalances.push(await contract.getBalance(loggers[i].address));
+                    }
+
+                    // Slash 200 token
+                    const slashAmount = BigNumber.from(10).pow(await token.decimals()).mul(200);
+                    await expect(
+                        contract.slash(node.address, REASON_CODE, slashAmount, moreInfoURL)
+                    ).to.emit(contract, "Slash").withArgs(
+                        node.address,
+                        REASON_CODE,
+                        anyValue,
+                        moreInfoURL
+                    );
+
+                    // Check the loggers's balance updated
+                    for (let i = 0; i < loggers.length; i++) {
+                        const curBalance = await contract.getBalance(loggers[i].address);
+                        expect(curBalance).to.be.eq(loggerOrgBalances[i].add(slashAmount.div(2)));
+                    }                   
+
+                    await currentSnapshot.restore();
+                })
+
+                it("Success : different portion by `NodeIssueFee` updated",async () => {
+                    const currentSnapshot = await takeSnapshot();
+
+                    const orgNodeIssueFee = await contract.getNodeIssueFee();
+
+                    // Log issue with original fee
+                    await checkLogNodeIssue(requestors[0], loggers[0], node.address, REASON_CODE, true);
+
+                    // Update issue fee 3 times of original value.
+                    const updatedNodeIssueFee = orgNodeIssueFee.mul(3);
+                    await contract.updateNodeIssueFee(updatedNodeIssueFee);
+
+                    // Log issue with updated fee
+                    await checkLogNodeIssue(requestors[1], loggers[1], node.address, REASON_CODE, true);
+
+                    // Save original balances of loggers
+                    const loggerOrgBalances : BigNumber[] = [];
+                    for (let i = 0; i < loggers.length; i++) {
+                        loggerOrgBalances.push(await contract.getBalance(loggers[i].address));
+                    }
+
+                    // Slash 200 token
+                    const slashAmount = BigNumber.from(10).pow(await token.decimals()).mul(200);
+                    await expect(
+                        contract.slash(node.address, REASON_CODE, slashAmount, moreInfoURL)
+                    ).to.emit(contract, "Slash").withArgs(
+                        node.address,
+                        REASON_CODE,
+                        anyValue,
+                        moreInfoURL
+                    );
+
+                    // Check the loggers's balance updated
+                    const loggerUpdatedBalances : BigNumber[] = [];
+                    for (let i = 0; i < loggers.length; i++) {
+                        loggerUpdatedBalances.push(await contract.getBalance(loggers[i].address));
+                    }
+
+                    // Confirm that 2nd logger get 3 times of slashed tokens than first logger
+                    expect(loggerUpdatedBalances[1].sub(loggerOrgBalances[1])).to.be.eq(
+                        (loggerUpdatedBalances[0].sub(loggerOrgBalances[0])).mul(3)
+                    );
+
+                    await currentSnapshot.restore();
+                })
+
+                it("Success : Different portion by multiple logs from one account",async () => {
+                    // Log issues for same node & reason code with same node fee
+                    for (let i = 0; i < loggers.length; i++) {
+                        await checkLogNodeIssue(requestors[i], loggers[i], node.address, REASON_CODE, true);
+                    }
+
+                    // Log 2 more times for second logger
+                    for (let i = 0; i < 2; i++) {
+                        const curTime = await time.latest();
+                        await time.increaseTo(curTime + hours(1));
+                        await checkLogNodeIssue(owner, loggers[1], node.address, REASON_CODE, true);
+                    }
+
+
+                    const loggerOrgBalances : BigNumber[] = [];
+                    for (let i = 0; i < loggers.length; i++) {
+                        loggerOrgBalances.push(await contract.getBalance(loggers[i].address));
+                    }
+
+                    // Slash 200 token
+                    const slashAmount = BigNumber.from(10).pow(await token.decimals()).mul(200);
+                    await expect(
+                        contract.slash(node.address, REASON_CODE, slashAmount, moreInfoURL)
+                    ).to.emit(contract, "Slash").withArgs(
+                        node.address,
+                        REASON_CODE,
+                        anyValue,
+                        moreInfoURL
+                    );
+
+                    // Get updated balances
+                    const loggerUpdatedBalances : BigNumber[] = [];
+                    for (let i = 0; i < loggers.length; i++) {
+                        loggerUpdatedBalances.push(await contract.getBalance(loggers[i].address));
+                    }
+
+                    // Confirm that 2nd logger get 3 times of slashed tokens than first logger
+                    expect(loggerUpdatedBalances[1].sub(loggerOrgBalances[1])).to.be.eq(
+                        (loggerUpdatedBalances[0].sub(loggerOrgBalances[0])).mul(3)
+                    );
+                })
+            })
+
+            describe("Withdraw issue fee", () => {
+                const receiver = Wallet.createRandom();
+                const logger = Wallet.createRandom();
+
+                before(async () => {
+                    await snapShotWithNodeAdded.restore();
+                })
+
+                it("Failed : non-owner",async () => {
+                    await expect(
+                        contract.connect(accounts[0]).withdrawIssueFee(receiver.address, 100)
+                    ).to.be.revertedWith("Ownable: caller is not the owner");
+                })
+
+                it("Success",async () => {
+                    // No fees before logging an issue
+                    expect(await contract.getIssueFeeAmount()).to.be.eq(0);
+
+                    // Log a issue
+                    const curIssueFee = await contract.getNodeIssueFee();
+                    await checkLogNodeIssue(requestor, logger, node.address, 10, true);
+
+                    expect(await contract.getIssueFeeAmount()).to.be.eq(curIssueFee);
+
+                    // Withdraw to the receiver
+                    expect(await token.balanceOf(receiver.address)).to.be.eq(0);
+
+                    await expect(
+                        contract.withdrawIssueFee(receiver.address, curIssueFee)
+                    ).to.emit(contract, "WithdrawIssueFee").withArgs(
+                        receiver.address,
+                        curIssueFee
+                    );
+
+                    // Confirm receiver received tokens
+                    expect(await token.balanceOf(receiver.address)).to.be.eq(curIssueFee);
+
+                })
+            })
+        });
 
         describe("Remove node", () => {
             const user = Wallet.createRandom();

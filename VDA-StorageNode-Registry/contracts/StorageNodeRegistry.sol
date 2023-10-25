@@ -3,13 +3,14 @@ pragma solidity ^0.8.18;
 
 import "@openzeppelin/contracts-upgradeable/utils/CountersUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/structs/EnumerableSetUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/structs/EnumerableMapUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 
 import "@verida/vda-verification-contract/contracts/VDAVerificationContract.sol";
 
 import "./IStorageNodeRegistry.sol";
 
-import "hardhat/console.sol";
+// import "hardhat/console.sol";
 
 
 /**
@@ -20,6 +21,7 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
     using CountersUpgradeable for CountersUpgradeable.Counter;
     using EnumerableSetUpgradeable for EnumerableSetUpgradeable.UintSet;
     using EnumerableSetUpgradeable for EnumerableSetUpgradeable.AddressSet;
+    using EnumerableMapUpgradeable for EnumerableMapUpgradeable.AddressToUintMap;
 
     /**
      * @notice Datacenter infos by `datacenterId`
@@ -81,6 +83,23 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
      */
     mapping (address => uint) internal _stakedTokenAmount;
 
+    /**
+     * @notice Logged token amount by node & reason code
+     * @dev Mapping of `Node DID => reason code => DID(logger) => Amount, Used to calculate proportion in `slash()` function
+     */
+    mapping (address => mapping(uint => EnumerableMapUpgradeable.AddressToUintMap)) internal _loggedTokenAmount;
+
+    /**
+     * @notice Total VDA token amount deposited by the `logNodeIssue()` function
+     * @dev Mapping of `Node DID => reason code => total amount` Used in `slash()` function
+     */
+    mapping (address => mapping(uint => uint)) internal _issueTotalAmount;
+
+    /**
+     * @notice Issue log list per DID
+     * @dev Each did 
+     */
+    mapping (address => DIDLogInformation) internal _didLogs;
 
     /**
      * @notice datacenterId counter
@@ -127,12 +146,43 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
      * @param STAKE_PER_SLOT The number of tokens required to stake for one storage slot.
      * @param MIN_SLOTS The minimum value of `STAKE_PER_SLOT`
      * @param MAX_SLOTS The maximum value of `STAKE_PER_SLOT`
+     * @param NODE_ISSUE_FEE The number of VDA tokens that must be deposited when recording an issue against a storage node. `default=5`
+     * @param SAME_NODE_LOG_DURATION Time after which log available for same node
      */
     struct SlotInfo {
         bool isStakingRequired;
         uint STAKE_PER_SLOT;
         uint MIN_SLOTS;
         uint MAX_SLOTS;
+
+        uint NODE_ISSUE_FEE;
+        uint SAME_NODE_LOG_DURATION;
+
+        uint totalIssueFee;
+    }
+
+    /**
+     * @notice Represent a each log information
+     * @dev Every DID keeps 4 DIDLogInformations to restrict 4 logs in 24 hours
+     * @param nodeDID Node DID from `nodeLogIssue()` function
+     * @param reasonCode Reason code from `nodeLogIssue()` function
+     * @param time Issue logged time
+     */
+    struct IssueInformation {
+        address nodeDID;
+        uint reasonCode;
+        uint time;
+    }
+
+    /**
+     * @notice Represent the log list for a DID
+     * @dev It keeps last 4 logs recorded by `logNodeIssue()` function
+     * @param _issueList Issue information list
+     * @param index The earliest issue index in the list
+     */
+    struct DIDLogInformation {
+        IssueInformation[] _issueList;
+        uint index;
     }
 
     error InvalidDatacenterName();
@@ -149,6 +199,10 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
     error InvalidNumberSlots();
     error InvalidValue();
     error NoExcessTokenAmount();
+    error TimeNotElapsed(); // 4 logs in 24 hour
+    error InvalidSameNodeTime(); 
+    error InvalidAmount();
+    error InvalidReasonCode();
 
     // constructor() {
     //     _disableInitializers();
@@ -160,10 +214,13 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
     function initialize(address tokenAddress) initializer public {
         __VDAVerificationContract_init();
 
-        _slotInfo.STAKE_PER_SLOT = 30;
+        _slotInfo.STAKE_PER_SLOT = 3 * (10 ** ERC20Upgradeable(tokenAddress).decimals());
         _slotInfo.isStakingRequired = false;
         _slotInfo.MIN_SLOTS = 20000;
         _slotInfo.MAX_SLOTS = 20000;
+
+        _slotInfo.NODE_ISSUE_FEE = 5 * (10 ** ERC20Upgradeable(tokenAddress).decimals());
+        _slotInfo.SAME_NODE_LOG_DURATION = 1 hours;
 
         vdaTokenAddress = tokenAddress;
     }
@@ -296,12 +353,14 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
         uint count = ids.length;
         Datacenter[] memory list = new Datacenter[](count);
 
-        for (uint i; i < count; ++i) {
+        for (uint i; i < count;) {
             if (!_datacenterInfo[ids[i]].isActive) {
                 revert InvalidDatacenterId(ids[i]);
             }
 
             list[i] = _dataCenterMap[ids[i]];
+
+            unchecked { ++i; }
         }
 
         return list;
@@ -318,8 +377,9 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
 
         EnumerableSetUpgradeable.UintSet storage countryIds = _countryDataCenterIds[countryCode];
 
-        for (uint i; i < count; ++i) {
+        for (uint i; i < count;) {
             list[i] = _dataCenterMap[countryIds.at(i)];
+            unchecked { ++i; }
         }
 
         return list;
@@ -336,8 +396,9 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
 
         EnumerableSetUpgradeable.UintSet storage regionIds = _regionDataCenterIds[regionCode];
 
-        for (uint i; i < count; ++i) {
+        for (uint i; i < count;) {
             list[i] = _dataCenterMap[regionIds.at(i)];
+            unchecked { ++i; }
         }
 
         return list;
@@ -434,9 +495,7 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
      * @return uint Required token amount
      */
     function requiredTokenAmount(uint numberSlot) internal view returns(uint) {
-        uint totalAmount = 10 ** ERC20Upgradeable(vdaTokenAddress).decimals();
-        totalAmount = _slotInfo.STAKE_PER_SLOT * totalAmount;
-        return numberSlot * totalAmount;
+        return numberSlot * _slotInfo.STAKE_PER_SLOT;
     }
 
     /**
@@ -558,7 +617,7 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
     function releaseToken(address didAddress, address to) internal {
         uint totalAmount = _stakedTokenAmount[didAddress];
 
-        if (totalAmount > 0) {
+        if (totalAmount != 0) {
             IERC20Upgradeable(vdaTokenAddress).transfer(to, totalAmount);
             _stakedTokenAmount[didAddress] = 0;
         }        
@@ -657,11 +716,12 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
 
         {
             uint nodeId;
-            for (uint i; i < count; ++i) {
+            for (uint i; i < count;) {
                 nodeId = ids.at(i);
                 if (_nodeUnregisterTime[nodeId] != 0) {
                     ++removedCount;
                 }
+                unchecked { ++i; }
             }
         }
 
@@ -669,12 +729,13 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
         {
             uint nodeId;
             uint index;
-            for (uint i; i < count; ++i) {
+            for (uint i; i < count;) {
                 nodeId = ids.at(i);
                 if (_nodeUnregisterTime[nodeId] == 0) {
                     nodeList[index] = _nodeMap[nodeId];
                     ++index;
                 }
+                unchecked { ++i; }
             }
         }
 
@@ -705,7 +766,7 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
     /**
      * @dev see { IStorageNodeRegistry }
      */
-    function setStakingRequired(bool isRequired) external onlyOwner override {
+    function setStakingRequired(bool isRequired) external payable onlyOwner override {
         if (isRequired == _slotInfo.isStakingRequired) {
             revert InvalidValue();
         }
@@ -724,7 +785,7 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
     /**
      * @dev see { IStorageNodeRegistry }
      */
-    function updateStakePerSlot(uint newVal) external onlyOwner override {
+    function updateStakePerSlot(uint newVal) external payable onlyOwner override {
         if (newVal == 0 || newVal == _slotInfo.STAKE_PER_SLOT) {
             revert InvalidValue();
         }
@@ -743,7 +804,7 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
     /**
      * @dev see { IStorageNodeRegistry }
      */
-    function updateMinSlots(uint minSlots) external onlyOwner override {
+    function updateMinSlots(uint minSlots) external payable onlyOwner override {
         if (minSlots == 0 || minSlots == _slotInfo.MIN_SLOTS || minSlots > _slotInfo.MAX_SLOTS) {
             revert InvalidValue();
         }
@@ -755,7 +816,7 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
     /**
      * @dev see { IStorageNodeRegistry }
      */
-    function updateMaxSlots(uint maxSlots) external onlyOwner override {
+    function updateMaxSlots(uint maxSlots) external payable onlyOwner override {
         if (maxSlots == 0 || maxSlots == _slotInfo.MAX_SLOTS || maxSlots < _slotInfo.MIN_SLOTS) {
             revert InvalidValue();
         }
@@ -767,7 +828,7 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
     /**
      * @dev see { IStorageNodeRegistry }
      */
-    function updateTokenAddress(address newTokenAddress) external onlyOwner {
+    function updateTokenAddress(address newTokenAddress) external payable onlyOwner {
         // Check the validity of the token address
         {
             if (vdaTokenAddress == newTokenAddress) {
@@ -803,12 +864,12 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
      * @return uint Return 0 if staked amount is less than the required amount
      */
     function getExcessTokenAmount(address didAddress) internal view returns(uint) {
-        uint nodeId = _didNodeId[didAddress];
-        if (nodeId == 0) {
-            revert InvalidDIDAddress();
-        }
+        uint totalAmount;
 
-        uint totalAmount = requiredTokenAmount(_nodeMap[nodeId].numberSlots);
+        uint nodeId = _didNodeId[didAddress];
+        if (nodeId != 0) {
+            totalAmount = requiredTokenAmount(_nodeMap[nodeId].numberSlots);    
+        }
 
         if (_stakedTokenAmount[didAddress] <= totalAmount) {
             return 0;
@@ -827,32 +888,32 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
     /**
      * @dev see { IStorageNodeRegistry }
      */
-    function withdrawExcessToken(
-        address didAddress, 
+    function withdraw(
+        address didAddress,
+        uint amount,
         bytes calldata requestSignature,
         bytes calldata requestProof
     ) external {
-        uint nodeId = _didNodeId[didAddress];
         {
-            if (nodeId == 0) {
-                revert InvalidDIDAddress();
-            }
-
-            bytes memory params = abi.encodePacked(didAddress);
+            bytes memory params = abi.encodePacked(didAddress, amount);
             verifyRequest(didAddress, params, requestSignature, requestProof);
         }
 
-        uint releaseAmount = getExcessTokenAmount(didAddress);
+        uint excessAmount = getExcessTokenAmount(didAddress);
 
-        if (releaseAmount == 0) {
+        if (excessAmount == 0) {
             revert NoExcessTokenAmount();
         }
 
-        IERC20Upgradeable(vdaTokenAddress).transfer(tx.origin, releaseAmount);
+        if (amount > excessAmount) {
+            revert InvalidAmount();
+        }
 
-        _stakedTokenAmount[didAddress] -= releaseAmount;
+        IERC20Upgradeable(vdaTokenAddress).transfer(tx.origin, amount);
 
-        emit TokenWithdrawn(didAddress, tx.origin, releaseAmount);
+        _stakedTokenAmount[didAddress] = _stakedTokenAmount[didAddress] - amount;
+
+        emit TokenWithdrawn(didAddress, tx.origin, amount);
     }
 
     /**
@@ -866,8 +927,172 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
 
         IERC20Upgradeable(vdaTokenAddress).transferFrom(tx.origin, address(this), tokenAmount);
 
-        _stakedTokenAmount[didAddress] += tokenAmount;
+        _stakedTokenAmount[didAddress] = _stakedTokenAmount[didAddress] + tokenAmount;
 
         emit TokenDeposited(didAddress, tx.origin, tokenAmount);
+    }
+
+    /**
+     * @dev see { IStorageNodeRegistry }
+     */
+    function getNodeIssueFee() external view returns(uint){
+        return _slotInfo.NODE_ISSUE_FEE;
+    }
+
+    /**
+     * @dev see { IStorageNodeRegistry }
+     */
+    function updateNodeIssueFee(uint value) external payable onlyOwner {
+        if (value == 0 || value == _slotInfo.NODE_ISSUE_FEE) {
+            revert InvalidValue();
+        }
+        uint orgFee = _slotInfo.NODE_ISSUE_FEE;
+        _slotInfo.NODE_ISSUE_FEE = value;
+
+        emit UpdateNodeIssueFee(orgFee, value);
+    }
+
+    /**
+     * @dev see { IStorageNodeRegistry }
+     */
+    function getIssueFeeAmount() external view returns(uint) {
+        return _slotInfo.totalIssueFee;
+    }
+
+    /**
+     * @dev see { IStorageNodeRegistry }
+     */
+    function withdrawIssueFee(address to, uint amount) external payable onlyOwner {
+        if (amount > _slotInfo.totalIssueFee) {
+            revert InvalidValue();
+        }
+        IERC20Upgradeable(vdaTokenAddress).transfer(to, amount);
+
+        _slotInfo.totalIssueFee = _slotInfo.totalIssueFee - amount;
+
+        emit WithdrawIssueFee(to, amount);
+    }
+
+    function getSameNodeLogDuration() external view returns(uint) {
+        return _slotInfo.SAME_NODE_LOG_DURATION;
+    }
+
+    /**
+     * @dev see { IStorageNodeRegistry }
+     */
+    function updateSameNodeLogDuration(uint value) external payable onlyOwner {
+        if (value == 0 || value == _slotInfo.SAME_NODE_LOG_DURATION) {
+            revert InvalidValue();
+        }
+        uint orgVal = _slotInfo.SAME_NODE_LOG_DURATION;
+        _slotInfo.SAME_NODE_LOG_DURATION = value;
+
+        emit UpdateSameNodeLogDuration(orgVal, value);
+    }
+
+    /**
+     * @dev see { IStorageNodeRegistry }
+     */
+    function logNodeIssue(
+        address didAddress,
+        address nodeAddress,
+        uint reasonCode,
+        bytes calldata requestSignature,
+        bytes calldata requestProof
+    ) external {
+        {
+            // Check whether nodeDID is registered
+            uint nodeId = _didNodeId[nodeAddress];
+            if (nodeId == 0) {
+                revert InvalidDIDAddress();
+            }
+
+            bytes memory params = abi.encodePacked(didAddress, nodeAddress, reasonCode);
+            verifyRequest(didAddress, params, requestSignature, requestProof);
+        }
+
+        
+        DIDLogInformation storage logs = _didLogs[didAddress];
+        // Check whether there are 4 logs in 24 horus
+        if (logs._issueList.length >= 4) {
+            uint earlistTime = logs._issueList[logs.index].time;
+            if (block.timestamp - earlistTime < 24 hours) {
+                revert TimeNotElapsed();
+            }
+        }
+        // Check 1 hour condition for same node
+        for (uint i; i < logs._issueList.length;) {
+            if (logs._issueList[i].nodeDID == nodeAddress && 
+                (block.timestamp - logs._issueList[i].time) < _slotInfo.SAME_NODE_LOG_DURATION) {
+                revert InvalidSameNodeTime();
+            }
+            unchecked { ++i; }
+        }
+
+        // Add or update
+        if (logs._issueList.length < 4) {
+            logs._issueList.push(IssueInformation(nodeAddress, reasonCode, block.timestamp));
+        } else {
+            uint index = logs.index;
+            logs._issueList[index].nodeDID = nodeAddress;
+            logs._issueList[index].reasonCode = reasonCode;
+            logs._issueList[index].time = block.timestamp;
+            ++index;
+            logs.index = index % 4;
+        }
+
+        // Transfer fees to this contract
+        IERC20Upgradeable(vdaTokenAddress).transferFrom(msg.sender, address(this), _slotInfo.NODE_ISSUE_FEE);
+
+        _slotInfo.totalIssueFee = _slotInfo.totalIssueFee + _slotInfo.NODE_ISSUE_FEE;
+
+        uint val;
+        EnumerableMapUpgradeable.AddressToUintMap storage didReasonLogAmount = _loggedTokenAmount[nodeAddress][reasonCode];
+        if (didReasonLogAmount.contains(didAddress)) {
+            val = didReasonLogAmount.get(didAddress);
+        }
+
+        didReasonLogAmount.set(didAddress, val + _slotInfo.NODE_ISSUE_FEE);
+        _issueTotalAmount[nodeAddress][reasonCode] = _issueTotalAmount[nodeAddress][reasonCode] + _slotInfo.NODE_ISSUE_FEE;
+
+        emit LoggedNodeIssue(didAddress, nodeAddress, reasonCode);
+    }
+
+    /**
+     * @dev see { IStorageNodeRegistry }
+     */
+    function slash(
+        address nodeDID,
+        uint reasonCode,
+        uint amount,
+        string calldata moreInfoUrl
+    ) external payable onlyOwner {
+
+        if (amount == 0 || amount > _stakedTokenAmount[nodeDID]) {
+            revert InvalidAmount();
+        }
+
+        uint issueAmount = _issueTotalAmount[nodeDID][reasonCode];
+        if (issueAmount == 0) {
+            revert InvalidReasonCode();
+        }
+
+        _stakedTokenAmount[nodeDID] = _stakedTokenAmount[nodeDID] - amount;
+        
+        EnumerableMapUpgradeable.AddressToUintMap storage logInfo = _loggedTokenAmount[nodeDID][reasonCode];
+        uint loggerCount = logInfo.length();
+        uint distributeTotalAmount;
+
+        for (uint i; i < loggerCount;) {
+            (address didAddress, uint loggerStaked) = logInfo.at(i);
+            uint distAmount = amount * loggerStaked / issueAmount;
+            distributeTotalAmount += distAmount;
+
+            _stakedTokenAmount[didAddress] = _stakedTokenAmount[didAddress] + distAmount;
+
+            unchecked { ++i; }
+        }
+
+        emit Slash(nodeDID, reasonCode, distributeTotalAmount, moreInfoUrl);
     }
 }

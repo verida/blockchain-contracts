@@ -176,6 +176,44 @@ interface IStorageNodeRegistry {
     event UpdateTokenAddress(address oldAddress, address newAddress);
 
     /**
+     * @notice Emitted when the NODE_ISSUE_FEE updated
+     * @param orgFee Original fee value
+     * @param newFee Updated fee value
+     */
+    event UpdateNodeIssueFee(uint orgFee, uint newFee);
+
+    /**
+     * @notice Emitted when the SAME_NODE_LOG_DURATION updated
+     * @param orgVal Original value
+     * @param newVal Updated value
+     */
+    event UpdateSameNodeLogDuration(uint orgVal, uint newVal);
+
+    /**
+     * @notice Emitted when user logged an node issue by `logNodeIssue()` function
+     * @param from DID address that logs this issue
+     * @param nodeDID DID address of the node
+     * @param reasonCode Reason code
+     */
+    event LoggedNodeIssue(address indexed from, address nodeDID, uint reasonCode);
+
+    /**
+     * @notice Emitted when stakes VDA tokens of `nodeDID` was slashed by contract owner
+     * @param nodeDID DID address of the node
+     * @param reasonCode Reason code
+     * @param Amount Slashed amount. This can be a bit different from the parameter of `slash()` function
+     * @param moreInfoUrl On-chain pointer to where more information can be fournd about this slashing
+     */
+    event Slash(address indexed nodeDID, uint reasonCode, uint Amount, string moreInfoUrl);
+
+    /**
+     * @notice Emitted when the contract owner withdraw tokens staked by logging issues
+     * @param to Receiver address
+     * @param amount Token amount to be withdrawn
+     */
+    event WithdrawIssueFee(address indexed to, uint amount);
+
+    /**
      * @notice Add a data center to the network. `id` will be auto-incremented.
      * @dev Only the contract owner can call this function
      * @param data Datacenter info
@@ -185,7 +223,7 @@ interface IStorageNodeRegistry {
 
     /**
      * @notice Remove a data center
-     * @dev Only the contract owner call call this function.
+     * @dev Only the contract owner can call this function.
      *  Will only remove the data center if there are no storage nodes using this datacenterId
      * @param datacenterId datacenterId created by `addDatacenter()` function
      */
@@ -295,7 +333,7 @@ interface IStorageNodeRegistry {
      * @dev Only the contract owner is allowed to call this function
      * @param isRequired The new value to be updated
      */
-    function setStakingRequired(bool isRequired) external;
+    function setStakingRequired(bool isRequired) external payable;
 
     /**
      * @notice Returns the `STAKE_PER_SLOT` value of `_slotInfo` struct
@@ -308,7 +346,7 @@ interface IStorageNodeRegistry {
      * @dev Only the contract owner is allowed to call this function
      * @param newVal The new value to be updated
      */
-    function updateStakePerSlot(uint newVal) external;
+    function updateStakePerSlot(uint newVal) external payable;
 
     /**
      * @notice Return the range of `NumberSlots` value by pair of minimum and maximum value
@@ -323,21 +361,21 @@ interface IStorageNodeRegistry {
      * @dev Only the contract owner is allowed to call this function
      * @param minSlots The new value to be updated
      */
-    function updateMinSlots(uint minSlots) external;
+    function updateMinSlots(uint minSlots) external payable;
 
     /**
      * @notice Update the `MAX_SLOTS` value of `_slotInfo` struct
      * @dev Only the contract owner is allowed to call this function
      * @param maxSlots The new value to be updated
      */
-    function updateMaxSlots(uint maxSlots) external;
+    function updateMaxSlots(uint maxSlots) external payable;
 
     /**
      * @notice Update the Verida token contract address
-     * @dev Only the owner of the contract is allowed to call this function
+     * @dev Only the contract owner is allowed to call this function
      * @param newTokenAddress New token contract address
      */
-    function updateTokenAddress(address newTokenAddress) external;
+    function updateTokenAddress(address newTokenAddress) external payable;
 
     /**
      * @notice Returns the amount of staked token.
@@ -355,14 +393,16 @@ interface IStorageNodeRegistry {
     function excessTokenAmount(address didAddress) external view returns(uint);
 
     /**
-     * @notice Withdraw the excess tokens to the requestor
-     * @dev Will return the exces tokens to the `tx.origin`
+     * @notice Withdraw amount of tokens to the requestor
+     * @dev Will send tokens to the `tx.origin`
      * @param didAddress DID address
+     * @param amount Token amount to be withdrawn
      * @param requestSignature The request parameters signed by the `didAddress` private key
      * @param requestProof Used to verify request
      */
-    function withdrawExcessToken(
+    function withdraw(
         address didAddress, 
+        uint amount,
         bytes calldata requestSignature,
         bytes calldata requestProof
     ) external;
@@ -374,6 +414,76 @@ interface IStorageNodeRegistry {
      * @param tokenAmount Depositing amount of Verida token
      */
     function depoistToken(address didAddress, uint tokenAmount) external;
+
+    /**
+     * @notice Get current `NODE_ISSUE_FEE`
+     * @return uint value of `_slotInfo.NODE_ISSUE_FEE`
+     */
+    function getNodeIssueFee() external view returns(uint);
+
+    /**
+     * @notice Update the `NODE_ISSUE_FEE` in the _slotInfo.
+     * @param value New fee value to be set.
+     */
+    function updateNodeIssueFee(uint value) external payable;
+
+    /**
+     * @notice Return the current token amount staked by `NODE_ISSUE_FEE`
+     * @return uint Amount of VDA tokens owned by this contract
+     */
+    function getIssueFeeAmount() external view returns(uint);
+
+    /**
+     * @notice Withdraw the VDA tokens that was deposited by `logNodeIssue()` function
+     * @dev Only the contract owner can withdraw fees
+     * @param to Receiving address
+     * @param amount Amount to be withdrawn
+     */
+    function withdrawIssueFee(address to, uint amount) external payable;
+
+    /**
+     * @notice Return the current same node log duration
+     * @return uint Same node log duration in seconds
+     */
+    function getSameNodeLogDuration() external view returns(uint);
+
+    /**
+     * @notice Update the `SAME_NODE_LOG_DURATION` value
+     * @dev Only the contract owner call call this function
+     * @param value Time in seconds unit
+     */
+    function updateSameNodeLogDuration(uint value) external payable;
+
+    /**
+     * @notice Log an issue
+     * @param didAddress DID who logs this issue
+     * @param nodeAddress DIDAddress of the node
+     * @param reasonCode reason code of the issue
+     * @param requestSignature The request parameters signed by the `didAddress` private key
+     * @param requestProof Used to verify request
+     */
+    function logNodeIssue(
+        address didAddress,
+        address nodeAddress,
+        uint reasonCode,
+        bytes calldata requestSignature,
+        bytes calldata requestProof
+    ) external;
+
+    /**
+     * @notice Slash the tokens
+     * @dev Only the contract owner can call this
+     * @param nodeDID DID address that points the node to be slashed
+     * @param reasonCode Reascon code to be slashed
+     * @param amount Token amount to be slashed
+     * @param moreInfoUrl On-chain pointer to where more information can be fournd about this slashing
+     */
+    function slash(
+        address nodeDID,
+        uint reasonCode,
+        uint amount,
+        string calldata moreInfoUrl
+    ) external payable;
 
     
 }

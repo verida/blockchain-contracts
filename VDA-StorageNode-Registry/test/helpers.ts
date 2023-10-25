@@ -129,17 +129,41 @@ export function getRemoveCompleteSignatures(
 
 export function getWithdrawSignatures(
     user: Wallet,
+    amount: BigNumberish,
     nonce: BigNumberish
 ) : RemoveSignature {
     const rawMsg = ethers.utils.solidityPack(
-        ["address", "uint"],
-        [user.address, nonce]
+        ["address", "uint", "uint"],
+        [user.address, amount, nonce]
     );
 
     const privateKeyBuffer = new Uint8Array(Buffer.from(user.privateKey.slice(2), 'hex'));
     const requestSignature = EncryptionUtils.signData(rawMsg, privateKeyBuffer);
 
     const proofString = `${user.address}${user.address}`.toLowerCase();
+    const requestProof = EncryptionUtils.signData(proofString, privateKeyBuffer);
+
+    return {
+        requestSignature,
+        requestProof
+    }
+}
+
+export function getLogNodeIssueSignatures(
+    logger: Wallet,
+    nodeDID: string,
+    reasonCode: BigNumberish,
+    nonce: BigNumberish
+) : RemoveSignature {
+    const rawMsg = ethers.utils.solidityPack(
+        ["address", "address", "uint", "uint"],
+        [logger.address, nodeDID, reasonCode, nonce]
+    );
+
+    const privateKeyBuffer = new Uint8Array(Buffer.from(logger.privateKey.slice(2), 'hex'));
+    const requestSignature = EncryptionUtils.signData(rawMsg, privateKeyBuffer);
+
+    const proofString = `${logger.address}${logger.address}`.toLowerCase();
     const requestProof = EncryptionUtils.signData(proofString, privateKeyBuffer);
 
     return {
