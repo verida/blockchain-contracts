@@ -413,7 +413,7 @@ interface IStorageNodeRegistry {
      * @param didAddress DID address
      * @param tokenAmount Depositing amount of Verida token
      */
-    function depoistToken(address didAddress, uint tokenAmount) external;
+    function depositToken(address didAddress, uint tokenAmount) external;
 
     /**
      * @notice Get current `NODE_ISSUE_FEE`

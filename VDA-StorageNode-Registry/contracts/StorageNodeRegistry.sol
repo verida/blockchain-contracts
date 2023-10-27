@@ -919,7 +919,7 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
     /**
      * @dev see { IStorageNodeRegistry }
      */
-    function depoistToken(address didAddress, uint tokenAmount) external {
+    function depositToken(address didAddress, uint tokenAmount) external {
         uint nodeId = _didNodeId[didAddress];
         if (nodeId == 0) {
             revert InvalidDIDAddress();

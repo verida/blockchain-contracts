@@ -1244,13 +1244,13 @@ describe("Verida StorageNodeRegistry", function () {
             it("Failed : unregistered DID", async () => {
                 const randomDID = Wallet.createRandom().address;
                 await expect(
-                    contract.connect(requestor).depoistToken(randomDID, 1)
+                    contract.connect(requestor).depositToken(randomDID, 1)
                 ).to.be.revertedWithCustomError(contract, "InvalidDIDAddress");
             })
 
             it("Failed : token not approved", async () => {
                 await expect(
-                    contract.connect(requestor).depoistToken(user.address, 100)
+                    contract.connect(requestor).depositToken(user.address, 100)
                 ).to.be.revertedWith("ERC20: insufficient allowance");
             })
 
@@ -1261,7 +1261,7 @@ describe("Verida StorageNodeRegistry", function () {
 
                 // Deposit
                 await expect(
-                    contract.connect(requestor).depoistToken(user.address, depositAmount)
+                    contract.connect(requestor).depositToken(user.address, depositAmount)
                 ).to.emit(contract, "TokenDeposited").withArgs(
                     user.address,
                     requestor.address,
