@@ -196,7 +196,7 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
     error InvalidDIDAddress();
     error InvalidUnregisterTime();
     error InvalidTokenAddress();
-    error InvalidNumberSlots();
+    error InvalidSlotCount();
     error InvalidValue();
     error NoExcessTokenAmount();
     error TimeNotElapsed(); // 4 logs in 24 hour
@@ -463,7 +463,7 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
             _nodeMap[nodeId].datacenterId = nodeInfo.datacenterId;
             _nodeMap[nodeId].lat = nodeInfo.lat;
             _nodeMap[nodeId].long = nodeInfo.long;
-            _nodeMap[nodeId].numberSlots = nodeInfo.numberSlots;
+            _nodeMap[nodeId].slotCount = nodeInfo.slotCount;
             _nodeMap[nodeId].establishmentDate = block.timestamp;
 
             _didNodeId[nodeInfo.didAddress] = nodeId;
@@ -482,7 +482,7 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
             nodeInfo.datacenterId,
             nodeInfo.lat,
             nodeInfo.long,
-            nodeInfo.numberSlots,
+            nodeInfo.slotCount,
             block.timestamp
             );
 
@@ -546,9 +546,9 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
                 revert InvalidEndpointUri();
             }
 
-            // Check whether the numberSlots is zero
-            if (nodeInfo.numberSlots < _slotInfo.MIN_SLOTS || nodeInfo.numberSlots > _slotInfo.MAX_SLOTS) {
-                revert InvalidNumberSlots();
+            // Check whether the slotCount is zero
+            if (nodeInfo.slotCount < _slotInfo.MIN_SLOTS || nodeInfo.slotCount > _slotInfo.MAX_SLOTS) {
+                revert InvalidSlotCount();
             }
             
             bytes memory params = abi.encodePacked(
@@ -565,7 +565,7 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
                 params,
                 nodeInfo.lat,
                 nodeInfo.long,
-                nodeInfo.numberSlots
+                nodeInfo.slotCount
             );
 
             verifyRequest(nodeInfo.didAddress, params, requestSignature, requestProof);
@@ -574,7 +574,7 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
         }
 
         if (_slotInfo.isStakingRequired) {
-            stakeToken(nodeInfo.didAddress, tx.origin, nodeInfo.numberSlots);
+            stakeToken(nodeInfo.didAddress, tx.origin, nodeInfo.slotCount);
         }
 
         storeNodeInfo(nodeInfo);
@@ -797,32 +797,32 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
     /**
      * @dev see { IStorageNodeRegistry }
      */
-    function getNumberSlotsRange() external view returns(uint, uint) {
+    function getSlotCountRange() external view returns(uint, uint) {
         return (_slotInfo.MIN_SLOTS, _slotInfo.MAX_SLOTS);
     }
 
     /**
      * @dev see { IStorageNodeRegistry }
      */
-    function updateMinSlots(uint minSlots) external payable onlyOwner override {
+    function updateMinSlotCount(uint minSlots) external payable onlyOwner override {
         if (minSlots == 0 || minSlots == _slotInfo.MIN_SLOTS || minSlots > _slotInfo.MAX_SLOTS) {
             revert InvalidValue();
         }
 
         _slotInfo.MIN_SLOTS = minSlots;
-        emit UpdateMinSlots(minSlots);
+        emit UpdateMinSlotCount(minSlots);
     }
 
     /**
      * @dev see { IStorageNodeRegistry }
      */
-    function updateMaxSlots(uint maxSlots) external payable onlyOwner override {
+    function updateMaxSlotCount(uint maxSlots) external payable onlyOwner override {
         if (maxSlots == 0 || maxSlots == _slotInfo.MAX_SLOTS || maxSlots < _slotInfo.MIN_SLOTS) {
             revert InvalidValue();
         }
 
         _slotInfo.MAX_SLOTS = maxSlots;
-        emit UpdateMaxSlots(maxSlots);
+        emit UpdateMaxSlotCount(maxSlots);
     }
 
     /**
@@ -868,7 +868,7 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
 
         uint nodeId = _didNodeId[didAddress];
         if (nodeId != 0) {
-            totalAmount = requiredTokenAmount(_nodeMap[nodeId].numberSlots);    
+            totalAmount = requiredTokenAmount(_nodeMap[nodeId].slotCount);    
         }
 
         if (_stakedTokenAmount[didAddress] <= totalAmount) {
@@ -955,7 +955,7 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
     /**
      * @dev see { IStorageNodeRegistry }
      */
-    function getIssueFeeAmount() external view returns(uint) {
+    function getTotalIssueFee() external view returns(uint) {
         return _slotInfo.totalIssueFee;
     }
 

@@ -29,7 +29,7 @@ export function createStorageNodeInputStruct(
     datacenterId: BigNumberish,
     lat: number,
     long: number,
-    numberSlots: number) : IStorageNodeRegistry.StorageNodeInputStruct {
+    slotCount: number) : IStorageNodeRegistry.StorageNodeInputStruct {
     
     return {
         didAddress: address,
@@ -39,7 +39,7 @@ export function createStorageNodeInputStruct(
         datacenterId,
         lat: ethers.utils.parseUnits(lat.toString(), CONTRACT_DECIMAL),
         long: ethers.utils.parseUnits(long.toString(), CONTRACT_DECIMAL),
-        numberSlots: numberSlots
+        slotCount: slotCount
     }
 }
 
@@ -57,7 +57,7 @@ export function getAddNodeSignatures(
 ) : RequestSignature {
     const rawmsg = ethers.utils.solidityPack(
         ["address", "string", "uint", "int", "int", "uint", "uint"],
-        [node.didAddress, `${node.endpointUri}${node.countryCode}${node.regionCode}`, node.datacenterId, node.lat, node.long, node.numberSlots, nonce]
+        [node.didAddress, `${node.endpointUri}${node.countryCode}${node.regionCode}`, node.datacenterId, node.lat, node.long, node.slotCount, nonce]
     );
 
     const privateKeyBuffer = new Uint8Array(Buffer.from(user.privateKey.slice(2), 'hex'));

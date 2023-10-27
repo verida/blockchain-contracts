@@ -61,7 +61,7 @@ const checkAddNode = async (
             storageNode.datacenterId,
             storageNode.lat,
             storageNode.long,
-            storageNode.numberSlots,
+            storageNode.slotCount,
             anyValue
         );
     } else {
@@ -499,7 +499,7 @@ describe("Verida StorageNodeRegistry", function () {
                 const stakePerSlot = await contract.getStakePerSlot();
                 let tokenAmount = BigNumber.from(10);
                 tokenAmount = tokenAmount.pow(decimal);
-                tokenAmount = tokenAmount.mul(BigNumber.from(storageNode.numberSlots))
+                tokenAmount = tokenAmount.mul(BigNumber.from(storageNode.slotCount))
                 tokenAmount = tokenAmount.mul(stakePerSlot)
                 await token.approve(contract.address, tokenAmount.toString());
 
@@ -707,7 +707,7 @@ describe("Verida StorageNodeRegistry", function () {
                     }
                 })
     
-                it("Failed: Invalid numberSlots",async () => {
+                it("Failed: Invalid slotCount",async () => {
                     const invalidSlots = [0, 100, 20001];
                     for (let i = 0; i < invalidSlots.length; i++) {
                         const nodeInfo = createStorageNodeInputStruct(
@@ -721,7 +721,7 @@ describe("Verida StorageNodeRegistry", function () {
                             invalidSlots[i]);
                         await expect(
                             contract.addNode(nodeInfo, "0x00", "0x00", "0x00")
-                        ).to.be.revertedWithCustomError(contract, "InvalidNumberSlots")
+                        ).to.be.revertedWithCustomError(contract, "InvalidSlotCount")
                     }
                     
                 })
@@ -846,10 +846,10 @@ describe("Verida StorageNodeRegistry", function () {
                 })
     
                 it("Success", async () => {
-                    const stakeTokenAmount = await slotTokenAmount(BigNumber.from(storageNode.numberSlots))
+                    const stakeTokenAmount = await slotTokenAmount(BigNumber.from(storageNode.slotCount))
                     
                     // Approve Token
-                    await approveToken(BigNumber.from(storageNode.numberSlots), owner, contract.address, true);
+                    await approveToken(BigNumber.from(storageNode.slotCount), owner, contract.address, true);
     
                     const requestorBeforeTokenAmount = await token.balanceOf(owner.address);
                     // Add node
@@ -912,7 +912,7 @@ describe("Verida StorageNodeRegistry", function () {
                     await checkRemoveNodeComplete(user, owner);
     
                     // Approve Token
-                    await approveToken(BigNumber.from(storageNode.numberSlots), owner, contract.address);
+                    await approveToken(BigNumber.from(storageNode.slotCount), owner, contract.address);
     
                     // Add success
                     await checkAddNode(storageNode, user, trustedSigner, true);
@@ -1203,7 +1203,7 @@ describe("Verida StorageNodeRegistry", function () {
                 await contract.setStakingRequired(true);
 
                 // Approve Token
-                await approveToken(BigNumber.from(storageNode.numberSlots), owner, contract.address, true);
+                await approveToken(BigNumber.from(storageNode.slotCount), owner, contract.address, true);
                 // Add node
                 await checkAddNode(storageNode, user, trustedSigner, true);
 
@@ -1233,7 +1233,7 @@ describe("Verida StorageNodeRegistry", function () {
                 await contract.addTrustedSigner(trustedSigner.address);
 
                 // Approve Token
-                await approveToken(BigNumber.from(storageNode.numberSlots), owner, contract.address, true);
+                await approveToken(BigNumber.from(storageNode.slotCount), owner, contract.address, true);
                 // Add node
                 await checkAddNode(storageNode, user, trustedSigner, true);
 
@@ -1284,38 +1284,38 @@ describe("Verida StorageNodeRegistry", function () {
             })
         })
 
-        describe("MinSlots and MaxSlots", () => {
+        describe("Slot count range", () => {
             let min : BigNumber
             let max : BigNumber
             before(async () => {
-                [min, max] = await contract.getNumberSlotsRange();
+                [min, max] = await contract.getSlotCountRange();
             })
 
-            describe("Update minSlots", () => {
+            describe("Update mininum slot count", () => {
                 it("Failed : 0 is not available",async () => {
                     await expect(
-                        contract.updateMinSlots(0)
+                        contract.updateMinSlotCount(0)
                     ).to.be.revertedWithCustomError(contract, "InvalidValue");
                 })
 
                 it("Failed : Current value is not available",async () => {
                     await expect(
-                        contract.updateMinSlots(min)
+                        contract.updateMinSlotCount(min)
                     ).to.be.revertedWithCustomError(contract, "InvalidValue");
                 })
 
                 it("Failed : Value is bigger than maxSlots",async () => {
                     await expect(
-                        contract.updateMinSlots(max.add(1))
+                        contract.updateMinSlotCount(max.add(1))
                     ).to.be.revertedWithCustomError(contract, "InvalidValue");
                 })
 
                 it("Success",async () => {
                     await expect(
-                        contract.updateMinSlots(min.sub(1))
-                    ).to.emit(contract, "UpdateMinSlots").withArgs(min.sub(1));
+                        contract.updateMinSlotCount(min.sub(1))
+                    ).to.emit(contract, "UpdateMinSlotCount").withArgs(min.sub(1));
 
-                    const [updateMin, updatedMax] = await contract.getNumberSlotsRange();
+                    const [updateMin, updatedMax] = await contract.getSlotCountRange();
                     expect(updateMin).to.be.eq(min.sub(1));
                     expect(updatedMax).to.be.eq(max);
 
@@ -1324,31 +1324,31 @@ describe("Verida StorageNodeRegistry", function () {
                 })
             })
 
-            describe("Update maxSlots", () => {
+            describe("Update maximum slot count", () => {
                 it("Failed : 0 is not available",async () => {
                     await expect(
-                        contract.updateMaxSlots(0)
+                        contract.updateMaxSlotCount(0)
                     ).to.be.revertedWithCustomError(contract, "InvalidValue");
                 })
 
                 it("Failed : Current value is not available",async () => {
                     await expect(
-                        contract.updateMaxSlots(max)
+                        contract.updateMaxSlotCount(max)
                     ).to.be.revertedWithCustomError(contract, "InvalidValue");
                 })
 
                 it("Failed : Value is less than minSlots",async () => {
                     await expect(
-                        contract.updateMaxSlots(min.sub(1))
+                        contract.updateMaxSlotCount(min.sub(1))
                     ).to.be.revertedWithCustomError(contract, "InvalidValue");
                 })
 
                 it("Success",async () => {
                     await expect(
-                        contract.updateMaxSlots(max.add(1))
-                    ).to.emit(contract, "UpdateMaxSlots").withArgs(max.add(1));
+                        contract.updateMaxSlotCount(max.add(1))
+                    ).to.emit(contract, "UpdateMaxSlotCount").withArgs(max.add(1));
 
-                    const [updateMin, updatedMax] = await contract.getNumberSlotsRange();
+                    const [updateMin, updatedMax] = await contract.getSlotCountRange();
                     expect(updateMin).to.be.eq(min);
                     expect(updatedMax).to.be.eq(max.add(1));
                 })
@@ -1379,7 +1379,7 @@ describe("Verida StorageNodeRegistry", function () {
                 await contract.setStakingRequired(true);
 
                 // Approve Token
-                await approveToken(BigNumber.from(storageNode.numberSlots), owner, contract.address, true);
+                await approveToken(BigNumber.from(storageNode.slotCount), owner, contract.address, true);
                 // Add node
                 await checkAddNode(storageNode, user, trustedSigner, true);
             })
@@ -1517,7 +1517,7 @@ describe("Verida StorageNodeRegistry", function () {
                 await contract.setStakingRequired(true);
 
                 // Approve Token
-                await approveToken(BigNumber.from(storageNode.numberSlots), owner, contract.address, true);
+                await approveToken(BigNumber.from(storageNode.slotCount), owner, contract.address, true);
                 // Add node
                 await checkAddNode(storageNode, node, trustedSigner, true);
 
@@ -1660,7 +1660,7 @@ describe("Verida StorageNodeRegistry", function () {
                             VALID_NUMBER_SLOTS
                         );
                         // Approve Token
-                        await approveToken(BigNumber.from(storageNode.numberSlots), owner, contract.address, true);
+                        await approveToken(BigNumber.from(storageNode.slotCount), owner, contract.address, true);
                         // Add node
                         await checkAddNode(storageNode, nodes[i], trustedSigner, true);
                     }
@@ -1863,13 +1863,13 @@ describe("Verida StorageNodeRegistry", function () {
 
                 it("Success",async () => {
                     // No fees before logging an issue
-                    expect(await contract.getIssueFeeAmount()).to.be.eq(0);
+                    expect(await contract.getTotalIssueFee()).to.be.eq(0);
 
                     // Log a issue
                     const curIssueFee = await contract.getNodeIssueFee();
                     await checkLogNodeIssue(requestor, logger, node.address, 10, true);
 
-                    expect(await contract.getIssueFeeAmount()).to.be.eq(curIssueFee);
+                    expect(await contract.getTotalIssueFee()).to.be.eq(curIssueFee);
 
                     // Withdraw to the receiver
                     expect(await token.balanceOf(receiver.address)).to.be.eq(0);
@@ -2037,7 +2037,7 @@ describe("Verida StorageNodeRegistry", function () {
                     await contract.setStakingRequired(true);
     
                     // Register a node
-                    await approveToken(BigNumber.from(storageNode.numberSlots), owner, contract.address, true);
+                    await approveToken(BigNumber.from(storageNode.slotCount), owner, contract.address, true);
                     await checkAddNode(storageNode, user, trustedSigner, true);
                 })
     

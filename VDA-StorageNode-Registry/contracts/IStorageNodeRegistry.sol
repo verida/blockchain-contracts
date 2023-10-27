@@ -30,7 +30,7 @@ interface IStorageNodeRegistry {
      * @param datacenterId Unique datacenter identifier that is created by `addDataCenter()` method.
      * @param lat Latitude
      * @param long Longitude
-     * @param numberSlots Number of slots indicationg how many storage slots the node will provide
+     * @param slotCount Number of slots indicationg how many storage slots the node will provide
      * @param establishmentDate Node added time in seconds
      */
     struct StorageNode {
@@ -41,7 +41,7 @@ interface IStorageNodeRegistry {
         uint datacenterId;
         int lat;
         int long;
-        uint numberSlots;
+        uint slotCount;
         uint establishmentDate;
     }
 
@@ -55,7 +55,7 @@ interface IStorageNodeRegistry {
      * @param datacenterId Unique datacenter identifier that is created by `addDataCenter()` method.
      * @param lat Latitude
      * @param long Longitude
-     * @param numberSlots Number of slots indicationg how many storage slots the node will provide
+     * @param slotCount Number of slots indicationg how many storage slots the node will provide
      */
     struct StorageNodeInput {
         address didAddress;
@@ -65,7 +65,7 @@ interface IStorageNodeRegistry {
         uint datacenterId;
         int lat;
         int long;
-        uint numberSlots;
+        uint slotCount;
     }
 
     /**
@@ -99,7 +99,7 @@ interface IStorageNodeRegistry {
      * @param countryCode Unique two-character string code
      * @param regionCode Unique region string code
      * @param datacenterId Unique datacenter identifier that is created by `addDataCenter()` method.
-     * @param numberSlots Number of slots indicationg how many storage slots the node will provide
+     * @param slotCount Number of slots indicationg how many storage slots the node will provide
      * @param establishmentDate Node added time in seconds
      */
     event AddNode(
@@ -110,7 +110,7 @@ interface IStorageNodeRegistry {
         uint datacenterId,
         int lat,
         int long,
-        uint numberSlots,
+        uint slotCount,
         uint establishmentDate
     );
 
@@ -144,13 +144,13 @@ interface IStorageNodeRegistry {
      * @notice Emitted when the `MIN_SLOTS` value of `_slotInfo` is updated
      * @param newVal New value updated
      */
-    event UpdateMinSlots(uint newVal);
+    event UpdateMinSlotCount(uint newVal);
 
     /**
      * @notice Emitted when the `MAX_SLOTS` value of `_slotInfo` is updated
      * @param newVal New value updated
      */
-    event UpdateMaxSlots(uint newVal);
+    event UpdateMaxSlotCount(uint newVal);
 
     /**
      * @notice Emitted when the excess tokens are withdrawn
@@ -349,26 +349,26 @@ interface IStorageNodeRegistry {
     function updateStakePerSlot(uint newVal) external payable;
 
     /**
-     * @notice Return the range of `NumberSlots` value by pair of minimum and maximum value
+     * @notice Return the range of `slotCount` value by pair of minimum and maximum value
      * @dev Return the `MinSlots` and `MaxSlots` value of `_slotInfo` struct
-     * @return uint available minimum value of `NumberSlots`
-     * @return uint available maximum value of `NumberSlots`
+     * @return uint available minimum value of `slotCount`
+     * @return uint available maximum value of `slotCount`
      */
-    function getNumberSlotsRange() external view returns(uint, uint);
+    function getSlotCountRange() external view returns(uint, uint);
 
     /**
      * @notice Update the `MIN_SLOTS` value of `_slotInfo` struct
      * @dev Only the contract owner is allowed to call this function
      * @param minSlots The new value to be updated
      */
-    function updateMinSlots(uint minSlots) external payable;
+    function updateMinSlotCount(uint minSlots) external payable;
 
     /**
      * @notice Update the `MAX_SLOTS` value of `_slotInfo` struct
      * @dev Only the contract owner is allowed to call this function
      * @param maxSlots The new value to be updated
      */
-    function updateMaxSlots(uint maxSlots) external payable;
+    function updateMaxSlotCount(uint maxSlots) external payable;
 
     /**
      * @notice Update the Verida token contract address
@@ -428,10 +428,10 @@ interface IStorageNodeRegistry {
     function updateNodeIssueFee(uint value) external payable;
 
     /**
-     * @notice Return the current token amount staked by `NODE_ISSUE_FEE`
+     * @notice Return the current token amount staked by logging issues
      * @return uint Amount of VDA tokens owned by this contract
      */
-    function getIssueFeeAmount() external view returns(uint);
+    function getTotalIssueFee() external view returns(uint);
 
     /**
      * @notice Withdraw the VDA tokens that was deposited by `logNodeIssue()` function
