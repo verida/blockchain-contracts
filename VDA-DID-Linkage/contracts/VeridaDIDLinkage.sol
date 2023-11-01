@@ -19,19 +19,24 @@ contract VeridaDIDLinkage is VDAVerificationContract,
      * @notice Signer type for each identifier type
      * @dev mapping of identifier type => signer type
      */
-    mapping(string => SignerType) private _identifierType;
+    mapping(string => SignerType) internal _identifierType;
 
     /**
      * @notice Mapping of identifier & it's controller did
      * @dev mapping of identifier => did. did is not an address. Ex of did : "did:vda:0x..."
      */
-    mapping(string => string) private _identifierController;
+    mapping(string => string) internal _identifierController;
 
     /**
      * @notice Mapping of did & identifiers list that linked to did
      * @dev mapping of did => identifier set
      */
-    mapping(string => EnumerableSet.StringSet) private _didIdentifiers;
+    mapping(string => EnumerableSet.StringSet) internal _didIdentifiers;
+
+    /**
+     * @notice Gap for later use
+     */
+    uint256[20] private __gap;
 
     /**
      * @notice Enum representing Signer types
@@ -59,7 +64,7 @@ contract VeridaDIDLinkage is VDAVerificationContract,
     /**
      * @dev See {IVeridaDIDLinkage}
      */
-    function addIdentifierType(string calldata identifierTypeId, bool isSelfSigner) external payable onlyOwner {
+    function addIdentifierType(string calldata identifierTypeId, bool isSelfSigner) external virtual override payable onlyOwner {
         if (_identifierType[identifierTypeId] != SignerType.Unregistered)
             revert RegisteredIdentifierType();
         
@@ -71,7 +76,7 @@ contract VeridaDIDLinkage is VDAVerificationContract,
     /**
      * @dev See {IVeridaDIDLinkage}
      */
-    function isTrustedSignerAddress(address signer) external view returns(bool) {
+    function isTrustedSignerAddress(address signer) external virtual override view returns(bool) {
         return _trustedSigners.contains(signer);
     }
 
@@ -82,7 +87,7 @@ contract VeridaDIDLinkage is VDAVerificationContract,
         address didAddr, 
         LinkInfo calldata info, 
         bytes calldata requestSignature,
-        bytes calldata requestProof) external override
+        bytes calldata requestProof) external virtual override
     {
         string memory kind;
         string memory id;
@@ -145,7 +150,7 @@ contract VeridaDIDLinkage is VDAVerificationContract,
         string calldata identifier,
         bytes calldata requestSignature,
         bytes calldata requestProof
-    ) external override {
+    ) external virtual override {
         string memory strDID = StringsUpgradeable.toHexString(uint256(uint160(didAddr)));
         strDID = string(abi.encodePacked("did:vda:", strDID));
 
@@ -173,14 +178,14 @@ contract VeridaDIDLinkage is VDAVerificationContract,
     /**
      * @dev See {IVeridaDIDLinkage}
      */
-    function isLinked(string calldata did, string calldata identifier) external view override returns(bool) {
+    function isLinked(string calldata did, string calldata identifier) external view virtual override returns(bool) {
         return _didIdentifiers[did].contains(identifier);
     }
 
     /**
      * @dev See {IVeridaDIDLinkage}
      */
-    function lookup(string calldata identifier) external view override returns(string memory) {
+    function lookup(string calldata identifier) external view virtual override returns(string memory) {
         // Check validity of identifier
         parseIdentifier(identifier);
 
@@ -190,7 +195,7 @@ contract VeridaDIDLinkage is VDAVerificationContract,
     /**
      * @dev See {IVeridaDIDLinkage}
      */
-    function getLinks(string calldata did) external view override returns(string[] memory) {
+    function getLinks(string calldata did) external view virtual override returns(string[] memory) {
         EnumerableSet.StringSet storage list = _didIdentifiers[did];
 
         uint length = list.length();
@@ -208,7 +213,7 @@ contract VeridaDIDLinkage is VDAVerificationContract,
      * @notice Convert string to address
      * @param _a string of an address. Ex : '0x15A...'
      */
-    function parseAddr(string memory _a) internal pure returns (address _parsedAddress) {
+    function parseAddr(string memory _a) internal virtual pure returns (address _parsedAddress) {
         bytes memory tmp = bytes(_a);
         if (tmp.length != 42) {
             revert InvalidAddress();
@@ -247,7 +252,7 @@ contract VeridaDIDLinkage is VDAVerificationContract,
      * @return string Identifier kind. Ex : "blockchain:eip155"
      * @return string Identifier id. Ex: "eip155|0x0D10C68F52326C47Dfc3FDBFDCCb37e3b8C852Cb"
      */
-    function parseIdentifier(string calldata identifier) internal pure returns(string memory, string memory) {
+    function parseIdentifier(string calldata identifier) internal virtual pure returns(string memory, string memory) {
         //0x7c
         bytes memory strBytes = bytes(identifier);
         if (strBytes.length == 0) {

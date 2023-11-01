@@ -25,22 +25,27 @@ contract NameRegistry is  OwnableUpgradeable {
     /**
      * @notice username to did
      */
-    mapping(string => address) private _nameToDID;
+    mapping(string => address) internal _nameToDID;
     
     /** 
      * @notice DID to username list
      */
-    mapping(address => EnumerableSet.StringSet) private _DIDInfoList;
+    mapping(address => EnumerableSet.StringSet) internal _DIDInfoList;
 
     /**
      * @notice Allowed suffix list
      */
-    EnumerableSet.StringSet private suffixList;
+    EnumerableSet.StringSet internal suffixList;
 
     /**
      * @notice Maximum names per DID.
      */
     uint public maxNamesPerDID;
+
+    /**
+     * @notice Gap for later use
+     */
+    uint256[20] private __gap;
 
     event Register(string indexed name, address indexed DID);
     event Unregister(string indexed name, address indexed DID);
@@ -83,7 +88,7 @@ contract NameRegistry is  OwnableUpgradeable {
      * @param did DID address.
      * @param signature - Signature provided by transaction creator
      */
-    function register(string calldata name, address did, bytes calldata signature) external {
+    function register(string calldata name, address did, bytes calldata signature) external virtual {
         assembly {
             if iszero(did) {
                 let ptr := mload(0x40)
@@ -139,7 +144,7 @@ contract NameRegistry is  OwnableUpgradeable {
      * @param did DID address.
      * @param signature - Signature provided by transaction creator
      */
-    function unregister(string calldata name, address did, bytes calldata signature) external {
+    function unregister(string calldata name, address did, bytes calldata signature) external virtual {
         assembly {
             if iszero(did) {
                 let ptr := mload(0x40)
@@ -189,7 +194,7 @@ contract NameRegistry is  OwnableUpgradeable {
      * @param name user name. Must be registered
      * @return DID address of user
      */
-    function findDID(string memory name) external view returns(address) {
+    function findDID(string memory name) external view virtual returns(address) {
         name = name.lower();
 
         address nameDID = _nameToDID[name];
@@ -209,7 +214,7 @@ contract NameRegistry is  OwnableUpgradeable {
      * @param did Must be registered before.
      * @return name
      */
-    function getUserNameList(address did) external view returns(string[] memory) {
+    function getUserNameList(address did) external view virtual returns(string[] memory) {
         EnumerableSet.StringSet storage didUserNameList = _DIDInfoList[did];
 
         uint256 length = didUserNameList.length();
@@ -233,7 +238,7 @@ contract NameRegistry is  OwnableUpgradeable {
      * Will be rejected if suffix already registered
      * @param suffix - Suffix to be added
      */
-    function addSuffix(string memory suffix) external payable onlyOwner {
+    function addSuffix(string memory suffix) external virtual payable onlyOwner {
         suffix = suffix.lower();
 
         if (suffixList.contains(suffix)) {
@@ -251,7 +256,7 @@ contract NameRegistry is  OwnableUpgradeable {
      * @param name - name to check
      * @return result
      */
-    function isValidSuffix(string calldata name) private view returns(bool) {
+    function isValidSuffix(string calldata name) internal view virtual returns(bool) {
         string memory suffix = getSuffix(name);
         return suffixList.contains(suffix);
     }
@@ -262,7 +267,7 @@ contract NameRegistry is  OwnableUpgradeable {
      * @param name - Input name
      * @return suffix - return suffix in bytes32
      */
-    function getSuffix(string calldata name) private pure returns(string memory suffix) {
+    function getSuffix(string calldata name) internal pure virtual returns(string memory suffix) {
         string memory _name = name.lower();
         bytes memory nameBytes = bytes(_name);
         if (nameBytes.length == 0) {
@@ -308,7 +313,7 @@ contract NameRegistry is  OwnableUpgradeable {
      * @param char - one byte from name string value
      * @return - true if valid.
      */
-    function isValidCharacter(bytes1 char) private pure returns(bool) {
+    function isValidCharacter(bytes1 char) internal pure virtual returns(bool) {
         if (char >= 0x61 && char <= 0x7a)
             return true;
         if (char >= 0x30 && char <= 0x39)
@@ -318,7 +323,7 @@ contract NameRegistry is  OwnableUpgradeable {
         return false;
     }
 
-    function updateMaxNamesPerDID(uint count) external payable onlyOwner {
+    function updateMaxNamesPerDID(uint count) external virtual payable onlyOwner {
         uint orgValue = maxNamesPerDID;
         if (count <= orgValue) {
             revert InvalidNameCount();

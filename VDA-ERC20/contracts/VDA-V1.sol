@@ -29,8 +29,8 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
     mapping(address => bool) public isExcludedFromSellAmountLimit;
     mapping(address => bool) public isExcludedFromWalletAmountLimit;
     
-    uint256 private maxAmountPerWallet;
-    uint256 private maxAmountPerSell;
+    uint256 internal maxAmountPerWallet;
+    uint256 internal maxAmountPerSell;
 
     uint32 public maxAmountPerWalletRate;
     uint32 public maxAmountPerSellRate;
@@ -38,6 +38,11 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
     bool public isMaxAmountPerWalletEnabled;
     bool public isMaxAmountPerSellEnabled;
     bool public isTransferEnabled;
+
+    /**
+     * @notice Gap for later use
+     */
+    uint256[20] private __gap;
 
     // Custom errors
     error OutOfSupplyLimit();
@@ -103,7 +108,7 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
     /**
      * @dev Mint `amount` tokens to `to`.
      */
-    function mint(address to, uint256 amount) external validMint(amount) override {
+    function mint(address to, uint256 amount) external virtual override validMint(amount) {
         if (!hasRole(MINT_ROLE, _msgSender())) {
             revert NoPermission();
         }
@@ -113,14 +118,14 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
     /**
      * @dev Burn `amount` tokens from `to`.
      */
-    function burn(uint256 amount) external override {
+    function burn(uint256 amount) external virtual override {
         _burn(_msgSender(), amount);
     }
 
     /**
      * @dev see {IVeridaToken-addMinter}
      */
-    function addMinter(address to) external payable onlyOwner override {
+    function addMinter(address to) external virtual override payable onlyOwner {
         if (hasRole(MINT_ROLE, to)) {
             revert DuplicatedRequest();
         }
@@ -141,7 +146,7 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
     /**
      * @dev see {IVeridaToken-revokeMinter}
      */
-    function revokeMinter(address to) external payable onlyOwner override {
+    function revokeMinter(address to) external virtual override payable onlyOwner {
         if (!hasRole(MINT_ROLE, to)) {
             revert InvalidAddress();
         }
@@ -154,14 +159,14 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
     /**
      * @dev see {IVeridaToken-getMinterCount}
      */
-    function getMinterCount() external view override returns(uint256){
+    function getMinterCount() external view virtual override returns(uint256){
         return getRoleMemberCount(MINT_ROLE);
     }
 
     /**
      * @dev see {IVeridaToken-getMinterList}
      */
-    function getMinterList() external view override returns(address[] memory) {
+    function getMinterList() external view virtual override returns(address[] memory) {
         uint256 count = getRoleMemberCount(MINT_ROLE);
         address[] memory minterList = new address[](count);
         for (uint i; i < count;) {
@@ -174,7 +179,7 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
     /**
      * @dev return current version of Verida Token
      */
-    function getVersion() external virtual pure returns(string memory){
+    function getVersion() external pure virtual returns(string memory){
         return "1.0";
     }
 
@@ -186,7 +191,7 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
         address sender,
         address recipient,
         uint256 amount
-    ) internal override {
+    ) internal virtual override {
 
         if (!isTransferEnabled) {
             assembly {
@@ -223,7 +228,7 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
     /**
      * @dev enable/disable AutomatedMarkertMakerPair
      */
-    function setAutomatedMarketMakerPair(address pair, bool value) external payable onlyOwner
+    function setAutomatedMarketMakerPair(address pair, bool value) external virtual payable onlyOwner
     {
         if (automatedMarketMakerPairs[pair] == value) {
             revert DuplicatedRequest();
@@ -236,7 +241,7 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
     /**
      * @dev update max amount per wallet percent.
      */
-    function updateMaxAmountPerWalletRate(uint32 newRate) external payable onlyOwner {
+    function updateMaxAmountPerWalletRate(uint32 newRate) external virtual payable onlyOwner {
         if (newRate == 0 || newRate > AMOUNT_RATE_LIMIT) {
             revert InvalidRate();
         }
@@ -251,14 +256,14 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
      * @dev Update max amount per wallet.
      * called when rate updated or total supply updated.
      */
-    function _updateMaxAmountPerWallet() private {
+    function _updateMaxAmountPerWallet() internal {
         maxAmountPerWallet = MAX_SUPPLY * maxAmountPerWalletRate / (RATE_DENOMINATOR * 100);
     }
 
     /**
      * @dev update max amount per sell percent.
      */
-    function updateMaxAmountPerSellRate(uint32 newRate) external payable onlyOwner {
+    function updateMaxAmountPerSellRate(uint32 newRate) external virtual payable onlyOwner {
         if (newRate == 0 || newRate > AMOUNT_RATE_LIMIT) {
             revert InvalidRate();
         }
@@ -273,14 +278,14 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
      * @dev Update max amount per sell.
      * called when rate updated or total supply updated.
      */
-    function _updateMaxAmountPerSell() private {
+    function _updateMaxAmountPerSell() internal {
         maxAmountPerSell = MAX_SUPPLY * maxAmountPerSellRate / (RATE_DENOMINATOR * 100);
     }
 
     /**
      * @dev exclude account from sell amount limit
      */
-    function excludeFromSellAmountLimit(address account, bool excluded) external payable onlyOwner {
+    function excludeFromSellAmountLimit(address account, bool excluded) external virtual payable onlyOwner {
         if (isExcludedFromSellAmountLimit[account] == excluded) {
             revert DuplicatedRequest();
         }
@@ -291,7 +296,7 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
     /**
      * @dev exclude account from wallet amount limit
      */
-    function excludeFromWalletAmountLimit(address account, bool excluded) external payable onlyOwner {
+    function excludeFromWalletAmountLimit(address account, bool excluded) external virtual payable onlyOwner {
         if (isExcludedFromWalletAmountLimit[account] == excluded) {
             revert DuplicatedRequest();
         }
@@ -302,7 +307,7 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
     /**
      * @dev enable/disable MaxAmountPerSell
      */
-    function enableMaxAmountPerSell(bool isEnabled) external payable onlyOwner {
+    function enableMaxAmountPerSell(bool isEnabled) external virtual payable onlyOwner {
         if (isMaxAmountPerSellEnabled == isEnabled) {
             revert DuplicatedRequest();
         }
@@ -313,7 +318,7 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
     /**
      * @dev enable/disable MaxAmountPerWallet
      */
-    function enableMaxAmountPerWallet(bool isEnabled) external payable onlyOwner {
+    function enableMaxAmountPerWallet(bool isEnabled) external virtual payable onlyOwner {
         if (isMaxAmountPerWalletEnabled == isEnabled) {
             revert DuplicatedRequest();
         }
@@ -324,7 +329,7 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
     /**
      * See {IVDA.sol}
      */
-    function enableTransfer() external payable onlyOwner override {
+    function enableTransfer() external virtual override payable onlyOwner {
         if (isTransferEnabled) {
             revert DuplicatedRequest();
         }

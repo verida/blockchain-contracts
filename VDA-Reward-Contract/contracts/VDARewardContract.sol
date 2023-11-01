@@ -9,13 +9,18 @@ import "@verida/vda-verification-contract/contracts/VDAVerificationContract.sol"
 contract VDARewardContract is IVDARewardContract, VDAVerificationContract {
 
     /** ReardToken : ERC20 contract */
-    IERC20Upgradeable rewardToken;
+    IERC20Upgradeable internal rewardToken;
 
     /** Mapping of claim ID => claim Type */
-    mapping(string => ClaimType) private claimTypes;
+    mapping(string => ClaimType) internal claimTypes;
 
     /** Mapping of claim ID => Verida account */
-    mapping(bytes => bool) private claims;
+    mapping(bytes => bool) internal claims;
+
+    /**
+     * @notice Gap for later use
+     */
+    uint256[20] private __gap;
 
     modifier onlyExistingClaimType(string calldata typeId) {
         ClaimType storage claimType = claimTypes[typeId];
@@ -44,7 +49,7 @@ contract VDARewardContract is IVDARewardContract, VDAVerificationContract {
     /**
      * @dev see {IVDARewardContract-getClaimType}
      */
-    function getClaimType(string calldata typeId) external view onlyExistingClaimType(typeId) returns(uint reward, string memory schema) {
+    function getClaimType(string calldata typeId) external view virtual override onlyExistingClaimType(typeId) returns(uint reward, string memory schema) {
         ClaimType storage claimType = claimTypes[typeId];
         reward = claimType.reward;
         schema = claimType.schema;
@@ -53,7 +58,7 @@ contract VDARewardContract is IVDARewardContract, VDAVerificationContract {
     /**
      * @dev see {IVDARewardContract-addClaimType}
      */
-    function addClaimType(string calldata typeId, uint rewardAmount, string calldata schema) external payable onlyOwner {
+    function addClaimType(string calldata typeId, uint rewardAmount, string calldata schema) external virtual override payable onlyOwner {
         if (bytes(typeId).length == 0) {
             revert InvalidId();
         }
@@ -77,7 +82,7 @@ contract VDARewardContract is IVDARewardContract, VDAVerificationContract {
     /**
      * @dev see {IVDARewardContract-removeClaimType}
      */
-    function removeClaimType(string calldata typeId) external payable onlyOwner onlyExistingClaimType(typeId){
+    function removeClaimType(string calldata typeId) external virtual override payable onlyOwner onlyExistingClaimType(typeId){
         delete claimTypes[typeId];
 
         emit RemoveClaimType(typeId);
@@ -86,7 +91,7 @@ contract VDARewardContract is IVDARewardContract, VDAVerificationContract {
     /**
      * @dev see {IVDARewardContract-updateClaimTypeReward}
      */
-    function updateClaimTypeReward(string calldata typeId, uint amount) external payable onlyOwner onlyExistingClaimType(typeId){
+    function updateClaimTypeReward(string calldata typeId, uint amount) external virtual override payable onlyOwner onlyExistingClaimType(typeId){
         if (amount == 0) {
             revert InvalidRewardAmount();
         }
@@ -105,7 +110,7 @@ contract VDARewardContract is IVDARewardContract, VDAVerificationContract {
         address to,
         bytes calldata signature,
         bytes calldata proof
-    ) external onlyExistingClaimType(typeId) {
+    ) external virtual override onlyExistingClaimType(typeId) {
 
         ClaimType storage claimType = claimTypes[typeId];
         bytes memory rawMsg = abi.encodePacked(
