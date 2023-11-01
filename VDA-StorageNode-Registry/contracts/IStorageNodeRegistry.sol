@@ -190,6 +190,13 @@ interface IStorageNodeRegistry {
     event UpdateSameNodeLogDuration(uint orgVal, uint newVal);
 
     /**
+     * @notice Emitted when the LOG_LIMIT_PER_DAY updated
+     * @param orgVal Original value
+     * @param newVal Updated value
+     */
+    event UpdateLogLimitPerDay(uint orgVal, uint newVal);
+
+    /**
      * @notice Emitted when user logged an node issue by `logNodeIssue()` function
      * @param from DID address that logs this issue
      * @param nodeDID DID address of the node
@@ -202,9 +209,10 @@ interface IStorageNodeRegistry {
      * @param nodeDID DID address of the node
      * @param reasonCode Reason code
      * @param Amount Slashed amount. This can be a bit different from the parameter of `slash()` function
+     * @param rewardedCount Number of dids who received the rewards
      * @param moreInfoUrl On-chain pointer to where more information can be fournd about this slashing
      */
-    event Slash(address indexed nodeDID, uint reasonCode, uint Amount, string moreInfoUrl);
+    event Slash(address indexed nodeDID, uint reasonCode, uint Amount, uint rewardedCount, string moreInfoUrl);
 
     /**
      * @notice Emitted when the contract owner withdraw tokens staked by logging issues
@@ -386,11 +394,11 @@ interface IStorageNodeRegistry {
     function getBalance(address didAddress) external view returns(uint);
 
     /**
-     * @notice Returns the amount of excess tokens. This happens when the `STAKE_PER_SLOT` value decreased
+     * @notice Returns the amount of excess tokens. This happens when the `STAKE_PER_SLOT` value decreased or increased
      * @param didAddress DID address
-     * @return uint Excess token amount. 0 if no excess tokens
+     * @return int Excess token amount. 0 if no excess tokens
      */
-    function excessTokenAmount(address didAddress) external view returns(uint);
+    function excessTokenAmount(address didAddress) external view returns(int);
 
     /**
      * @notice Withdraw amount of tokens to the requestor
@@ -429,7 +437,7 @@ interface IStorageNodeRegistry {
 
     /**
      * @notice Return the current token amount staked by logging issues
-     * @return uint Amount of VDA tokens owned by this contract
+     * @return uint Amount of VDA tokens for issues
      */
     function getTotalIssueFee() external view returns(uint);
 
@@ -453,6 +461,19 @@ interface IStorageNodeRegistry {
      * @param value Time in seconds unit
      */
     function updateSameNodeLogDuration(uint value) external payable;
+
+    /**
+     * @notice Return the current log limit per day
+     * @return uint Log limit count per day
+     */
+    function getLogLimitPerDay() external view returns(uint);
+
+    /**
+     * @notice Update the `LOG_LIMIT_PER_DAY` value
+     * @dev Only the contract owner call call this function
+     * @param value Log limit count per day
+     */
+    function updateLogLimitPerDay(uint value) external payable;
 
     /**
      * @notice Log an issue

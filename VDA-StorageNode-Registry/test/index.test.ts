@@ -460,7 +460,7 @@ describe("Verida StorageNodeRegistry", function () {
                 1,
                 -90,
                 -180,
-                20000
+                VALID_NUMBER_SLOTS
             );
 
 
@@ -532,7 +532,27 @@ describe("Verida StorageNodeRegistry", function () {
 
         let snapShotWithDatacenters: SnapshotRestorer
 
+        const setNodeAddedStatus = async () => {
+            await snapShotWithDatacenters.restore();
+            await contract.addTrustedSigner(trustedSigner.address);
+            await contract.setStakingRequired(true);
+            await approveToken(BigNumber.from(storageNode.slotCount), owner, contract.address, true);
+            await checkAddNode(storageNode, user, trustedSigner, true);
+        }
+
         const trustedSigner = Wallet.createRandom();
+        const user = Wallet.createRandom();
+
+        const storageNode = createStorageNodeInputStruct(
+            user.address, 
+            "https://1",
+            "us",
+            "north america",
+            1,
+            -90,
+            -180,
+            VALID_NUMBER_SLOTS
+        );
         
         const datacenterIds : BigNumber[] = [];
         let maxDataCenterID : BigNumber;
@@ -559,18 +579,11 @@ describe("Verida StorageNodeRegistry", function () {
         })
 
         describe("Add storage node", () => {
-            const user = Wallet.createRandom();
-            const storageNode = createStorageNodeInputStruct(
-                user.address, 
-                "https://1",
-                "us",
-                "north america",
-                1,
-                -90,
-                -180,
-                VALID_NUMBER_SLOTS
-            );
             const didAddress = Wallet.createRandom().address //signInfo.userAddress;
+
+            before(async () => {
+                await snapShotWithDatacenters.restore();
+            })
 
             describe("Failed for invalid arguments", () => {
                 it("Failed: Invalid didAddress", async () => {
@@ -1165,22 +1178,7 @@ describe("Verida StorageNodeRegistry", function () {
         })
 
         describe("Get balance", () => {
-            const user = Wallet.createRandom();
-            const storageNode = createStorageNodeInputStruct(
-                user.address, 
-                "https://1",
-                "us",
-                "north america",
-                1,
-                -90,
-                -180,
-                VALID_NUMBER_SLOTS
-            );
-            let requestor : SignerWithAddress;
-
             before(async () => {
-                requestor = accounts[1];
-
                 await snapShotWithDatacenters.restore();
                 await contract.addTrustedSigner(trustedSigner.address);
             })
@@ -1213,29 +1211,12 @@ describe("Verida StorageNodeRegistry", function () {
         })
 
         describe("Deposit", () => {
-            const user = Wallet.createRandom();
-            const storageNode = createStorageNodeInputStruct(
-                user.address, 
-                "https://1",
-                "us",
-                "north america",
-                1,
-                -90,
-                -180,
-                VALID_NUMBER_SLOTS
-            );
             let requestor : SignerWithAddress;
 
             before(async () => {
                 requestor = accounts[1];
 
-                await snapShotWithDatacenters.restore();
-                await contract.addTrustedSigner(trustedSigner.address);
-
-                // Approve Token
-                await approveToken(BigNumber.from(storageNode.slotCount), owner, contract.address, true);
-                // Add node
-                await checkAddNode(storageNode, user, trustedSigner, true);
+                await setNodeAddedStatus();
 
                 // Mint 10000 tokens to the requestor
                 await token.mint(requestor.address, BigNumber.from("10000000000000000000000"));
@@ -1272,6 +1253,10 @@ describe("Verida StorageNodeRegistry", function () {
         })
 
         describe("StakingRequired", () => {
+            before(async() => {
+                await snapShotWithDatacenters.restore();
+            })
+
             it("setStakingRequired() & isStakingRequired()",async () => {
                 expect(await contract.isStakingRequired()).to.be.eq(false);
 
@@ -1355,33 +1340,39 @@ describe("Verida StorageNodeRegistry", function () {
             })
         })
 
+        describe("Excess token amount", () => {
+            let CUR_STAKE_PER_SLOT: BigNumber;
+
+            before(async () => {
+                await setNodeAddedStatus();
+
+                CUR_STAKE_PER_SLOT = await contract.getStakePerSlot();
+
+                expect(await contract.excessTokenAmount(user.address)).to.be.eq(0);
+            })
+
+            it("Positive value",async () => {
+                // Decrease STAKE_PER_SLOT
+                await contract.updateStakePerSlot(CUR_STAKE_PER_SLOT.sub(1));
+
+                expect(await contract.excessTokenAmount(user.address)).to.greaterThan(0);
+            })
+
+            it("Negative value",async () => {
+                // Increase STAKE_PER_SLOT
+                await contract.updateStakePerSlot(CUR_STAKE_PER_SLOT.add(1));
+
+                expect(await contract.excessTokenAmount(user.address)).to.lessThan(0);
+            })
+        })
+
         describe("Withdraw", () => {
-            const user = Wallet.createRandom();
-            const storageNode = createStorageNodeInputStruct(
-                user.address, 
-                "https://1",
-                "us",
-                "north america",
-                1,
-                -90,
-                -180,
-                VALID_NUMBER_SLOTS
-            );
             let requestor : SignerWithAddress;
 
             before(async () => {
                 requestor = accounts[1];
 
-                await snapShotWithDatacenters.restore();
-                await contract.addTrustedSigner(trustedSigner.address);
-
-                // Set staking as required
-                await contract.setStakingRequired(true);
-
-                // Approve Token
-                await approveToken(BigNumber.from(storageNode.slotCount), owner, contract.address, true);
-                // Add node
-                await checkAddNode(storageNode, user, trustedSigner, true);
+                await setNodeAddedStatus();
             })
 
             it("Failed : No excess token",async () => {
@@ -1455,18 +1446,8 @@ describe("Verida StorageNodeRegistry", function () {
             })
         });
 
-        describe("Node issue", () => {
-            const node = Wallet.createRandom();
-            const storageNode = createStorageNodeInputStruct(
-                node.address, 
-                "https://1",
-                "us",
-                "north america",
-                1,
-                -90,
-                -180,
-                VALID_NUMBER_SLOTS
-            );
+        describe("Log node issue", () => {
+            const node = user;
             let requestor : SignerWithAddress;
 
             let snapShotWithNodeAdded : SnapshotRestorer;
@@ -1510,16 +1491,7 @@ describe("Verida StorageNodeRegistry", function () {
             before(async () => {
                 requestor = accounts[1];
 
-                await snapShotWithDatacenters.restore();
-                await contract.addTrustedSigner(trustedSigner.address);
-
-                // Set staking as required
-                await contract.setStakingRequired(true);
-
-                // Approve Token
-                await approveToken(BigNumber.from(storageNode.slotCount), owner, contract.address, true);
-                // Add node
-                await checkAddNode(storageNode, node, trustedSigner, true);
+                await setNodeAddedStatus();
 
                 snapShotWithNodeAdded = await takeSnapshot();
             })
@@ -1597,88 +1569,147 @@ describe("Verida StorageNodeRegistry", function () {
                 })
             })
 
+            describe("Update log limit per day", () => {
+                it("Failed : non-owner",async () => {
+                    await expect(
+                        contract.connect(accounts[0]).updateLogLimitPerDay(hours(1))
+                    ).to.be.revertedWith("Ownable: caller is not the owner");
+                })
+
+                it("Failed : 0 is not allowed",async () => {
+                    await expect(
+                        contract.updateLogLimitPerDay(0)
+                    ).to.be.revertedWithCustomError(contract, "InvalidValue");
+                })
+
+                it("Failed : Update to current value",async () => {
+                    const currentLogLimitPerday = await contract.getLogLimitPerDay();
+
+                    await expect(
+                        contract.updateLogLimitPerDay(currentLogLimitPerday)
+                    ).to.be.revertedWithCustomError(contract, "InvalidValue");
+                })
+
+                it("Success",async () => {
+                    const curLogLimitPerDay = await contract.getLogLimitPerDay();
+                    await expect(
+                        contract.updateLogLimitPerDay(curLogLimitPerDay.add(1))
+                    ).to.emit(contract, "UpdateLogLimitPerDay").withArgs(
+                        curLogLimitPerDay,
+                        curLogLimitPerDay.add(1)
+                    );
+                })
+            })
+
             describe("Log node issue", () => {
                 let requestor: SignerWithAddress;
 
                 const logger = Wallet.createRandom();
 
-                let snapShotWithOneLogged : SnapshotRestorer;
-
                 before(async () => {
                     requestor = accounts[1];
-                    const FEE_AMOUNT = await contract.getNodeIssueFee();
 
                     await snapShotWithNodeAdded.restore();
                 })
 
-                it("Failed : Invalid node DID",async () => {
-                    const randomNodeDID = Wallet.createRandom().address;
-                    await checkLogNodeIssue(requestor, logger, randomNodeDID, 10, false, false, "InvalidDIDAddress");
+                describe("Log an issue", () => {
+                    it("Failed : Invalid node DID",async () => {
+                        const randomNodeDID = Wallet.createRandom().address;
+                        await checkLogNodeIssue(requestor, logger, randomNodeDID, 10, false, false, "InvalidDIDAddress");
+                    })
+    
+                    it("Failed : Token not approved or insufficient",async () => {
+                        const nonce = await contract.nonce(logger.address);
+                        const { requestSignature, requestProof } = getLogNodeIssueSignatures(logger, node.address, 10, nonce);
+                        await expect(
+                            contract.connect(requestor).logNodeIssue(logger.address, node.address, 10, requestSignature, requestProof)
+                        ).to.be.rejectedWith("ERC20: insufficient allowance");
+                    })
+    
+                    it("Success",async () => {
+                        await checkLogNodeIssue(requestor, logger, node.address, 10, true);
+                    })
                 })
 
-                it("Failed : Token not approved or insufficient",async () => {
-                    const nonce = await contract.nonce(logger.address);
-                    const { requestSignature, requestProof } = getLogNodeIssueSignatures(logger, node.address, 10, nonce);
-                    await expect(
-                        contract.connect(requestor).logNodeIssue(logger.address, node.address, 10, requestSignature, requestProof)
-                    ).to.be.rejectedWith("ERC20: insufficient allowance");
+                describe("Log limit test for same node", () => {
+                    it("1 hour log limit for same node DID",async () => {
+                        let curBlockTime = await time.latest();
+    
+                        // Failed in an hour
+                        await checkLogNodeIssue(requestor, logger, node.address, 10, true, false, "InvalidSameNodeTime");
+    
+                        // Success after 1 hour
+                        curBlockTime = curBlockTime + hours(1);
+                        time.increaseTo(curBlockTime);
+                        await checkLogNodeIssue(requestor, logger, node.address, 10, true);
+                    })
                 })
 
-                it("Success",async () => {
-                    await checkLogNodeIssue(requestor, logger, node.address, 10, true);
+                describe("Log limit test per day", () => {
+                    let curLogLimitPerday: number;
+                    const nodes: Wallet[] = [];
+                    let logLimitedPerDayState : SnapshotRestorer;
 
-                    snapShotWithOneLogged = await takeSnapshot();
-                })
+                    before(async () => {
+                        await snapShotWithNodeAdded.restore();
+    
+                        curLogLimitPerday = (await contract.getLogLimitPerDay()).toNumber();
 
-                it("Failed : 1 hour log limit for same node DID",async () => {
-                    let curBlockTime = await time.latest();
+                        for (let i = 0; i <= curLogLimitPerday; i++) {
+                            nodes.push(Wallet.createRandom());
+                        }
 
-                    // Failed in an hour
-                    await checkLogNodeIssue(requestor, logger, node.address, 10, true, false, "InvalidSameNodeTime");
+                        // Add different nodes for test
+                        for (let i = 0; i < nodes.length; i++) {
+                            const storageNode = createStorageNodeInputStruct(
+                                nodes[i].address, 
+                                "https://1" + i,
+                                "us",
+                                "north america",
+                                1,
+                                -90,
+                                -180,
+                                VALID_NUMBER_SLOTS
+                            );
+                            // Approve Token
+                            await approveToken(BigNumber.from(storageNode.slotCount), owner, contract.address, true);
+                            // Add node
+                            await checkAddNode(storageNode, nodes[i], trustedSigner, true);
+                        }
 
-                    // Success after 1 hour
-                    curBlockTime = curBlockTime + hours(1);
-                    time.increaseTo(curBlockTime);
-                    await checkLogNodeIssue(requestor, logger, node.address, 10, true);
-                })
+                        // Add logs till current limit per day
+                        for (let i = 0; i < curLogLimitPerday; i++) {
+                            const reasonCode = 20;
+                            await checkLogNodeIssue(requestor, logger, nodes[i].address, reasonCode, true);
+                        }
 
-                it("Failed : 4 logs limit in 24 hour",async () => {
-                    await snapShotWithOneLogged.restore();
+                        logLimitedPerDayState = await takeSnapshot();
+                    })
 
-                    const nodes = [Wallet.createRandom(), Wallet.createRandom(), Wallet.createRandom(), Wallet.createRandom()];
+                    it("Test for current log limit per day",async () => {                       
+                        const curBlockTime = await time.latest();
 
-                    // Add different nodes for test
-                    for (let i = 0; i < nodes.length; i++) {
-                        const storageNode = createStorageNodeInputStruct(
-                            nodes[i].address, 
-                            "https://1" + i,
-                            "us",
-                            "north america",
-                            1,
-                            -90,
-                            -180,
-                            VALID_NUMBER_SLOTS
-                        );
-                        // Approve Token
-                        await approveToken(BigNumber.from(storageNode.slotCount), owner, contract.address, true);
-                        // Add node
-                        await checkAddNode(storageNode, nodes[i], trustedSigner, true);
-                    }
+                        // Failed for log limit per day
+                        await checkLogNodeIssue(requestor, logger, nodes[curLogLimitPerday].address, 20, true, false, "TimeNotElapsed");
+    
+                        // Success after 24 hours condition
+                        await time.increaseTo(curBlockTime + hours(24));
+                        await checkLogNodeIssue(requestor, logger, nodes[curLogLimitPerday].address, 20, true);
+                    })
 
-                    const curBlockTime = await time.latest();
+                    it("Test for updating log limit per day",async () => {
+                        // Restore limited state
+                        await logLimitedPerDayState.restore();
 
-                    // Add 3 logs
-                    for (let i = 0; i < 3; i++) {
-                        const reasonCode = 20;
-                        await checkLogNodeIssue(requestor, logger, nodes[i].address, reasonCode, true);
-                    }
+                        // Failed for log limit per day
+                        await checkLogNodeIssue(requestor, logger, nodes[curLogLimitPerday].address, 20, true, false, "TimeNotElapsed");
 
-                    // Failed for 5th logs in 24 hour
-                    await checkLogNodeIssue(requestor, logger, nodes[3].address, 20, true, false, "TimeNotElapsed");
+                        // Increase log limit per day
+                        await contract.updateLogLimitPerDay(curLogLimitPerday+1);
 
-                    // Success after 24 hours condition
-                    await time.increaseTo(curBlockTime + hours(24));
-                    await checkLogNodeIssue(requestor, logger, nodes[3].address, 20, true);
+                        // Success after limit increased
+                        await checkLogNodeIssue(requestor, logger, nodes[curLogLimitPerday].address, 20, true);
+                    })
                 })
             })
 
@@ -1693,6 +1724,7 @@ describe("Verida StorageNodeRegistry", function () {
 
                 before(async () => {
                     await snapShotWithNodeAdded.restore();
+
                     // Add requestors. Requestors can be the same
                     for (let i = 0; i < loggers.length; i++) {
                         requestors.push(accounts[i]);
@@ -1746,6 +1778,7 @@ describe("Verida StorageNodeRegistry", function () {
                         node.address,
                         REASON_CODE,
                         anyValue,
+                        anyValue,
                         moreInfoURL
                     );
 
@@ -1786,6 +1819,7 @@ describe("Verida StorageNodeRegistry", function () {
                     ).to.emit(contract, "Slash").withArgs(
                         node.address,
                         REASON_CODE,
+                        anyValue,
                         anyValue,
                         moreInfoURL
                     );
@@ -1830,6 +1864,7 @@ describe("Verida StorageNodeRegistry", function () {
                     ).to.emit(contract, "Slash").withArgs(
                         node.address,
                         REASON_CODE,
+                        anyValue,
                         anyValue,
                         moreInfoURL
                     );
@@ -1889,18 +1924,6 @@ describe("Verida StorageNodeRegistry", function () {
         });
 
         describe("Remove node", () => {
-            const user = Wallet.createRandom();
-            const storageNode = createStorageNodeInputStruct(
-                user.address, 
-                "https://1",
-                "us",
-                "north america",
-                1,
-                -90,
-                -180,
-                VALID_NUMBER_SLOTS
-            );
-
             describe("Test when staking is not required", () => {
                 before(async () => {
                     await snapShotWithDatacenters.restore();

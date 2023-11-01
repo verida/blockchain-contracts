@@ -129,6 +129,11 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
     uint8 public constant DECIMAL = 8;
 
     /**
+     * @notice Gap for later use
+     */
+    uint256[20] private __gap;
+
+    /**
      * @notice Additional information for a data center
      * @dev Used internally inside the contract
      * @param isActive True when added. False after removed
@@ -157,13 +162,14 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
 
         uint NODE_ISSUE_FEE;
         uint SAME_NODE_LOG_DURATION;
+        uint LOG_LIMIT_PER_DAY;
 
         uint totalIssueFee;
     }
 
     /**
      * @notice Represent a each log information
-     * @dev Every DID keeps 4 DIDLogInformations to restrict 4 logs in 24 hours
+     * @dev Every DID keeps `LOG_LIMIT_PER_DAY` DIDLogInformations to restrict logs per day
      * @param nodeDID Node DID from `nodeLogIssue()` function
      * @param reasonCode Reason code from `nodeLogIssue()` function
      * @param time Issue logged time
@@ -176,7 +182,7 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
 
     /**
      * @notice Represent the log list for a DID
-     * @dev It keeps last 4 logs recorded by `logNodeIssue()` function
+     * @dev It keeps last `LOG_LIMIT_PER_DAY` logs recorded by `logNodeIssue()` function
      * @param _issueList Issue information list
      * @param index The earliest issue index in the list
      */
@@ -199,7 +205,7 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
     error InvalidSlotCount();
     error InvalidValue();
     error NoExcessTokenAmount();
-    error TimeNotElapsed(); // 4 logs in 24 hour
+    error TimeNotElapsed(); // `LOG_LIMIT_PER_DAY` logs in 24 hour
     error InvalidSameNodeTime(); 
     error InvalidAmount();
     error InvalidReasonCode();
@@ -221,6 +227,7 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
 
         _slotInfo.NODE_ISSUE_FEE = 5 * (10 ** ERC20Upgradeable(tokenAddress).decimals());
         _slotInfo.SAME_NODE_LOG_DURATION = 1 hours;
+        _slotInfo.LOG_LIMIT_PER_DAY = 4;
 
         vdaTokenAddress = tokenAddress;
     }
@@ -670,7 +677,7 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
      * @return StorageNode StoargeNode struct
      * @return string Status string
      */
-    function getNodeWithStatus(uint nodeId) private view returns(StorageNode memory, string memory) {
+    function getNodeWithStatus(uint nodeId) internal view returns(StorageNode memory, string memory) {
         string memory status = "active";
         if (_nodeUnregisterTime[nodeId] != 0) {
             status = "removed";
@@ -863,25 +870,21 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
      * @param didAddress DID address
      * @return uint Return 0 if staked amount is less than the required amount
      */
-    function getExcessTokenAmount(address didAddress) internal view returns(uint) {
+    function getExcessTokenAmount(address didAddress) internal view returns(int) {
         uint totalAmount;
 
         uint nodeId = _didNodeId[didAddress];
         if (nodeId != 0) {
             totalAmount = requiredTokenAmount(_nodeMap[nodeId].slotCount);    
         }
-
-        if (_stakedTokenAmount[didAddress] <= totalAmount) {
-            return 0;
-        }
-
-        return (_stakedTokenAmount[didAddress] - totalAmount);
+        
+        return (int(_stakedTokenAmount[didAddress]) - int(totalAmount));
     }
 
     /**
      * @dev see { IStorageNodeRegistry }
      */
-    function excessTokenAmount(address didAddress) external view returns(uint) {
+    function excessTokenAmount(address didAddress) external view returns(int) {
         return getExcessTokenAmount(didAddress);
     }
 
@@ -899,13 +902,13 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
             verifyRequest(didAddress, params, requestSignature, requestProof);
         }
 
-        uint excessAmount = getExcessTokenAmount(didAddress);
+        int excessAmount = getExcessTokenAmount(didAddress);
 
-        if (excessAmount == 0) {
+        if (excessAmount <= 0) {
             revert NoExcessTokenAmount();
         }
 
-        if (amount > excessAmount) {
+        if (amount > uint(excessAmount)) {
             revert InvalidAmount();
         }
 
@@ -973,6 +976,9 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
         emit WithdrawIssueFee(to, amount);
     }
 
+    /**
+     * @dev see { IStorageNodeRegistry }
+     */
     function getSameNodeLogDuration() external view returns(uint) {
         return _slotInfo.SAME_NODE_LOG_DURATION;
     }
@@ -988,6 +994,26 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
         _slotInfo.SAME_NODE_LOG_DURATION = value;
 
         emit UpdateSameNodeLogDuration(orgVal, value);
+    }
+
+    /**
+     * @dev see { IStorageNodeRegistry }
+     */
+    function getLogLimitPerDay() external view returns(uint) {
+        return _slotInfo.LOG_LIMIT_PER_DAY;
+    }
+
+    /**
+     * @dev see { IStorageNodeRegistry }
+     */
+    function updateLogLimitPerDay(uint value) external payable onlyOwner {
+        if (value == 0 || value == _slotInfo.LOG_LIMIT_PER_DAY) {
+            revert InvalidValue();
+        }
+        uint orgVal = _slotInfo.LOG_LIMIT_PER_DAY;
+        _slotInfo.LOG_LIMIT_PER_DAY = value;
+
+        emit UpdateLogLimitPerDay(orgVal, value);
     }
 
     /**
@@ -1013,8 +1039,8 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
 
         
         DIDLogInformation storage logs = _didLogs[didAddress];
-        // Check whether there are 4 logs in 24 horus
-        if (logs._issueList.length >= 4) {
+        // Check log limit per day
+        if (logs._issueList.length >= _slotInfo.LOG_LIMIT_PER_DAY) {
             uint earlistTime = logs._issueList[logs.index].time;
             if (block.timestamp - earlistTime < 24 hours) {
                 revert TimeNotElapsed();
@@ -1030,7 +1056,7 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
         }
 
         // Add or update
-        if (logs._issueList.length < 4) {
+        if (logs._issueList.length < _slotInfo.LOG_LIMIT_PER_DAY) {
             logs._issueList.push(IssueInformation(nodeAddress, reasonCode, block.timestamp));
         } else {
             uint index = logs.index;
@@ -1038,7 +1064,7 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
             logs._issueList[index].reasonCode = reasonCode;
             logs._issueList[index].time = block.timestamp;
             ++index;
-            logs.index = index % 4;
+            logs.index = index % _slotInfo.LOG_LIMIT_PER_DAY;
         }
 
         // Transfer fees to this contract
@@ -1077,8 +1103,6 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
             revert InvalidReasonCode();
         }
 
-        _stakedTokenAmount[nodeDID] = _stakedTokenAmount[nodeDID] - amount;
-        
         EnumerableMapUpgradeable.AddressToUintMap storage logInfo = _loggedTokenAmount[nodeDID][reasonCode];
         uint loggerCount = logInfo.length();
         uint distributeTotalAmount;
@@ -1093,6 +1117,8 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
             unchecked { ++i; }
         }
 
-        emit Slash(nodeDID, reasonCode, distributeTotalAmount, moreInfoUrl);
+        _stakedTokenAmount[nodeDID] = _stakedTokenAmount[nodeDID] - distributeTotalAmount;
+
+        emit Slash(nodeDID, reasonCode, distributeTotalAmount, loggerCount, moreInfoUrl);
     }
 }
