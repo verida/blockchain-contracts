@@ -169,13 +169,6 @@ interface IStorageNodeRegistry {
     event TokenDeposited(address indexed didAddress, address from, uint amount);
 
     /**
-     * @notice Emitted when the Verida token address is updated
-     * @param oldAddress Original token address
-     * @param newAddress Updated address
-     */
-    event UpdateTokenAddress(address oldAddress, address newAddress);
-
-    /**
      * @notice Emitted when the NODE_ISSUE_FEE updated
      * @param orgFee Original fee value
      * @param newFee Updated fee value
@@ -377,13 +370,6 @@ interface IStorageNodeRegistry {
      * @param maxSlots The new value to be updated
      */
     function updateMaxSlotCount(uint maxSlots) external payable;
-
-    /**
-     * @notice Update the Verida token contract address
-     * @dev Only the contract owner is allowed to call this function
-     * @param newTokenAddress New token contract address
-     */
-    function updateTokenAddress(address newTokenAddress) external payable;
 
     /**
      * @notice Returns the amount of staked token.

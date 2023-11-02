@@ -962,44 +962,6 @@ describe("Verida StorageNodeRegistry", function () {
             })
         })
 
-        describe("Update TokenAddress", () => {
-            it("Failed: Only contract owner allowed",async () => {
-                await expect(
-                    contract.connect(accounts[1]).updateTokenAddress(Wallet.createRandom().address)
-                ).to.be.revertedWith('Ownable: caller is not the owner');
-            })
-
-            it("Failed: Zero address not available",async () => {
-                await expect(
-                    contract.updateTokenAddress(ethers.constants.AddressZero)
-                ).to.be.revertedWithCustomError(contract, "InvalidTokenAddress")
-            })
-
-            it("Failed: Same value",async () => {
-                const curVal = await contract.vdaTokenAddress();
-
-                await expect(
-                    contract.updateTokenAddress(curVal)
-                ).to.be.revertedWithCustomError(contract, "InvalidTokenAddress")
-            })
-
-            it("Success",async () => {
-                const currentSnapshot = await takeSnapshot();
-
-                const orgAddress = await contract.vdaTokenAddress();
-
-                const newToken = await deployToken();
-                await expect(
-                    contract.updateTokenAddress(newToken.address)
-                ).to.emit(contract, "UpdateTokenAddress").withArgs(
-                    orgAddress,
-                    newToken.address
-                );
-
-                await currentSnapshot.restore();
-            })
-        })
-
         describe("Get storage node", () => {
             const users = [
                 Wallet.createRandom(),

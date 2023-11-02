@@ -835,31 +835,6 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
     /**
      * @dev see { IStorageNodeRegistry }
      */
-    function updateTokenAddress(address newTokenAddress) external payable onlyOwner {
-        // Check the validity of the token address
-        {
-            if (vdaTokenAddress == newTokenAddress) {
-                revert InvalidTokenAddress();
-            }
-
-            assembly {
-                if iszero(newTokenAddress) {
-                    let ptr := mload(0x40)
-                    mstore(ptr, 0x1eb00b0600000000000000000000000000000000000000000000000000000000)
-                    revert(ptr, 0x4) //revert InvalidTokenAddress()
-                }
-            }
-        }
-
-        address oldAddress = vdaTokenAddress;
-        vdaTokenAddress = newTokenAddress;
-
-        emit UpdateTokenAddress(oldAddress, newTokenAddress);
-    }
-
-    /**
-     * @dev see { IStorageNodeRegistry }
-     */
     function getBalance(address didAddress) external view returns(uint) {
         return _stakedTokenAmount[didAddress];
     }
