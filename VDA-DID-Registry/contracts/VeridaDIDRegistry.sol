@@ -20,19 +20,24 @@ contract VeridaDIDRegistry is OwnableUpgradeable, IVeridaDIDRegistry {
   /**
    * @notice List of registered DIDs
    */
-  EnumerableSetUpgradeable.AddressSet private _registeredDIDs;
+  EnumerableSetUpgradeable.AddressSet internal _registeredDIDs;
 
   /**
    * @notice Map of registered DID info
    * @dev DID address => DIDInfo
    */
-  mapping(address => DIDInfo) private _DIDInfo;
+  mapping(address => DIDInfo) internal _DIDInfo;
 
   /**
    * @notice Next nonce of DID
    * @dev DID address => nonce
    */
-  mapping(address => uint) private _nonce;
+  mapping(address => uint) internal _nonce;
+
+  /**
+     * @notice Gap for later use
+     */
+  uint256[20] private __gap;
 
   /**
    * @notice Struct representing the DID info
@@ -59,14 +64,14 @@ contract VeridaDIDRegistry is OwnableUpgradeable, IVeridaDIDRegistry {
    * @notice Check whether the DID is registered
    * @dev Revoked DIDs are not registered ones
    */
-  function isRegistered(address didAddress) internal view returns(bool) {
+  function isRegistered(address didAddress) internal view virtual returns(bool) {
     return _registeredDIDs.contains(didAddress);
   }
   
   /**
    * @dev See {IVeridaDIDRegistry}
    */
-  function register(address didAddress, string[] calldata endpoints, bytes calldata signature ) external override {
+  function register(address didAddress, string[] calldata endpoints, bytes calldata signature ) external virtual override {
     if (_nonce[didAddress] != 0 && !isRegistered(didAddress)) {
       revert RevokedDID();
     }
@@ -105,7 +110,7 @@ contract VeridaDIDRegistry is OwnableUpgradeable, IVeridaDIDRegistry {
   /**
    * @dev See {IVeridaDIDRegistry}
    */
-  function revoke(address didAddress, bytes calldata signature) external override {
+  function revoke(address didAddress, bytes calldata signature) external virtual override {
     if (!isRegistered(didAddress)) {
       revert UnregisteredDID();
     }
@@ -134,7 +139,7 @@ contract VeridaDIDRegistry is OwnableUpgradeable, IVeridaDIDRegistry {
    * @param didAddress DID address
    * @return result Controller of DID address
    */
-  function _getController(address didAddress) internal view returns(address result) {
+  function _getController(address didAddress) internal virtual view returns(address result) {
     result = _DIDInfo[didAddress].controller;
     assembly {
       if iszero(result) {
@@ -146,14 +151,14 @@ contract VeridaDIDRegistry is OwnableUpgradeable, IVeridaDIDRegistry {
   /**
    * @dev See {IVeridaDIDRegistry}
    */
-  function getController(address didAddress) external view override returns(address) {
+  function getController(address didAddress) external virtual view override returns(address) {
     return _getController(didAddress);
   }
 
   /**
    * @dev See {IVeridaDIDRegistry}
    */
-  function setController(address didAddress, address controller, bytes calldata signature) external override {
+  function setController(address didAddress, address controller, bytes calldata signature) external virtual override {
     if (!isRegistered(didAddress)) {
       revert UnregisteredDID();
     }
@@ -180,7 +185,7 @@ contract VeridaDIDRegistry is OwnableUpgradeable, IVeridaDIDRegistry {
   /**
    * @dev See {IVeridaDIDRegistry}
    */
-  function lookup(address didAddress) external view override returns(address, string[] memory) {
+  function lookup(address didAddress) external view virtual override returns(address, string[] memory) {
     if (!isRegistered(didAddress)) {
       revert UnregisteredDID();
     }
@@ -201,21 +206,21 @@ contract VeridaDIDRegistry is OwnableUpgradeable, IVeridaDIDRegistry {
   /**
    * @dev See {IVeridaDIDRegistry}
    */
-  function nonce(address didAddress) external view override returns(uint) {
+  function nonce(address didAddress) external view virtual override returns(uint) {
     return _nonce[didAddress];
   }
 
   /**
    * @dev See {IVeridaDIDRegistry}
    */
-  function activeDIDCount() external view override returns(uint) {
+  function activeDIDCount() external view virtual override returns(uint) {
     return _registeredDIDs.length();
   }
 
   /**
    * @dev See {IVeridaDIDRegistry}
    */
-  function getDIDs(uint startIndex, uint count) external view onlyOwner override returns(address[] memory) {
+  function getDIDs(uint startIndex, uint count) external view virtual override onlyOwner returns(address[] memory) {
     if (count == 0 || (startIndex + count ) > _registeredDIDs.length()) {
       revert OutOfRange();
     }

@@ -27,23 +27,23 @@ contract SoulboundNFT is VDAVerificationContract,
      * @notice tokenId counter
      * @dev tokenId starts from 1.
      */
-    CountersUpgradeable.Counter private _tokenIdCounter;
+    CountersUpgradeable.Counter internal _tokenIdCounter;
 
     /**
      * @notice SBT types of Verida
      */
-    EnumerableSet.StringSet private _sbtTypes;
+    EnumerableSet.StringSet internal _sbtTypes;
 
     /**
      * @notice Claimed SBT info by users
      * @dev mapping of User => SBTType => UniqueId => tokenId
      */
-    mapping(address => mapping(string => mapping(string => uint))) private _userInfo;
+    mapping(address => mapping(string => mapping(string => uint))) internal _userInfo;
     /** 
      * @notice SBT type of tokenId
      * @dev mapping of tokenId => TokenInfo
      */
-    mapping(uint => TokenInfo) private _tokenIdInfo;
+    mapping(uint => TokenInfo) internal _tokenIdInfo;
 
     /**
      * @notice Claimed tokenId list of users
@@ -51,6 +51,11 @@ contract SoulboundNFT is VDAVerificationContract,
      * SBT tokens can't be transferred to other users. It can be transferred to 0x0 for burning
      */
     mapping(address => EnumerableSetUpgradeable.UintSet) _userTokenIds;
+
+    /**
+     * @notice Gap for later use
+     */
+    uint256[20] private __gap;
 
     // Custom errors
     error TransferBlocked();
@@ -75,10 +80,7 @@ contract SoulboundNFT is VDAVerificationContract,
      * @dev returns the token uri of tokenId
      * @param tokenId tokenId minted
      */
-    function tokenURI(uint256 tokenId)
-        public
-        view
-        override(IERC721MetadataUpgradeable, ERC721URIStorageUpgradeable)
+    function tokenURI(uint256 tokenId) public view virtual override(IERC721MetadataUpgradeable, ERC721URIStorageUpgradeable)
         returns (string memory)
     {
         return ERC721URIStorageUpgradeable.tokenURI(tokenId);
@@ -135,7 +137,7 @@ contract SoulboundNFT is VDAVerificationContract,
     /**
      * @dev See {IERC5192}
      */
-    function locked(uint256 tokenId) external view override returns(bool result) {
+    function locked(uint256 tokenId) external view virtual override returns(bool result) {
         address owner = ERC721Upgradeable.ownerOf(tokenId);
         result = true;
         assembly {
@@ -148,14 +150,14 @@ contract SoulboundNFT is VDAVerificationContract,
     /**
      * @dev See {ISoulboundNFT}
      */
-    function totalSupply() external view override returns(uint){
+    function totalSupply() external view virtual override returns(uint){
         return _tokenIdCounter.current();
     }
     
     /**
      * @dev See {ISoulboundNFT}
      */
-    function getTrustedSignerAddresses() external view override returns(address[] memory) {
+    function getTrustedSignerAddresses() external view virtual override returns(address[] memory) {
         uint length = _trustedSigners.length();
         address[] memory list = new address[](length);
         for (uint i; i < length;) {
@@ -171,7 +173,7 @@ contract SoulboundNFT is VDAVerificationContract,
      * @dev Reject transaction if SBTType is invalid
      * @param sbtType SBT Type
      */
-    function isValidSBTType(string calldata sbtType) private view returns(bool) {
+    function isValidSBTType(string calldata sbtType) internal virtual view returns(bool) {
         bool isValid = bytes(sbtType).length != 0;
         if (!_sbtTypes.contains(sbtType) && isValid) {
             bytes memory charSet = bytes(sbtType);
@@ -192,7 +194,7 @@ contract SoulboundNFT is VDAVerificationContract,
      * @dev Only the owner can add
      * @param sbtType new type to be added
      */
-    function addSBTType(string calldata sbtType) internal {
+    function addSBTType(string calldata sbtType) internal virtual {
         if (!_sbtTypes.contains(sbtType))
             _sbtTypes.add(sbtType);
 
@@ -206,7 +208,7 @@ contract SoulboundNFT is VDAVerificationContract,
         SBTInfo calldata sbtInfo,
         bytes calldata requestSignature,
         bytes calldata requestProof
-    ) external override returns(uint) {
+    ) external virtual override returns(uint) {
         {
             if (!isValidSBTType(sbtInfo.sbtType)) {
                 revert InvalidSBTInfo(true, false, false);
@@ -277,7 +279,7 @@ contract SoulboundNFT is VDAVerificationContract,
     /**
      * @dev See {ISoulboundNFT}
      */
-    function getClaimedSBTList(address didAddress) external view override returns(uint[] memory) {
+    function getClaimedSBTList(address didAddress) external view virtual override returns(uint[] memory) {
         uint length = balanceOf(didAddress);
         uint[] memory sbtList = new uint[](length);
 
@@ -291,14 +293,14 @@ contract SoulboundNFT is VDAVerificationContract,
     /**
      * @dev See {ISoulboundNFT}
      */
-    function isSBTClaimed(address claimer, string calldata sbtType, string calldata uniqueId) external view override returns(bool) {
+    function isSBTClaimed(address claimer, string calldata sbtType, string calldata uniqueId) external view virtual override returns(bool) {
         return _userInfo[claimer][sbtType][uniqueId] > 0;
     }
 
     /**
      * @dev See {ISoulboundNFT}
      */
-    function tokenInfo(uint tokenId) external view override returns(string memory, string memory) {
+    function tokenInfo(uint tokenId) external view virtual override returns(string memory, string memory) {
         _requireMinted(tokenId);
 
         return (_tokenIdInfo[tokenId].sbtType, _tokenIdInfo[tokenId].uniqueId);
@@ -307,7 +309,7 @@ contract SoulboundNFT is VDAVerificationContract,
     /**
      * @dev See {ISoulboundNFT}
      */
-    function burnSBT(uint tokenId) external override {
+    function burnSBT(uint tokenId) external virtual override {
         address tokenOwner = ERC721Upgradeable.ownerOf(tokenId);
         if (msg.sender != tokenOwner && msg.sender != owner()) {
             revert NoPermission();

@@ -55,7 +55,7 @@ contract VDAVerificationContract is OwnableUpgradeable {
      * @dev Only the contract owner can add
      * @param didAddress Trusted signer address
      */
-    function addTrustedSigner(address didAddress) external payable onlyOwner {
+    function addTrustedSigner(address didAddress) external virtual payable onlyOwner {
         if (_trustedSigners.contains(didAddress)) {
             revert RegisteredSigner();
         }
@@ -68,7 +68,7 @@ contract VDAVerificationContract is OwnableUpgradeable {
      * @dev Only the contract owner can remove
      * @param didAddress Trusted signer address
      */
-    function removeTrustedSigner(address didAddress) external payable onlyOwner {
+    function removeTrustedSigner(address didAddress) external virtual payable onlyOwner {
         if (!_trustedSigners.contains(didAddress)) {
             revert UnregisteredSigner();
         }
@@ -83,7 +83,7 @@ contract VDAVerificationContract is OwnableUpgradeable {
      * @param did DID for nonce
      * @return uint Current nonce of the DID
      */
-    function nonce(address did) external view returns(uint) {
+    function nonce(address did) external view  virtual returns(uint) {
         return _nonce[did];
     }
 
