@@ -5,7 +5,7 @@ import "./VeridaDIDRegistry.sol";
 
 /** @title VeridaDIDRegistry */
 contract VeridaDIDRegistryV2 is VeridaDIDRegistry {
-  function getVerison() external pure virtual returns(string memory) {
+  function getVersion() external pure virtual returns(string memory) {
     return "2.0";
   }
 }
