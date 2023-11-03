@@ -23,11 +23,6 @@ contract VDAVerificationContract is OwnableUpgradeable {
     EnumerableSetUpgradeable.AddressSet internal _trustedSigners;
 
     /**
-     * @notice Gap for later use
-     */
-    uint256[8] private __gap;
-
-    /**
      * @notice Emitted when the contract owner adds a trusted signer
      * @param signerAddress Address of signer
      */
