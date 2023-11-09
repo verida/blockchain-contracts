@@ -1,3 +1,7 @@
+2023-11-09 (V0.2.2)
+-------------------
+- Removed `updateTokenAddress()` function
+
 2023-10-25 (v0.2.1)
 -------------------
 **Added Logging issue and Slash feature**
