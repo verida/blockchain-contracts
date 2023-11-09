@@ -5,8 +5,6 @@ interface IStorageNodeRegistry {
 
     /**
      * @notice Struct representing a data center
-     * @dev `id` starts from 1. If `id` is 0, it means removed.
-     * @param id Data center Id
      * @param name Data center name
      * @param countryCode Unique two-character string code
      * @param regionCode Unique region string code
@@ -215,7 +213,7 @@ interface IStorageNodeRegistry {
     event WithdrawIssueFee(address indexed to, uint amount);
 
     /**
-     * @notice Add a data center to the network. `id` will be auto-incremented.
+     * @notice Add a data center to the network.
      * @dev Only the contract owner can call this function
      * @param data Datacenter info
      * @return datacenterId Created datacetnerId
@@ -374,7 +372,7 @@ interface IStorageNodeRegistry {
     /**
      * @notice Returns the amount of staked token.
      * @dev Will return 0 for unregistered dids
-     * @param didAddress DID address that addedn a storage node
+     * @param didAddress DID address that added a storage node
      * @return uint Amount of staked token
      */
     function getBalance(address didAddress) external view returns(uint);
@@ -382,7 +380,7 @@ interface IStorageNodeRegistry {
     /**
      * @notice Returns the amount of excess tokens. This happens when the `STAKE_PER_SLOT` value decreased or increased
      * @param didAddress DID address
-     * @return int Excess token amount. 0 if no excess tokens
+     * @return int Excess token amount. Can be negative value
      */
     function excessTokenAmount(address didAddress) external view returns(int);
 
@@ -480,7 +478,7 @@ interface IStorageNodeRegistry {
     /**
      * @notice Slash the tokens
      * @dev Only the contract owner can call this
-     * @param nodeDID DID address that points the node to be slashed
+     * @param nodeDID DID address of the node to be slashed
      * @param reasonCode Reascon code to be slashed
      * @param amount Token amount to be slashed
      * @param moreInfoUrl On-chain pointer to where more information can be fournd about this slashing

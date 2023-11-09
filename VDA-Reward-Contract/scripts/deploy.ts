@@ -5,7 +5,12 @@ import * as tokenArtifact from "@verida/erc20-contract/artifacts/contracts/VDA-V
 import { saveDeployedAddress } from "./utils";
 
 async function main() {
-  const rewardTokenAddress = "<Input Verida token address>"
+  // const rewardTokenAddress = "<Input Verida token address>"
+  // Polygon mainnet
+  // const rewardTokenAddress = "0x64CE49E8249b5a8456CC8759A993f7B24854e199"
+
+  // Polygon testnet
+  const rewardTokenAddress = "0x8342Eff0a73bDbf3487E33f60D4307710dD34120"
 
   const contractFactory = await ethers.getContractFactory("VDARewardContract")
   const contract = (await upgrades.deployProxy(
