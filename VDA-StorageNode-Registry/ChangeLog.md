@@ -1,6 +1,7 @@
 2023-11-09 (V0.2.2)
 -------------------
 - Removed `updateTokenAddress()` function
+- Updated decimal for latitude and longitude value from 8 to 9
 
 2023-10-25 (v0.2.1)
 -------------------
