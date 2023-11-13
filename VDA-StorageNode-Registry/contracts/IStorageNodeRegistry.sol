@@ -232,29 +232,29 @@ interface IStorageNodeRegistry {
      * @param data Datacenter info
      * @return datacenterId Created datacetnerId
      */
-    function addDatacenter(DatacenterInput calldata data) external payable returns(uint);
+    function addDataCenter(DatacenterInput calldata data) external payable returns(uint);
 
     /**
      * @notice Remove a data center
      * @dev Only the contract owner can call this function.
      *  Will only remove the data center if there are no storage nodes using this datacenterId
-     * @param datacenterId datacenterId created by `addDatacenter()` function
+     * @param datacenterId datacenterId created by `addDataCenter()` function
      */
-    function removeDatacenter(uint datacenterId) external payable;
+    function removeDataCenter(uint datacenterId) external payable;
 
     /**
      * @notice Return an array of `Datacenter` structs for given array of datacenterIds
      * @param ids Array of datacenterIds
      * @return Datacenter[] Array of `Datacenter` structs 
      */
-    function getDatacenters(uint[] calldata ids) external view returns(Datacenter[] memory);
+    function getDataCenters(uint[] calldata ids) external view returns(Datacenter[] memory);
 
     /**
      * @notice Return a data center with the given name
      * @dev Data center names are unique in the contract
      * @param name Name of the data center
      */
-    function getDatacenterByName(string calldata name) external view returns(Datacenter memory);
+    function getDataCenterByName(string calldata name) external view returns(Datacenter memory);
 
     /**
      * @notice Return an array of `Datacenter` structs for country code

@@ -191,12 +191,12 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
         uint index;
     }
 
-    error InvalidDatacenterName();
+    error InvalidDataCenterName();
     error InvalidCountryCode();
     error InvalidRegionCode();
     error InvalidLatitude();
     error InvalidLongitude();
-    error InvalidDatacenterId(uint id);
+    error InvalidDataCenterId(uint id);
     error HasDependingNodes();
     error InvalidEndpointUri();
     error InvalidDIDAddress();
@@ -289,20 +289,20 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
      * @dev `datacenterId` should be the one that was added by contract owner
      * @param id datacenterId
      */
-    function checkDatacenterIdExistance(uint id) internal view virtual {
+    function checkDataCenterIdExistance(uint id) internal view virtual {
         if (!_datacenterInfo[id].isActive) {
-            revert InvalidDatacenterId(id);
+            revert InvalidDataCenterId(id);
         }
     }
 
     /**
      * @notice Copy DatacenterInput struct to Datacenter
-     * @dev Used inside the `addDatacenter()`
+     * @dev Used inside the `addDataCenter()`
      * @param id Data center ID that is created automatically
      * @param from DatacenterInput struct
      * @param to Datacenter struct
      */
-    function copyDatacenterInput(uint id, DatacenterInput calldata from, Datacenter storage to) internal virtual {
+    function copyDataCenterInput(uint id, DatacenterInput calldata from, Datacenter storage to) internal virtual {
         to.id = id;
         to.name = from.name;
         to.countryCode = from.countryCode;
@@ -314,15 +314,15 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
     /**
      * @dev see { IStorageNodeRegistry }
      */
-    function addDatacenter(DatacenterInput calldata data) external payable onlyOwner virtual override
+    function addDataCenter(DatacenterInput calldata data) external payable onlyOwner virtual override
          returns(uint) {
         {
             if (bytes(data.name).length == 0 || !isLowerCase(data.name)) {
-                revert InvalidDatacenterName();
+                revert InvalidDataCenterName();
             }
 
             if (_dataCenterNameToID[data.name] != 0) {
-                revert InvalidDatacenterName();
+                revert InvalidDataCenterName();
             }
 
             validateCountryCode(data.countryCode);
@@ -333,7 +333,7 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
         _datacenterIdCounter.increment();
         uint datacenterId = _datacenterIdCounter.current();
 
-        copyDatacenterInput(datacenterId, data, _dataCenterMap[datacenterId]);
+        copyDataCenterInput(datacenterId, data, _dataCenterMap[datacenterId]);
         _dataCenterNameToID[data.name] = datacenterId;
         
         _datacenterInfo[datacenterId].isActive = true;
@@ -349,9 +349,9 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
     /**
      * @dev see { IStorageNodeRegistry }
      */
-    function removeDatacenter(uint datacenterId) external payable onlyOwner virtual override {
+    function removeDataCenter(uint datacenterId) external payable onlyOwner virtual override {
         {
-            checkDatacenterIdExistance(datacenterId);
+            checkDataCenterIdExistance(datacenterId);
             
             if (_datacenterInfo[datacenterId].nodeCount != 0) {
                 revert HasDependingNodes();
@@ -372,13 +372,13 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
     /**
      * @dev see { IStorageNodeRegistry }
      */
-    function getDatacenters(uint[] calldata ids) external view virtual override returns(Datacenter[] memory) {
+    function getDataCenters(uint[] calldata ids) external view virtual override returns(Datacenter[] memory) {
         uint count = ids.length;
         Datacenter[] memory list = new Datacenter[](count);
 
         for (uint i; i < count;) {
             if (!_datacenterInfo[ids[i]].isActive) {
-                revert InvalidDatacenterId(ids[i]);
+                revert InvalidDataCenterId(ids[i]);
             }
 
             list[i] = _dataCenterMap[ids[i]];
@@ -392,10 +392,10 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
     /**
      * @dev see { IStorageNodeRegistry }
      */
-    function getDatacenterByName(string calldata name) external view virtual override returns(Datacenter memory) {
+    function getDataCenterByName(string calldata name) external view virtual override returns(Datacenter memory) {
         uint id = _dataCenterNameToID[name];
         if (id == 0) {
-            revert InvalidDatacenterName();
+            revert InvalidDataCenterName();
         }
 
         return _dataCenterMap[id];
@@ -567,7 +567,7 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
 
             validateCountryCode(nodeInfo.countryCode);
             validateRegionCode(nodeInfo.regionCode);
-            checkDatacenterIdExistance(nodeInfo.datacenterId);
+            checkDataCenterIdExistance(nodeInfo.datacenterId);
             validateGeoPosition(nodeInfo.lat, nodeInfo.long);
 
             
