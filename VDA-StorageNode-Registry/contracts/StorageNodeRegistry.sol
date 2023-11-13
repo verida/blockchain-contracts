@@ -237,7 +237,7 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
      * @param value String value to check
      * @return true if value is lowercase
      */
-    function isLowerCase(string calldata value) internal pure returns(bool) {
+    function isLowerCase(string calldata value) internal pure virtual returns(bool) {
         bytes memory _baseBytes = bytes(value);
         for (uint i; i < _baseBytes.length;) {
             if (_baseBytes[i] >= 0x41 && _baseBytes[i] <= 0x5A) {
@@ -253,7 +253,7 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
      * @notice Check validity of country code
      * @param countryCode Unique two-character string code
      */
-    function validateCountryCode(string calldata countryCode) internal pure {
+    function validateCountryCode(string calldata countryCode) internal pure virtual {
         if (bytes(countryCode).length != 2 || !isLowerCase(countryCode)) {
             revert InvalidCountryCode();
         }
@@ -263,7 +263,7 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
      * @notice Check validity of region code
      * @param regionCode Unique region string code
      */
-    function validateRegionCode(string calldata regionCode) internal pure {
+    function validateRegionCode(string calldata regionCode) internal pure virtual {
         if (bytes(regionCode).length == 0 || !isLowerCase(regionCode)) {
             revert InvalidRegionCode();
         }
@@ -274,7 +274,7 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
      * @param lat Latitude
      * @param long Longitude
      */
-    function validateGeoPosition(int lat, int long) internal pure {
+    function validateGeoPosition(int lat, int long) internal pure virtual {
         if ( lat < -90 * int(10 ** DECIMAL) || lat > 90 * int(10 ** DECIMAL)) {
             revert InvalidLatitude();
         }
@@ -289,7 +289,7 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
      * @dev `datacenterId` should be the one that was added by contract owner
      * @param id datacenterId
      */
-    function checkDatacenterIdExistance(uint id) internal view {
+    function checkDatacenterIdExistance(uint id) internal view virtual {
         if (!_datacenterInfo[id].isActive) {
             revert InvalidDatacenterId(id);
         }
@@ -302,7 +302,7 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
      * @param from DatacenterInput struct
      * @param to Datacenter struct
      */
-    function copyDatacenterInput(uint id, DatacenterInput calldata from, Datacenter storage to) internal {
+    function copyDatacenterInput(uint id, DatacenterInput calldata from, Datacenter storage to) internal virtual {
         to.id = id;
         to.name = from.name;
         to.countryCode = from.countryCode;
@@ -314,7 +314,7 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
     /**
      * @dev see { IStorageNodeRegistry }
      */
-    function addDatacenter(DatacenterInput calldata data) external payable onlyOwner override
+    function addDatacenter(DatacenterInput calldata data) external payable onlyOwner virtual override
          returns(uint) {
         {
             if (bytes(data.name).length == 0 || !isLowerCase(data.name)) {
@@ -349,7 +349,7 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
     /**
      * @dev see { IStorageNodeRegistry }
      */
-    function removeDatacenter(uint datacenterId) external payable onlyOwner override {
+    function removeDatacenter(uint datacenterId) external payable onlyOwner virtual override {
         {
             checkDatacenterIdExistance(datacenterId);
             
@@ -372,7 +372,7 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
     /**
      * @dev see { IStorageNodeRegistry }
      */
-    function getDatacenters(uint[] calldata ids) external view override returns(Datacenter[] memory) {
+    function getDatacenters(uint[] calldata ids) external view virtual override returns(Datacenter[] memory) {
         uint count = ids.length;
         Datacenter[] memory list = new Datacenter[](count);
 
@@ -392,7 +392,7 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
     /**
      * @dev see { IStorageNodeRegistry }
      */
-    function getDatacenterByName(string calldata name) external view returns(Datacenter memory) {
+    function getDatacenterByName(string calldata name) external view virtual override returns(Datacenter memory) {
         uint id = _dataCenterNameToID[name];
         if (id == 0) {
             revert InvalidDatacenterName();
@@ -404,7 +404,7 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
     /**
      * @dev see { IStorageNodeRegistry }
      */
-    function getDataCentersByCountry(string calldata countryCode) external view override returns(Datacenter[] memory) {
+    function getDataCentersByCountry(string calldata countryCode) external view virtual override returns(Datacenter[] memory) {
         validateCountryCode(countryCode);
         
         uint count = _countryDataCenterIds[countryCode].length();
@@ -423,7 +423,7 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
     /**
      * @dev see { IStorageNodeRegistry }
      */
-    function getDataCentersByRegion(string calldata regionCode) external view override returns(Datacenter[] memory) {
+    function getDataCentersByRegion(string calldata regionCode) external view virtual override returns(Datacenter[] memory) {
         validateRegionCode(regionCode);
         
         uint count = _regionDataCenterIds[regionCode].length();
@@ -444,7 +444,7 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
      * @param didAddress DID address that is associated with the storage node
      * @param authSignature Signature signed by a trusted signer
      */
-    function verifyAuthSignature(address didAddress, bytes calldata authSignature) internal view {
+    function verifyAuthSignature(address didAddress, bytes calldata authSignature) internal view virtual {
         EnumerableSetUpgradeable.AddressSet storage signers = _trustedSigners;
 
         if (signers.length() == 0) {
@@ -486,7 +486,7 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
      */
     function storeNodeInfo(
         StorageNodeInput memory nodeInfo
-        ) internal {
+        ) internal virtual {
         {
             _nodeIdCounter.increment();
             uint nodeId = _nodeIdCounter.current();
@@ -529,7 +529,7 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
      * @param numberSlot Number of slots
      * @return uint Required token amount
      */
-    function requiredTokenAmount(uint numberSlot) internal view returns(uint) {
+    function requiredTokenAmount(uint numberSlot) internal view virtual returns(uint) {
         return numberSlot * _slotInfo.STAKE_PER_SLOT;
     }
 
@@ -540,7 +540,7 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
      * @param from EOA wallet that provide necessary Verida token for `addNode()` function
      * @param numberSlot Number of slots being added in the `addNode()` function
      */
-    function stakeToken(address didAddress, address from, uint numberSlot) internal {
+    function stakeToken(address didAddress, address from, uint numberSlot) internal virtual {
         uint totalAmount = requiredTokenAmount(numberSlot);
 
         IERC20Upgradeable tokenContract = IERC20Upgradeable(vdaTokenAddress);
@@ -558,7 +558,7 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
         bytes calldata requestSignature,
         bytes calldata requestProof,
         bytes calldata authSignature
-    ) external override {
+    ) external virtual override {
         {
             // Check whether endpointUri is empty
             if (bytes(nodeInfo.endpointUri).length == 0) {
@@ -623,7 +623,7 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
         uint unregisterDateTime,
         bytes calldata requestSignature,
         bytes calldata requestProof
-    ) external override {
+    ) external virtual override {
         uint nodeId = _didNodeId[didAddress];
 
         // Check whether didAddress was registered before
@@ -649,7 +649,7 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
      * @param didAddress DID address that calls the `removeNodeComplete()` function
      * @param to EOA wallet that will received the released token
      */
-    function releaseToken(address didAddress, address to) internal {
+    function releaseToken(address didAddress, address to) internal virtual {
         uint totalAmount = _stakedTokenAmount[didAddress];
 
         if (totalAmount != 0) {
@@ -665,7 +665,7 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
         address didAddress,
         bytes calldata requestSignature,
         bytes calldata requestProof
-    ) external override {
+    ) external virtual override {
         uint nodeId = _didNodeId[didAddress];
         {
             if (nodeId == 0) {
@@ -705,7 +705,7 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
      * @return StorageNode StoargeNode struct
      * @return string Status string
      */
-    function getNodeWithStatus(uint nodeId) internal view returns(StorageNode memory, string memory) {
+    function getNodeWithStatus(uint nodeId) internal view virtual returns(StorageNode memory, string memory) {
         string memory status = "active";
         if (_nodeUnregisterTime[nodeId] != 0) {
             status = "removed";
@@ -717,7 +717,7 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
     /**
      * @dev see { IStorageNodeRegistry }
      */
-    function getNodeByAddress(address didAddress) external view override returns(StorageNode memory, string memory) {
+    function getNodeByAddress(address didAddress) external view virtual override returns(StorageNode memory, string memory) {
         uint nodeId = _didNodeId[didAddress];
         if (nodeId == 0) {
             revert InvalidDIDAddress();
@@ -729,7 +729,7 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
     /**
      * @dev see { IStorageNodeRegistry }
      */
-    function getNodeByEndpoint(string calldata endpointUri) external view override returns(StorageNode memory, string memory) {
+    function getNodeByEndpoint(string calldata endpointUri) external view virtual override returns(StorageNode memory, string memory) {
         uint nodeId = _endpointNodeId[endpointUri];
 
         if (nodeId == 0) {
@@ -745,7 +745,7 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
      * @param ids ID set
      * @return StorageNode[] Array of active storage nodes
      */
-    function filterActiveStorageNodes(EnumerableSetUpgradeable.UintSet storage ids) internal view returns(StorageNode[] memory) {
+    function filterActiveStorageNodes(EnumerableSetUpgradeable.UintSet storage ids) internal view virtual returns(StorageNode[] memory) {
         uint count = ids.length();
         uint removedCount;
 
@@ -780,28 +780,28 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
     /**
      * @dev see { IStorageNodeRegistry }
      */
-    function getNodesByCountry(string calldata countryCode) external view override returns(StorageNode[] memory) {
+    function getNodesByCountry(string calldata countryCode) external view virtual override returns(StorageNode[] memory) {
         return filterActiveStorageNodes(_countryNodeIds[countryCode]);
     }
 
     /**
      * @dev see { IStorageNodeRegistry }
      */
-    function getNodesByRegion(string calldata regionCode) external view override returns(StorageNode[] memory) {
+    function getNodesByRegion(string calldata regionCode) external view virtual override returns(StorageNode[] memory) {
         return filterActiveStorageNodes(_regionNodeIds[regionCode]);
     }
 
     /**
      * @dev see { IStorageNodeRegistry }
      */
-    function isStakingRequired() external view returns(bool) {
+    function isStakingRequired() external view virtual override returns(bool) {
         return _slotInfo.isStakingRequired;
     }
 
     /**
      * @dev see { IStorageNodeRegistry }
      */
-    function setStakingRequired(bool isRequired) external payable onlyOwner override {
+    function setStakingRequired(bool isRequired) external payable virtual override onlyOwner {
         if (isRequired == _slotInfo.isStakingRequired) {
             revert InvalidValue();
         }
@@ -813,14 +813,14 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
     /**
      * @dev see { IStorageNodeRegistry }
      */
-    function getStakePerSlot() external view returns(uint) {
+    function getStakePerSlot() external view virtual override returns(uint) {
         return _slotInfo.STAKE_PER_SLOT;
     }
 
     /**
      * @dev see { IStorageNodeRegistry }
      */
-    function updateStakePerSlot(uint newVal) external payable onlyOwner override {
+    function updateStakePerSlot(uint newVal) external payable virtual override onlyOwner {
         if (newVal == 0 || newVal == _slotInfo.STAKE_PER_SLOT) {
             revert InvalidValue();
         }
@@ -832,14 +832,14 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
     /**
      * @dev see { IStorageNodeRegistry }
      */
-    function getSlotCountRange() external view returns(uint, uint) {
+    function getSlotCountRange() external view virtual override returns(uint, uint) {
         return (_slotInfo.MIN_SLOTS, _slotInfo.MAX_SLOTS);
     }
 
     /**
      * @dev see { IStorageNodeRegistry }
      */
-    function updateMinSlotCount(uint minSlots) external payable onlyOwner override {
+    function updateMinSlotCount(uint minSlots) external payable virtual override onlyOwner {
         if (minSlots == 0 || minSlots == _slotInfo.MIN_SLOTS || minSlots > _slotInfo.MAX_SLOTS) {
             revert InvalidValue();
         }
@@ -851,7 +851,7 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
     /**
      * @dev see { IStorageNodeRegistry }
      */
-    function updateMaxSlotCount(uint maxSlots) external payable onlyOwner override {
+    function updateMaxSlotCount(uint maxSlots) external payable virtual override onlyOwner {
         if (maxSlots == 0 || maxSlots == _slotInfo.MAX_SLOTS || maxSlots < _slotInfo.MIN_SLOTS) {
             revert InvalidValue();
         }
@@ -863,7 +863,7 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
     /**
      * @dev see { IStorageNodeRegistry }
      */
-    function getBalance(address didAddress) external view returns(uint) {
+    function getBalance(address didAddress) external view virtual override returns(uint) {
         return _stakedTokenAmount[didAddress];
     }
 
@@ -873,7 +873,7 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
      * @param didAddress DID address
      * @return uint Return 0 if staked amount is less than the required amount
      */
-    function getExcessTokenAmount(address didAddress) internal view returns(int) {
+    function getExcessTokenAmount(address didAddress) internal view virtual returns(int) {
         uint totalAmount;
 
         uint nodeId = _didNodeId[didAddress];
@@ -887,7 +887,7 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
     /**
      * @dev see { IStorageNodeRegistry }
      */
-    function excessTokenAmount(address didAddress) external view returns(int) {
+    function excessTokenAmount(address didAddress) external view virtual override returns(int) {
         return getExcessTokenAmount(didAddress);
     }
 
@@ -899,7 +899,7 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
         uint amount,
         bytes calldata requestSignature,
         bytes calldata requestProof
-    ) external {
+    ) external virtual override {
         {
             bytes memory params = abi.encodePacked(didAddress, amount);
             verifyRequest(didAddress, params, requestSignature, requestProof);
@@ -925,7 +925,7 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
     /**
      * @dev see { IStorageNodeRegistry }
      */
-    function depositToken(address didAddress, uint tokenAmount) external {
+    function depositToken(address didAddress, uint tokenAmount) external virtual override {
         uint nodeId = _didNodeId[didAddress];
         if (nodeId == 0) {
             revert InvalidDIDAddress();
@@ -941,14 +941,14 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
     /**
      * @dev see { IStorageNodeRegistry }
      */
-    function getNodeIssueFee() external view returns(uint){
+    function getNodeIssueFee() external view virtual override returns(uint){
         return _slotInfo.NODE_ISSUE_FEE;
     }
 
     /**
      * @dev see { IStorageNodeRegistry }
      */
-    function updateNodeIssueFee(uint value) external payable onlyOwner {
+    function updateNodeIssueFee(uint value) external payable virtual override onlyOwner {
         if (value == 0 || value == _slotInfo.NODE_ISSUE_FEE) {
             revert InvalidValue();
         }
@@ -961,14 +961,14 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
     /**
      * @dev see { IStorageNodeRegistry }
      */
-    function getTotalIssueFee() external view returns(uint) {
+    function getTotalIssueFee() external view virtual override returns(uint) {
         return _slotInfo.totalIssueFee;
     }
 
     /**
      * @dev see { IStorageNodeRegistry }
      */
-    function withdrawIssueFee(address to, uint amount) external payable onlyOwner {
+    function withdrawIssueFee(address to, uint amount) external payable virtual override onlyOwner {
         if (amount > _slotInfo.totalIssueFee) {
             revert InvalidValue();
         }
@@ -982,14 +982,14 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
     /**
      * @dev see { IStorageNodeRegistry }
      */
-    function getSameNodeLogDuration() external view returns(uint) {
+    function getSameNodeLogDuration() external view virtual override returns(uint) {
         return _slotInfo.SAME_NODE_LOG_DURATION;
     }
 
     /**
      * @dev see { IStorageNodeRegistry }
      */
-    function updateSameNodeLogDuration(uint value) external payable onlyOwner {
+    function updateSameNodeLogDuration(uint value) external payable virtual override onlyOwner {
         if (value == 0 || value == _slotInfo.SAME_NODE_LOG_DURATION) {
             revert InvalidValue();
         }
@@ -1002,14 +1002,14 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
     /**
      * @dev see { IStorageNodeRegistry }
      */
-    function getLogLimitPerDay() external view returns(uint) {
+    function getLogLimitPerDay() external view virtual override returns(uint) {
         return _slotInfo.LOG_LIMIT_PER_DAY;
     }
 
     /**
      * @dev see { IStorageNodeRegistry }
      */
-    function updateLogLimitPerDay(uint value) external payable onlyOwner {
+    function updateLogLimitPerDay(uint value) external payable virtual override onlyOwner {
         if (value == 0 || value == _slotInfo.LOG_LIMIT_PER_DAY) {
             revert InvalidValue();
         }
@@ -1028,7 +1028,7 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
         uint reasonCode,
         bytes calldata requestSignature,
         bytes calldata requestProof
-    ) external {
+    ) external virtual override {
         {
             // Check whether nodeDID is registered
             uint nodeId = _didNodeId[nodeAddress];
@@ -1095,7 +1095,7 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
         uint reasonCode,
         uint amount,
         string calldata moreInfoUrl
-    ) external payable onlyOwner {
+    ) external payable virtual override onlyOwner {
 
         if (amount == 0 || amount > _stakedTokenAmount[nodeDID]) {
             revert InvalidAmount();
