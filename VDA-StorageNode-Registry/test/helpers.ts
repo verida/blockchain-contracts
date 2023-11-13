@@ -11,7 +11,7 @@ export function createDatacenterStruct(
     countryCode: string,
     regionCode: string,
     lat: number,
-    long: number) : IStorageNodeRegistry.DatacenterStruct {
+    long: number) : IStorageNodeRegistry.DatacenterInputStruct {
     return {
         name,
         countryCode,

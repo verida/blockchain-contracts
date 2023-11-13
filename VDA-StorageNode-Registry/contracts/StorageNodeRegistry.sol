@@ -392,6 +392,18 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
     /**
      * @dev see { IStorageNodeRegistry }
      */
+    function getDatacenterByName(string calldata name) external view returns(Datacenter memory) {
+        uint id = _dataCenterNameToID[name];
+        if (id == 0) {
+            revert InvalidDatacenterName();
+        }
+
+        return _dataCenterMap[id];
+    }
+
+    /**
+     * @dev see { IStorageNodeRegistry }
+     */
     function getDataCentersByCountry(string calldata countryCode) external view override returns(Datacenter[] memory) {
         validateCountryCode(countryCode);
         

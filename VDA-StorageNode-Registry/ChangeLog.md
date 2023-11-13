@@ -1,3 +1,7 @@
+2023-11-09 (V0.2.3)
+-------------------
+- Added `getDatacenterByName()` function
+
 2023-11-09 (V0.2.2)
 -------------------
 - Removed `updateTokenAddress()` function

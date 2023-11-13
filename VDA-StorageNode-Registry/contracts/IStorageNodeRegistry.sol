@@ -250,6 +250,13 @@ interface IStorageNodeRegistry {
     function getDatacenters(uint[] calldata ids) external view returns(Datacenter[] memory);
 
     /**
+     * @notice Return a data center with the given name
+     * @dev Data center names are unique in the contract
+     * @param name Name of the data center
+     */
+    function getDatacenterByName(string calldata name) external view returns(Datacenter memory);
+
+    /**
      * @notice Return an array of `Datacenter` structs for country code
      * @param countryCode Unique two-character string code
      * @return Datacenter[] Array of `Datacenter` structs 

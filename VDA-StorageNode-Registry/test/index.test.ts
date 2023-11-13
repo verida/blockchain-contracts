@@ -302,13 +302,60 @@ describe("Verida StorageNodeRegistry", function () {
         })
 
         describe("Get datacenters", () => {
-            const checkDatacenterResult = (result: IStorageNodeRegistry.DatacenterStructOutput, org: IStorageNodeRegistry.DatacenterStruct) => {
+            const checkDatacenterResult = (result: IStorageNodeRegistry.DatacenterStructOutput, org: IStorageNodeRegistry.DatacenterInputStruct) => {
                 expect(result.name).to.equal(org.name);
                 expect(result.countryCode).to.equal(org.countryCode);
                 expect(result.regionCode).to.equal(org.regionCode);
                 expect(result.lat).to.equal(org.lat);
                 expect(result.long).to.equal(org.long);
             }
+
+            describe("Get datacenter by name", () => {
+                let currentSnapshot : SnapshotRestorer;
+                let dataCenterId : BigNumberish;
+                const dataCenter = createDatacenterStruct("center-x", "us", "north america", -90, -150);
+
+                before(async () => {
+                    currentSnapshot = await takeSnapshot();
+
+                    const tx = await contract.addDatacenter(dataCenter);
+
+                    await expect(tx).to.emit(contract, "AddDataCenter");
+
+                    const transactionReceipt = await tx.wait();
+                    const event = transactionReceipt.events?.find(item => {
+                        return item.event === 'AddDataCenter'
+                    })
+                    if (event !== undefined) {
+                        dataCenterId = event.args![0];
+                    }
+                })
+
+                it("Failed : Unregistered name",async () => {
+                    await expect(
+                        contract.getDatacenterByName("invalid name")
+                    ).to.be.revertedWithCustomError(contract, "InvalidDatacenterName");
+                })
+
+                it("Success",async () => {
+                    const result = await contract.getDatacenterByName(dataCenter.name);
+                    checkDatacenterResult(result, dataCenter);
+                })
+
+                it("Failed : Removed data center",async () => {
+                    await expect(
+                        contract.removeDatacenter(dataCenterId)
+                    ).to.emit(contract, "RemoveDataCenter");
+
+                    await expect(
+                        contract.getDatacenterByName(dataCenter.name)
+                    ).to.be.revertedWithCustomError(contract, "InvalidDatacenterName");
+                })
+
+                after(async () => {
+                    await currentSnapshot.restore();
+                })
+            })
 
             describe("Get by datacenter IDs", () => {
                 let maxDataCenterID : BigNumber;
