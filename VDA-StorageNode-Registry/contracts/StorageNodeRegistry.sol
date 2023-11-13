@@ -296,9 +296,25 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
     }
 
     /**
+     * @notice Copy DatacenterInput struct to Datacenter
+     * @dev Used inside the `addDatacenter()`
+     * @param id Data center ID that is created automatically
+     * @param from DatacenterInput struct
+     * @param to Datacenter struct
+     */
+    function copyDatacenterInput(uint id, DatacenterInput calldata from, Datacenter storage to) internal {
+        to.id = id;
+        to.name = from.name;
+        to.countryCode = from.countryCode;
+        to.regionCode = from.regionCode;
+        to.lat = from.lat;
+        to.long = from.long;
+    }
+
+    /**
      * @dev see { IStorageNodeRegistry }
      */
-    function addDatacenter(Datacenter calldata data) external payable onlyOwner override
+    function addDatacenter(DatacenterInput calldata data) external payable onlyOwner override
          returns(uint) {
         {
             if (bytes(data.name).length == 0 || !isLowerCase(data.name)) {
@@ -317,7 +333,7 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
         _datacenterIdCounter.increment();
         uint datacenterId = _datacenterIdCounter.current();
 
-        _dataCenterMap[datacenterId] = data;
+        copyDatacenterInput(datacenterId, data, _dataCenterMap[datacenterId]);
         _dataCenterNameToID[data.name] = datacenterId;
         
         _datacenterInfo[datacenterId].isActive = true;

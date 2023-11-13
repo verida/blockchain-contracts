@@ -5,6 +5,7 @@ interface IStorageNodeRegistry {
 
     /**
      * @notice Struct representing a data center
+     * @param id Data center id. Assigned automatically inside the contract
      * @param name Data center name
      * @param countryCode Unique two-character string code
      * @param regionCode Unique region string code
@@ -12,6 +13,19 @@ interface IStorageNodeRegistry {
      * @param long Longitude
      */
     struct Datacenter {
+        uint id;
+        string name;
+        string countryCode;
+        string regionCode;
+        int lat;
+        int long;
+    }
+
+    /**
+     * @notice Struct representing a data center
+     * @dev Removed `id` field from above `Datacenter` struct
+     */
+    struct DatacenterInput {
         string name;
         string countryCode;
         string regionCode;
@@ -218,7 +232,7 @@ interface IStorageNodeRegistry {
      * @param data Datacenter info
      * @return datacenterId Created datacetnerId
      */
-    function addDatacenter(Datacenter calldata data) external payable returns(uint);
+    function addDatacenter(DatacenterInput calldata data) external payable returns(uint);
 
     /**
      * @notice Remove a data center
