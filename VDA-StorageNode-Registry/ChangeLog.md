@@ -1,6 +1,7 @@
 2023-11-09 (V0.2.3)
 -------------------
 - Added `getDatacenterByName()` function
+- Updated functions as `virtual`
 
 2023-11-09 (V0.2.2)
 -------------------
