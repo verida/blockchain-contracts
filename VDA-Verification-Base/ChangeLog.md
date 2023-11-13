@@ -1,3 +1,7 @@
+2023-11-13 (v0.1.6)
+-------------------
+- Added `isTrustedSigner()` function
+
 2023-05-10 (v0.1.5)
 -------------------
 - Update test code using `@verida/contract-test-utils`

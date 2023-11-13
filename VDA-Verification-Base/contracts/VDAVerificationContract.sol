@@ -76,6 +76,15 @@ contract VDAVerificationContract is OwnableUpgradeable {
         emit RemoveTrustedSigner(didAddress);
     }
 
+    /**
+     * @notice Check whether address is a trusted signer
+     * @param didAddress DID address to be checked
+     * @return bool true if registered, otherwise false
+     */
+    function isTrustedSigner(address didAddress) external virtual payable onlyOwner returns(bool) {
+        return _trustedSigners.contains(didAddress);
+    }
+
 
     /**
      * @notice Get a nonce for DID
