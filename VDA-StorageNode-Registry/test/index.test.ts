@@ -2,11 +2,8 @@ import { expect } from "chai";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 
 import hre, { ethers , upgrades } from "hardhat"
-import { BigNumber, BigNumberish, logger, Wallet } from 'ethers'
+import { BigNumber, BigNumberish, Wallet } from 'ethers'
 
-import { generateProof, SignInfo } from "./proof"
-import EncryptionUtils from '@verida/encryption-utils'
-import { Keyring } from "@verida/keyring";
 import { IStorageNodeRegistry, MockToken, StorageNodeRegistry } from "../typechain-types";
 
 import { createDatacenterStruct, createStorageNodeInputStruct, getAddNodeSignatures, getLogNodeIssueSignatures, getRemoveCompleteSignatures, getRemoveStartSignatures, getWithdrawSignatures } from "./helpers"; 
@@ -34,7 +31,7 @@ const INVALID_REGION_CODES = [
     "Europe"            // Capital letter in the code
 ]
 
-const dataCenters : IStorageNodeRegistry.DatacenterStruct[] = [
+const dataCenters : IStorageNodeRegistry.DatacenterInputStruct[] = [
     createDatacenterStruct("center-1", "us", "north america", -90, -150),
     createDatacenterStruct("center-2", "uk", "europe", 80, 130),
     createDatacenterStruct("center-3", "us", "north america", -70, -120),
@@ -120,8 +117,6 @@ describe("Verida StorageNodeRegistry", function () {
 
     let owner: SignerWithAddress;
     let accounts: SignerWithAddress[]
-
-    let signInfo : SignInfo
 
     let snapShotAfterDeploy: SnapshotRestorer
 
@@ -291,13 +286,39 @@ describe("Verida StorageNodeRegistry", function () {
                 const currentSnapshot = await takeSnapshot();
 
                 let tx = await contract.removeDataCenter(datacenterIds[0])
-                await expect(tx).to.emit(contract, "RemoveDataCenter").withArgs(datacenterIds[0]);
+                await expect(tx).to.emit(contract, "RemoveDataCenter").withArgs(datacenterIds[0], dataCenters[0].name);
 
                 // Re register removed name
                 tx = await contract.addDataCenter(dataCenters[0]);
                 await expect(tx).to.emit(contract, "AddDataCenter");
 
                 await currentSnapshot.restore();
+            })
+        })
+
+        describe("Is datacenter name registered", () => {
+            const dataCenter = createDatacenterStruct("center-x", "us", "north america", -90, -150);
+
+            it("Return `False` for unregistered name",async () => {
+                expect(await contract.isDataCenterNameRegistered(dataCenter.name)).to.be.eq(false);
+            })
+
+            it("Return `True` for registered name",async () => {
+                // Add data center
+                await expect(
+                    contract.addDataCenter(dataCenter)
+                ).to.emit(contract, "AddDataCenter");
+
+                expect(await contract.isDataCenterNameRegistered(dataCenter.name)).to.be.eq(true);
+            })
+
+            it("Return `False` for unregistered name",async () => {
+                // Remove data center
+                await expect(
+                    contract.removeDataCenterByName(dataCenter.name)
+                ).to.emit(contract, "RemoveDataCenter");
+
+                expect(await contract.isDataCenterNameRegistered(dataCenter.name)).to.be.eq(false);
             })
         })
 
@@ -310,7 +331,7 @@ describe("Verida StorageNodeRegistry", function () {
                 expect(result.long).to.equal(org.long);
             }
 
-            describe("Get datacenter by name", () => {
+            describe("Get datacenters by names", () => {
                 let currentSnapshot : SnapshotRestorer;
                 let dataCenterId : BigNumberish;
                 const dataCenter = createDatacenterStruct("center-x", "us", "north america", -90, -150);
@@ -333,13 +354,22 @@ describe("Verida StorageNodeRegistry", function () {
 
                 it("Failed : Unregistered name",async () => {
                     await expect(
-                        contract.getDataCenterByName("invalid name")
+                        contract.getDataCentersByName(["invalid name"])
+                    ).to.be.revertedWithCustomError(contract, "InvalidDataCenterName");
+
+                    await expect(
+                        contract.getDataCentersByName(["invalid name", dataCenter.name])
+                    ).to.be.revertedWithCustomError(contract, "InvalidDataCenterName");
+
+                    await expect(
+                        contract.getDataCentersByName([dataCenter.name, "invalid name"])
                     ).to.be.revertedWithCustomError(contract, "InvalidDataCenterName");
                 })
 
                 it("Success",async () => {
-                    const result = await contract.getDataCenterByName(dataCenter.name);
-                    checkDatacenterResult(result, dataCenter);
+                    const result = await contract.getDataCentersByName([dataCenter.name]);
+                    expect(result.length === 1, "Returned a data center");
+                    checkDatacenterResult(result[0], dataCenter);
                 })
 
                 it("Failed : Removed data center",async () => {
@@ -348,7 +378,7 @@ describe("Verida StorageNodeRegistry", function () {
                     ).to.emit(contract, "RemoveDataCenter");
 
                     await expect(
-                        contract.getDataCenterByName(dataCenter.name)
+                        contract.getDataCentersByName([dataCenter.name])
                     ).to.be.revertedWithCustomError(contract, "InvalidDataCenterName");
                 })
 
@@ -357,7 +387,7 @@ describe("Verida StorageNodeRegistry", function () {
                 })
             })
 
-            describe("Get by datacenter IDs", () => {
+            describe("Get datacenters by IDs", () => {
                 let maxDataCenterID : BigNumber;
                 before(() => {
                     maxDataCenterID = datacenterIds[datacenterIds.length -1];
@@ -389,7 +419,7 @@ describe("Verida StorageNodeRegistry", function () {
 
                     // Remove datacenter ID
                     const tx = await contract.removeDataCenter(datacenterIds[0]);
-                    await expect(tx).to.emit(contract, "RemoveDataCenter").withArgs(datacenterIds[0]);
+                    await expect(tx).to.emit(contract, "RemoveDataCenter").withArgs(datacenterIds[0], dataCenters[0].name);
 
                     // Failed to get datacenters
                     await expect(contract.getDataCenters(datacenterIds)).to.be.revertedWithCustomError(contract, "InvalidDataCenterId");
@@ -433,7 +463,7 @@ describe("Verida StorageNodeRegistry", function () {
                     for (let i = 0; i < 2; i++) {
                         await expect(
                             contract.removeDataCenter(datacenterIds[i])
-                        ).to.emit(contract, "RemoveDataCenter").withArgs(datacenterIds[i]);
+                        ).to.emit(contract, "RemoveDataCenter").withArgs(datacenterIds[i], dataCenters[i].name);
                     }
                     
                     // Check getDataCentersByCountry
@@ -478,7 +508,7 @@ describe("Verida StorageNodeRegistry", function () {
                     for (let i = 0; i < 2; i++) {
                         await expect(
                             contract.removeDataCenter(datacenterIds[i])
-                        ).to.emit(contract, "RemoveDataCenter").withArgs(datacenterIds[i]);
+                        ).to.emit(contract, "RemoveDataCenter").withArgs(datacenterIds[i], dataCenters[i].name);
                     }
                     
                     // Check getDataCentersByCountry
@@ -496,6 +526,7 @@ describe("Verida StorageNodeRegistry", function () {
 
         describe("Remove datacenter", () => {
             let maxDataCenterID : BigNumber;
+            let currentSnapShot : SnapshotRestorer;
 
             const user = Wallet.createRandom();
             const trustedSigner = Wallet.createRandom();
@@ -515,62 +546,128 @@ describe("Verida StorageNodeRegistry", function () {
                 maxDataCenterID = datacenterIds[datacenterIds.length -1];
 
                 await contract.addTrustedSigner(trustedSigner.address);
+
+                currentSnapShot = await takeSnapshot();
             })
 
-            it("Failed: Not created datacenterId", async () => {
-                const invalidIds = [BigNumber.from(0), maxDataCenterID.add(1), maxDataCenterID.add(100)]
-
-                for (let i = 0; i < invalidIds.length; i++) {
+            describe("Remove by IDs", () => {
+                it("Failed: Not created datacenterId", async () => {
+                    const invalidIds = [BigNumber.from(0), maxDataCenterID.add(1), maxDataCenterID.add(100)]
+    
+                    for (let i = 0; i < invalidIds.length; i++) {
+                        await expect(
+                            contract.removeDataCenter(invalidIds[i])
+                        ).to.be.revertedWithCustomError(contract, "InvalidDataCenterId").withArgs(invalidIds[i]);
+                    }
+                })
+    
+                it("Success: Fresh datacenters that has no storage nodes added", async () => {
+                    const tx = await contract.removeDataCenter(datacenterIds[0]);
+    
+                    await expect(tx).to.emit(contract, "RemoveDataCenter").withArgs(datacenterIds[0], anyValue);
+                })
+    
+                it("Failed: Removed datacenterId", async () => {
                     await expect(
-                        contract.removeDataCenter(invalidIds[i])
-                    ).to.be.revertedWithCustomError(contract, "InvalidDataCenterId").withArgs(invalidIds[i]);
-                }
+                        contract.removeDataCenter(datacenterIds[0])
+                    ).to.be.revertedWithCustomError(contract, "InvalidDataCenterId");
+                })
+    
+                it("Failed: Has depending nodes", async () => {
+                    storageNode.datacenterId = datacenterIds[1];
+    
+                    const decimal = await token.decimals()
+                    const stakePerSlot = await contract.getStakePerSlot();
+                    let tokenAmount = BigNumber.from(10);
+                    tokenAmount = tokenAmount.pow(decimal);
+                    tokenAmount = tokenAmount.mul(BigNumber.from(storageNode.slotCount))
+                    tokenAmount = tokenAmount.mul(stakePerSlot)
+                    await token.approve(contract.address, tokenAmount.toString());
+    
+                    // Add storage node 
+                    await checkAddNode(storageNode, user, trustedSigner, true);
+    
+                    // Failed to remove datacenter
+                    await expect(contract.removeDataCenter(datacenterIds[1])).to.be.revertedWithCustomError(contract, "HasDependingNodes");
+                })
+    
+                it("Success: After depending nodes are removed",async () => {
+                    // Remove start
+                    const blockTime = await time.latest();
+                    const unregisterTime = blockTime + days(30);
+                    await checkRemoveNodeStart(user, unregisterTime);
+                    
+                    // Remove complete
+                    await time.increaseTo(unregisterTime);
+                    await checkRemoveNodeComplete(user, owner);
+    
+                    // Success to remove datacenter
+                    await expect(
+                        contract.removeDataCenter(datacenterIds[1])
+                    ).to.emit(contract, "RemoveDataCenter").withArgs(datacenterIds[1], anyValue);
+                })
             })
 
-            it("Success: Fresh datacenters that has no storage nodes added", async () => {
-                const tx = await contract.removeDataCenter(datacenterIds[0]);
+            describe("Remove by name", () => {
+                before(async () => {
+                    await currentSnapShot.restore();
+                })
 
-                await expect(tx).to.emit(contract, "RemoveDataCenter").withArgs(datacenterIds[0]);
-            })
-
-            it("Failed: Removed datacenterId", async () => {
-                await expect(
-                    contract.removeDataCenter(datacenterIds[0])
-                ).to.be.revertedWithCustomError(contract, "InvalidDataCenterId");
-            })
-
-            it("Failed: Has depending nodes", async () => {
-                storageNode.datacenterId = datacenterIds[1];
-
-                const decimal = await token.decimals()
-                const stakePerSlot = await contract.getStakePerSlot();
-                let tokenAmount = BigNumber.from(10);
-                tokenAmount = tokenAmount.pow(decimal);
-                tokenAmount = tokenAmount.mul(BigNumber.from(storageNode.slotCount))
-                tokenAmount = tokenAmount.mul(stakePerSlot)
-                await token.approve(contract.address, tokenAmount.toString());
-
-                // Add storage node 
-                await checkAddNode(storageNode, user, trustedSigner, true);
-
-                // Failed to remove datacenter
-                await expect(contract.removeDataCenter(datacenterIds[1])).to.be.revertedWithCustomError(contract, "HasDependingNodes");
-            })
-
-            it("Success: After depending nodes are removed",async () => {
-                // Remove start
-                const blockTime = await time.latest();
-                const unregisterTime = blockTime + days(30);
-                await checkRemoveNodeStart(user, unregisterTime);
-                
-                // Remove complete
-                await time.increaseTo(unregisterTime);
-                await checkRemoveNodeComplete(user, owner);
-
-                // Success to remove datacenter
-                await expect(
-                    contract.removeDataCenter(datacenterIds[1])
-                ).to.emit(contract, "RemoveDataCenter").withArgs(datacenterIds[1]);
+                it("Failed: Invalid name", async () => {
+                    const invalidNames = ["Invalid1", "Unregistered"];
+    
+                    for (let i = 0; i < invalidNames.length; i++) {
+                        await expect(
+                            contract.removeDataCenterByName(invalidNames[i])
+                        ).to.be.revertedWithCustomError(contract, "InvalidDataCenterName").withArgs(invalidNames[i]);
+                    }
+                })
+    
+                it("Success: Fresh datacenters that has no storage nodes added", async () => {
+                    const tx = await contract.removeDataCenterByName(dataCenters[0].name);
+    
+                    await expect(tx).to.emit(contract, "RemoveDataCenter").withArgs(datacenterIds[0], dataCenters[0].name);
+                })
+    
+                it("Failed: Removed datacenter", async () => {
+                    await expect(
+                        contract.removeDataCenterByName(dataCenters[0].name)
+                    ).to.be.revertedWithCustomError(contract, "InvalidDataCenterName").withArgs(dataCenters[0].name);
+                })
+    
+                it("Failed: Has depending nodes", async () => {
+                    storageNode.datacenterId = datacenterIds[1];
+    
+                    const decimal = await token.decimals()
+                    const stakePerSlot = await contract.getStakePerSlot();
+                    let tokenAmount = BigNumber.from(10);
+                    tokenAmount = tokenAmount.pow(decimal);
+                    tokenAmount = tokenAmount.mul(BigNumber.from(storageNode.slotCount))
+                    tokenAmount = tokenAmount.mul(stakePerSlot)
+                    await token.approve(contract.address, tokenAmount.toString());
+    
+                    // Add storage node 
+                    await checkAddNode(storageNode, user, trustedSigner, true);
+    
+                    // Failed to remove datacenter
+                    await expect(contract.removeDataCenterByName(dataCenters[1].name)).to.be.revertedWithCustomError(contract, "HasDependingNodes");
+                })
+    
+                it("Success: After depending nodes are removed",async () => {
+                    // Remove start
+                    const blockTime = await time.latest();
+                    const unregisterTime = blockTime + days(30);
+                    await checkRemoveNodeStart(user, unregisterTime);
+                    
+                    // Remove complete
+                    await time.increaseTo(unregisterTime);
+                    await checkRemoveNodeComplete(user, owner);
+    
+                    // Success to remove datacenter
+                    await expect(
+                        contract.removeDataCenterByName(dataCenters[1].name)
+                    ).to.emit(contract, "RemoveDataCenter").withArgs(datacenterIds[1], dataCenters[1].name);
+                })
             })
         })
     });
@@ -2206,6 +2303,5 @@ describe("Verida StorageNodeRegistry", function () {
                 })
             })
         })
-    });
-  
+    });  
 });

@@ -81,7 +81,7 @@ interface IStorageNodeRegistry {
     }
 
     /**
-     * @notice Emitted when a datacenter added
+     * @notice Emitted when a datacenter is added
      * @param datacenterId Added datacenterId
      * @param name Datacenter name
      * @param countryCode Unique two-character string code
@@ -99,10 +99,14 @@ interface IStorageNodeRegistry {
     );
 
     /**
-     * @notice Emitted when a datacenter removed
-     * @param datacenterId datacenterId to be removed
+     * @notice Emitted when a datacenter is removed
+     * @param datacenterId Removed datacenterId
+     * @param name Removed datacenter name
      */
-    event RemoveDataCenter(uint indexed datacenterId);
+    event RemoveDataCenter(
+        uint indexed datacenterId,
+        string indexed name
+    );
 
     /**
      * @notice Emitted when a storage node added
@@ -243,6 +247,22 @@ interface IStorageNodeRegistry {
     function removeDataCenter(uint datacenterId) external payable;
 
     /**
+     * @notice Remove a data center by name
+     * @dev Only the contract owner can call this function.
+     *  Will only remove the data center if there are no storage nodes using this datacenterId
+     * @param name datacenter name to be removed
+     */
+    function removeDataCenterByName(string calldata name) external payable;
+
+    /**
+     * @notice Check whether data center name is existing
+     * @dev Return `false` for removed data center names
+     * @param name datacenter name to be checked
+     * @return bool `true` if data center name is existing, otherwise `false`
+     */
+    function isDataCenterNameRegistered(string calldata name) external view returns(bool);
+
+    /**
      * @notice Return an array of `Datacenter` structs for given array of datacenterIds
      * @param ids Array of datacenterIds
      * @return Datacenter[] Array of `Datacenter` structs 
@@ -252,9 +272,10 @@ interface IStorageNodeRegistry {
     /**
      * @notice Return a data center with the given name
      * @dev Data center names are unique in the contract
-     * @param name Name of the data center
+     * @param names Name list of the data centers
+     * @return Datacenter[] Array of `Datacenter` structs 
      */
-    function getDataCenterByName(string calldata name) external view returns(Datacenter memory);
+    function getDataCentersByName(string[] calldata names) external view returns(Datacenter[] memory);
 
     /**
      * @notice Return an array of `Datacenter` structs for country code

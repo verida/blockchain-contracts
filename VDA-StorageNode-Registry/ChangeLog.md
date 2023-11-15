@@ -1,3 +1,9 @@
+2023-11-15 (V0.2.4)
+-------------------
+- Added `removeDataCenterByName()` and `isDataCenterNameRegistered()` functions
+- Updated `getDatacenterByName()` to `getDataCentersByName()`
+- Added test code for above functions
+
 2023-11-09 (V0.2.3)
 -------------------
 - Added `getDatacenterByName()` function
