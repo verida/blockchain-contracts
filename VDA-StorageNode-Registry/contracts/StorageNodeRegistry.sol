@@ -126,7 +126,7 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
     /**
      * @notice Denominator for latitude & longitude values
      */
-    uint8 public constant DECIMAL = 8;
+    uint8 public constant DECIMAL = 9;
 
     /**
      * @notice Gap for later use

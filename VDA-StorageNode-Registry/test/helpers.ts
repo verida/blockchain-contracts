@@ -4,7 +4,7 @@ import { BigNumberish, Wallet } from "ethers";
 import { Keyring } from "@verida/keyring";
 import EncryptionUtils from "@verida/encryption-utils";
 
-const CONTRACT_DECIMAL = 8;
+const CONTRACT_DECIMAL = 9;
 
 export function createDatacenterStruct(
     name: string,
