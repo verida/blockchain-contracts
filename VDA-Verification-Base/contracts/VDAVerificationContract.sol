@@ -81,7 +81,7 @@ contract VDAVerificationContract is OwnableUpgradeable {
      * @param didAddress DID address to be checked
      * @return bool true if registered, otherwise false
      */
-    function isTrustedSigner(address didAddress) external virtual payable onlyOwner returns(bool) {
+    function isTrustedSigner(address didAddress) external view virtual onlyOwner returns(bool) {
         return _trustedSigners.contains(didAddress);
     }
 
