@@ -1,7 +1,7 @@
 {
   "name": "@verida/storage-node-registry",
   "description": "Register storage node operator.",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "author": "Alex J <alex@verida.io>m trust2ray@gmail.com",
   "license": "MIT",
   "repository": {

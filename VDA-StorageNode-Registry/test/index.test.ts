@@ -686,7 +686,7 @@ describe("Verida StorageNodeRegistry", function () {
 
         const trustedSigner = Wallet.createRandom();
         const user = Wallet.createRandom();
-
+        
         const storageNode = createStorageNodeInputStruct(
             user.address, 
             "https://1",
@@ -1450,26 +1450,65 @@ describe("Verida StorageNodeRegistry", function () {
             let CUR_STAKE_PER_SLOT: BigNumber;
 
             before(async () => {
-                await setNodeAddedStatus();
-
                 CUR_STAKE_PER_SLOT = await contract.getStakePerSlot();
-
-                expect(await contract.excessTokenAmount(user.address)).to.be.eq(0);
             })
 
-            it("Positive value",async () => {
-                // Decrease STAKE_PER_SLOT
-                await contract.updateStakePerSlot(CUR_STAKE_PER_SLOT.sub(1));
+            describe("Test when staking not required", () => {
+                before(async () => {
+                    await snapShotWithDatacenters.restore();
+                    await contract.addTrustedSigner(trustedSigner.address);
+                    
+                    expect(await contract.isStakingRequired()).to.be.eq(false);
+                    await checkAddNode(storageNode, user, trustedSigner, true);
 
-                expect(await contract.excessTokenAmount(user.address)).to.greaterThan(0);
+                    expect(await contract.excessTokenAmount(user.address)).to.be.eq(0); 
+                })
+
+                it("No changes by STAKE_PER_SLOT change",async () => {
+                    // Decrease STAKE_PER_SLOT
+                    await contract.updateStakePerSlot(CUR_STAKE_PER_SLOT.sub(1));
+                    expect(await contract.excessTokenAmount(user.address)).to.be.eq(0);
+
+                    // Increase STAKE_PER_SLOT
+                    await contract.updateStakePerSlot(CUR_STAKE_PER_SLOT.add(1));
+                    expect(await contract.excessTokenAmount(user.address)).to.be.eq(0);
+                })
+
+                it("Negative value by set staking required",async () => {
+                    await contract.setStakingRequired(true);
+                    expect(await contract.excessTokenAmount(user.address)).to.lessThan(0);  
+                })
             })
 
-            it("Negative value",async () => {
-                // Increase STAKE_PER_SLOT
-                await contract.updateStakePerSlot(CUR_STAKE_PER_SLOT.add(1));
+            describe("Test when staking required", () => {
+                before(async () => {
+                    await setNodeAddedStatus();
+                    expect(await contract.excessTokenAmount(user.address)).to.be.eq(0); 
+                })
 
-                expect(await contract.excessTokenAmount(user.address)).to.lessThan(0);
-            })
+                it("Positive value by set staking not required",async () => {
+                    expect(await contract.excessTokenAmount(user.address)).to.be.eq(0);
+
+                    await contract.setStakingRequired(false);
+                    expect(await contract.excessTokenAmount(user.address)).to.greaterThan(0);
+
+                    // Restore staking required
+                    await contract.setStakingRequired(true);
+                })
+
+                it("Positive value by decreasing STAKE_PER_SLOT",async () => {
+                    // Decrease STAKE_PER_SLOT
+                    await contract.updateStakePerSlot(CUR_STAKE_PER_SLOT.sub(1));
+                    expect(await contract.excessTokenAmount(user.address)).to.greaterThan(0);
+                })
+    
+                it("Negative value by increasing STAKE_PER_SLOT",async () => {
+                    // Increase STAKE_PER_SLOT
+                    await contract.updateStakePerSlot(CUR_STAKE_PER_SLOT.add(1));
+    
+                    expect(await contract.excessTokenAmount(user.address)).to.lessThan(0);
+                })
+            })            
         })
 
         describe("Withdraw", () => {
@@ -1722,6 +1761,10 @@ describe("Verida StorageNodeRegistry", function () {
                     it("Failed : Invalid node DID",async () => {
                         const randomNodeDID = Wallet.createRandom().address;
                         await checkLogNodeIssue(requestor, logger, randomNodeDID, 10, false, false, "InvalidDIDAddress");
+                    })
+
+                    it("Failed : DID equals to node address",async () => {
+                        await checkLogNodeIssue(requestor, logger, logger.address, 10, false, false, "InvalidDIDAddress");
                     })
     
                     it("Failed : Token not approved or insufficient",async () => {

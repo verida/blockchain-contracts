@@ -901,7 +901,7 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
         uint totalAmount;
 
         uint nodeId = _didNodeId[didAddress];
-        if (nodeId != 0) {
+        if (nodeId != 0 && _slotInfo.isStakingRequired) {
             totalAmount = requiredTokenAmount(_nodeMap[nodeId].slotCount);    
         }
         
@@ -1057,6 +1057,11 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
             // Check whether nodeDID is registered
             uint nodeId = _didNodeId[nodeAddress];
             if (nodeId == 0) {
+                revert InvalidDIDAddress();
+            }
+
+            // Check whether did equals to node address
+            if (didAddress == nodeAddress) {
                 revert InvalidDIDAddress();
             }
 

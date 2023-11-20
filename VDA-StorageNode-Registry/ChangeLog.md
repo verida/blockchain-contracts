@@ -1,3 +1,9 @@
+2023-11-20 (V0.2.5)
+-------------------
+- Update `logNodeIssue()` function to reject when the `didAddress` and `nodeAddress` are the same
+- Update `excessTokenAmount()` function to consider staking required flag
+- Update test code
+
 2023-11-15 (V0.2.4)
 -------------------
 - Added `removeDataCenterByName()` and `isDataCenterNameRegistered()` functions
