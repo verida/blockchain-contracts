@@ -102,6 +102,17 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
     mapping (address => DIDLogInformation) internal _didLogs;
 
     /**
+     * @notice Set of reason code
+     * @dev This contains the disabled reason code too
+     */
+    EnumerableSetUpgradeable.UintSet internal _reasonCodeSet;
+
+    /**
+     * @notice Mapping of reason code => code information
+     */
+    mapping(uint => LogReasonCode) internal _reasonCodeInfo;
+
+    /**
      * @notice datacenterId counter
      * @dev starts from 1
      */
@@ -145,7 +156,7 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
     }
 
     /**
-     * @notice Additional information related to staking slots
+     * @notice Struct for internal variables
      * @dev Used internally inside the contract
      * @param isStakingRequired true if staking required, otherwise false
      * @param STAKE_PER_SLOT The number of tokens required to stake for one storage slot.
@@ -153,6 +164,8 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
      * @param MAX_SLOTS The maximum value of `STAKE_PER_SLOT`
      * @param NODE_ISSUE_FEE The number of VDA tokens that must be deposited when recording an issue against a storage node. `default=5`
      * @param SAME_NODE_LOG_DURATION Time after which log available for same node
+     * @param totalIssueFee Total amount of tokens that are staked by loggins issues
+     * @param activeReasonCodeCount Total count of active reason codes.
      */
     struct SlotInfo {
         bool isStakingRequired;
@@ -165,6 +178,8 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
         uint LOG_LIMIT_PER_DAY;
 
         uint totalIssueFee;
+
+        uint activeReasonCodeCount;
     }
 
     /**
@@ -1041,6 +1056,96 @@ contract StorageNodeRegistry is IStorageNodeRegistry, VDAVerificationContract {
         _slotInfo.LOG_LIMIT_PER_DAY = value;
 
         emit UpdateLogLimitPerDay(orgVal, value);
+    }
+
+    /**
+     * @dev see { IStorageNodeRegistry }
+     */
+    function addReasonCode(uint reasonCode, string calldata description) external payable virtual override onlyOwner {
+        if (_reasonCodeSet.contains(reasonCode)) {
+            revert InvalidReasonCode();
+        }
+
+        LogReasonCode storage codeInfo = _reasonCodeInfo[reasonCode];
+        codeInfo.active = true;
+        codeInfo.description = description;
+
+        unchecked {
+            ++_slotInfo.activeReasonCodeCount;    
+        }
+
+        emit AddReasonCode(reasonCode, description);
+    }
+
+    /**
+     * @dev see { IStorageNodeRegistry }
+     */
+    function disableReasonCode(uint reasonCode) external payable virtual override onlyOwner {
+        LogReasonCode storage codeInfo = _reasonCodeInfo[reasonCode];
+        if (codeInfo.active == false) {
+            revert InvalidReasonCode();
+        }
+
+        codeInfo.active = false;
+
+        unchecked {
+            --_slotInfo.activeReasonCodeCount;    
+        }
+        
+        emit DisableReasonCodde(reasonCode);
+    }
+
+    /**
+     * @dev see { IStorageNodeRegistry }
+     */
+    function updateReasonCodeDescription(uint reasonCode, string calldata description) external payable virtual override onlyOwner {
+        LogReasonCode storage codeInfo = _reasonCodeInfo[reasonCode];
+        if (codeInfo.active == false) {
+            revert InvalidReasonCode();
+        }
+
+        string memory orgDesc = codeInfo.description;
+        codeInfo.description = description;
+
+        emit UpdateReasonCodeDescription(reasonCode, orgDesc, description);
+    }
+
+    /**
+     * @dev see { IStorageNodeRegistry }
+     */
+    function getReasonCodeDescription(uint reasonCode) external view virtual override returns(string memory) {
+        if (_reasonCodeSet.contains(reasonCode)) {
+            revert InvalidReasonCode();
+        }
+
+        LogReasonCode storage codeInfo = _reasonCodeInfo[reasonCode];
+        return codeInfo.description;
+    }
+
+    /**
+     * @dev see { IStorageNodeRegistry }
+     */
+    function getReasonCodeList() external view virtual override returns(LogReasonCodeOutput[] memory) {
+        uint length = _slotInfo.activeReasonCodeCount;
+        LogReasonCodeOutput[] memory outList = new LogReasonCodeOutput[](length);
+        uint codeCount = _reasonCodeSet.length();
+
+        uint index;
+        for (uint i; i < codeCount;) {
+            uint code = _reasonCodeSet.at(i);
+            if (_reasonCodeInfo[code].active) {
+                outList[index].reasonCode = code;
+                outList[index].description = _reasonCodeInfo[code].description;
+                unchecked {
+                    ++index;
+                }
+            }
+            unchecked {
+                ++i;
+            }
+        }
+
+        return outList;
     }
 
     /**

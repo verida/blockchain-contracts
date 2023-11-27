@@ -81,6 +81,27 @@ interface IStorageNodeRegistry {
     }
 
     /**
+     * @notice Struct for reason code that used in logging node issues
+     * @param description Description of reason code
+     * @param active Flag whether this reason code is active
+     */
+    struct LogReasonCode {
+        string description;
+        bool active;
+    }
+
+    /**
+     * @notice Output of Reasoncode
+     * @dev Return type of `getReasonCodeList()` function
+     * @param reasonCode Reason code
+     * @param description description of reason code
+     */
+    struct LogReasonCodeOutput {
+        uint reasonCode;
+        string description;
+    }
+
+    /**
      * @notice Emitted when a datacenter is added
      * @param datacenterId Added datacenterId
      * @param name Datacenter name
@@ -204,6 +225,27 @@ interface IStorageNodeRegistry {
      * @param newVal Updated value
      */
     event UpdateLogLimitPerDay(uint orgVal, uint newVal);
+
+    /**
+     * @notice Emitted when a reason code is added
+     * @param reasonCode Code that is newly added
+     * @param description Description of added reason code
+     */
+    event AddReasonCode(uint indexed reasonCode, string description);
+
+    /**
+     * @notice Emitted when a reason code is disabled
+     * @param reasonCode Code that is disabled
+     */
+    event DisableReasonCodde(uint indexed reasonCode);
+
+    /**
+     * @notice Emitted when the description of a reason code is updated
+     * @param reasonCode Code that is updated
+     * @param from Original description
+     * @param to Updated description
+     */
+    event UpdateReasonCodeDescription(uint indexed reasonCode, string from, string to);
 
     /**
      * @notice Emitted when user logged an node issue by `logNodeIssue()` function
@@ -500,6 +542,41 @@ interface IStorageNodeRegistry {
      * @param value Log limit count per day
      */
     function updateLogLimitPerDay(uint value) external payable;
+
+    /**
+     * @notice Add a reason code
+     * @dev Only the contract owner call this function
+     * @param reasonCode Node issue reason code to be added
+     * @param description Description of the issue
+     */
+    function addReasonCode(uint reasonCode, string calldata description) external payable;
+    
+    /**
+     * @notice Disable a reason code
+     * @dev Only the contract owner call this function
+     * @param reasonCode Node issue reason code to be disabled
+     */
+    function disableReasonCode(uint reasonCode) external payable;
+
+    /**
+     * @notice Update the description of existing reason code
+     * @dev Only the contract owner call this function
+     * @param reasonCode Node issue reason code to be updated
+     */
+    function updateReasonCodeDescription(uint reasonCode, string calldata description) external payable;
+
+    /**
+     * @notice Get the description of existing reason code
+     * @dev This function returns the description of disabled reason code too
+     * @param reasonCode Node issue reason code
+     */
+    function getReasonCodeDescription(uint reasonCode) external view returns(string memory);
+
+    /**
+     * @notice Return the full list of existing reason codes
+     * @return LogReasonCodeOutput[] Array of reason code
+     */
+    function getReasonCodeList() external view returns(LogReasonCodeOutput[] memory);
 
     /**
      * @notice Log an issue
