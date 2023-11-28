@@ -1,34 +1,22 @@
-import hre, { ethers, upgrades } from "hardhat";
-import { saveDeployedAddress } from "./utils";
+import { ethers } from "hardhat";
 
 async function main() {
-  const vdaTokenAddress = '0x<Vda token address>';
-  // Mainnet token
-  // const vdaTokenAddress = '0x64CE49E8249b5a8456CC8759A993f7B24854e199';
+  const currentTimestampInSeconds = Math.round(Date.now() / 1000);
+  const unlockTime = currentTimestampInSeconds + 60;
 
-  const contractFactory = await ethers.getContractFactory("StorageNodeRegistry");
-  const contract = await upgrades.deployProxy(
-    contractFactory,
-    [vdaTokenAddress],
-    {
-      initializer: "initialize",
-      timeout: 0,
-      pollingInterval: 5000,
-    }
+  const lockedAmount = ethers.parseEther("0.001");
+
+  const lock = await ethers.deployContract("Lock", [unlockTime], {
+    value: lockedAmount,
+  });
+
+  await lock.waitForDeployment();
+
+  console.log(
+    `Lock with ${ethers.formatEther(
+      lockedAmount
+    )}ETH and unlock timestamp ${unlockTime} deployed to ${lock.target}`
   );
-
-  
-
-  await contract.deployed();
-
-  const proxyAddr = contract.address;
-  const adminAddr = await hre.upgrades.erc1967.getAdminAddress(proxyAddr);
-  const implAddr = await hre.upgrades.erc1967.getImplementationAddress(
-    proxyAddr
-  );
-
-  await saveDeployedAddress(hre.network.name, proxyAddr, adminAddr, implAddr);
-  console.log("Contract deployed to: ", contract.address);
 }
 
 // We recommend this pattern to be able to use async/await everywhere
