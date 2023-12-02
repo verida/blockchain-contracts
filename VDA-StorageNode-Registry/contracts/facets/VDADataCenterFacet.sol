@@ -7,6 +7,8 @@ import { LibDataCenter } from "../libraries/LibDataCenter.sol";
 import { LibUtils } from "../libraries/LibUtils.sol";
 import { IDataCenter } from "../interfaces/IDataCenter.sol";
 
+// import "hardhat/console.sol";
+
 error InvalidDataCenterName(string name);
 error HasDependingNodes();
 
@@ -49,9 +51,8 @@ contract VDADataCenterFacet is IDataCenter {
         LibUtils.validateGeoPosition(data.lat, data.long);
     }
 
-    ++ds._datacenterIdCounter;
-    uint datacenterId = ds._datacenterIdCounter;
-
+    uint datacenterId = ++ds._datacenterIdCounter;
+    
     copyDataCenterInput(datacenterId, data, ds._dataCenterMap[datacenterId]);
     ds._dataCenterNameToID[data.name] = datacenterId;
     

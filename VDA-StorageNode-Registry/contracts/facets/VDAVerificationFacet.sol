@@ -62,16 +62,5 @@ contract VDAVerificationFacet {
     LibDiamond.enforceIsContractOwner();
     LibVerification.DiamondStorage storage ds = LibVerification.diamondStorage();
     return ds.trustedSigners.contains(didAddress);
-  }
-
-  /**
-    * @notice Get a nonce for DID
-    * @dev This is used to sign the message. It's for against replay-attack of the transactions
-    * @param did DID for nonce
-    * @return uint Current nonce of the DID
-    */
-  function nonce(address did) external view  virtual returns(uint) {
-    LibVerification.DiamondStorage storage ds = LibVerification.diamondStorage();
-    return ds.nonce[did];
-  }
+  }  
 }
