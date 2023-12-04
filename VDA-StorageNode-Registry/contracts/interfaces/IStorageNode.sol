@@ -147,7 +147,7 @@ interface IStorageNode {
     * @notice Emitted when a reason code is disabled
     * @param reasonCode Code that is disabled
     */
-  event DisableReasonCodde(uint indexed reasonCode);
+  event DisableReasonCode(uint indexed reasonCode);
 
   /**
     * @notice Emitted when the description of a reason code is updated

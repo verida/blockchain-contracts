@@ -34,7 +34,7 @@ contract DiamondInit {
         ds.supportedInterfaces[type(IERC173).interfaceId] = true;
 
         // Initialize StorageNode data
-        LibStorageNode.DiamondStorage storage ss = LibStorageNode.diamondStorage();
+        LibStorageNode.NodeStorage storage ss = LibStorageNode.nodeStorage();
         ss.vdaTokenAddress = tokenAddress;
         ss.STAKE_PER_SLOT = 3 * (10 ** ERC20(tokenAddress).decimals());
         ss.MIN_SLOTS = 20000;

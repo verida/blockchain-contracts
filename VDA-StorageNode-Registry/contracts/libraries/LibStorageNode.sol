@@ -4,8 +4,12 @@ pragma solidity ^0.8.18;
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableMap.sol";
 
+// import "hardhat/console.sol";
+
 library LibStorageNode {
-    bytes32 constant DIAMOND_STORAGE_POSITION = keccak256("vda.storagenode.node.storage");
+    bytes32 constant NODE_STORAGE_POSITION = keccak256("vda.storagenode.node.storage");
+
+    using EnumerableSet for EnumerableSet.UintSet;
 
     /**
      * @notice Struct representing a storage node
@@ -88,7 +92,7 @@ library LibStorageNode {
      * @param totalIssueFee Total amount of tokens that are staked by loggins issues
      * @param isStakingRequired true if staking required, otherwise false
      */
-    struct DiamondStorage {
+    struct NodeStorage {
         mapping (uint => StorageNode) _nodeMap;
         mapping (uint => uint) _nodeUnregisterTime;
         mapping (address => uint) _didNodeId;
@@ -123,15 +127,18 @@ library LibStorageNode {
         address vdaTokenAddress;
     }
 
-    function diamondStorage() internal pure returns (DiamondStorage storage ds) {
-        bytes32 position = DIAMOND_STORAGE_POSITION;
+    function nodeStorage() internal pure returns (NodeStorage storage ds) {
+        bytes32 position = NODE_STORAGE_POSITION;
         assembly {
             ds.slot := position
         }
     }
 
     function addReasonCode(uint reasonCode, string memory description) internal {
-        DiamondStorage storage ds = diamondStorage();
+        NodeStorage storage ds = nodeStorage();
+
+        ds._reasonCodeSet.add(reasonCode);
+
         LogReasonCode storage codeInfo = ds._reasonCodeInfo[reasonCode];
         codeInfo.active = true;
         codeInfo.description = description;

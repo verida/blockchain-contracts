@@ -36,7 +36,7 @@ contract VDADataCenterFacet is IDataCenter {
     */
   function addDataCenter(DatacenterInput calldata data) external virtual override returns(uint) {
     LibDiamond.enforceIsContractOwner();
-    LibDataCenter.DiamondStorage storage ds = LibDataCenter.diamondStorage();
+    LibDataCenter.DataCenterStorage storage ds = LibDataCenter.dataCenterStorage();
     {
         if (bytes(data.name).length == 0 || !LibUtils.isLowerCase(data.name)) {
             revert InvalidDataCenterName(data.name);
@@ -71,7 +71,7 @@ contract VDADataCenterFacet is IDataCenter {
     * @param datacenterId Datacenter id
     */
   function _removeDataCenter(uint datacenterId) internal virtual {
-    LibDataCenter.DiamondStorage storage ds = LibDataCenter.diamondStorage();
+    LibDataCenter.DataCenterStorage storage ds = LibDataCenter.dataCenterStorage();
     if (ds._datacenterInfo[datacenterId].nodeCount != 0) {
         revert HasDependingNodes();
     }
@@ -102,7 +102,7 @@ contract VDADataCenterFacet is IDataCenter {
     */
   function removeDataCenterByName(string calldata name) external virtual override {
     LibDiamond.enforceIsContractOwner();
-    LibDataCenter.DiamondStorage storage ds = LibDataCenter.diamondStorage();
+    LibDataCenter.DataCenterStorage storage ds = LibDataCenter.dataCenterStorage();
     uint id = ds._dataCenterNameToID[name];
     if (id == 0) {
         revert InvalidDataCenterName(name);

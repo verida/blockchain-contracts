@@ -12,6 +12,8 @@ import { LibVerification } from "../libraries/LibVerification.sol";
 import { LibUtils } from "../libraries/LibUtils.sol";
 import { IStorageNode } from "../interfaces/IStorageNode.sol"; 
 
+// import "hardhat/console.sol";
+
 error InvalidDIDAddress();
 error InvalidEndpointUri();
 error InvalidUnregisterTime();
@@ -41,7 +43,7 @@ contract VDAStorageNodeFacet is IStorageNode {
     * @param nodeInfo Node information to store
     */
   function storeNodeInfo(StorageNodeInput memory nodeInfo) internal virtual {
-    LibStorageNode.DiamondStorage storage ds = LibStorageNode.diamondStorage();
+    LibStorageNode.NodeStorage storage ds = LibStorageNode.nodeStorage();
     {
         uint nodeId = ++ds._nodeIdCounter;
         LibStorageNode.StorageNode storage node = ds._nodeMap[nodeId];
@@ -84,7 +86,7 @@ contract VDAStorageNodeFacet is IStorageNode {
     * @return uint Required token amount
     */
   function requiredTokenAmount(uint numberSlot) internal view virtual returns(uint) {
-      return numberSlot * LibStorageNode.diamondStorage().STAKE_PER_SLOT;
+      return numberSlot * LibStorageNode.nodeStorage().STAKE_PER_SLOT;
   }
 
   /**
@@ -96,7 +98,7 @@ contract VDAStorageNodeFacet is IStorageNode {
       bytes calldata requestProof,
       bytes calldata authSignature
   ) external virtual override {
-    LibStorageNode.DiamondStorage storage ds = LibStorageNode.diamondStorage();
+    LibStorageNode.NodeStorage storage ds = LibStorageNode.nodeStorage();
     {
       // Check whether endpointUri is empty
       if (bytes(nodeInfo.endpointUri).length == 0) {
@@ -164,7 +166,7 @@ contract VDAStorageNodeFacet is IStorageNode {
       bytes calldata requestProof
   ) external virtual override {
 
-    LibStorageNode.DiamondStorage storage ds = LibStorageNode.diamondStorage();
+    LibStorageNode.NodeStorage storage ds = LibStorageNode.nodeStorage();
     uint nodeId = ds._didNodeId[didAddress];
     {
       // Check whether didAddress was registered before
@@ -194,7 +196,7 @@ contract VDAStorageNodeFacet is IStorageNode {
       bytes calldata requestProof
   ) external virtual override {
 
-    LibStorageNode.DiamondStorage storage ds = LibStorageNode.diamondStorage();
+    LibStorageNode.NodeStorage storage ds = LibStorageNode.nodeStorage();
     uint nodeId = ds._didNodeId[didAddress];
     {
       if (nodeId == 0) {
@@ -240,7 +242,7 @@ contract VDAStorageNodeFacet is IStorageNode {
     */
   function getNodeWithStatus(uint nodeId) internal view virtual returns(LibStorageNode.StorageNode memory, string memory) {
     string memory status = "active";
-    LibStorageNode.DiamondStorage storage ds = LibStorageNode.diamondStorage();
+    LibStorageNode.NodeStorage storage ds = LibStorageNode.nodeStorage();
     if (ds._nodeUnregisterTime[nodeId] != 0) {
         status = "removed";
     }
@@ -252,7 +254,7 @@ contract VDAStorageNodeFacet is IStorageNode {
     * @dev see { IStorageNode }
     */
   function getNodeByAddress(address didAddress) external view virtual override returns(LibStorageNode.StorageNode memory, string memory) {
-    uint nodeId = LibStorageNode.diamondStorage()._didNodeId[didAddress];
+    uint nodeId = LibStorageNode.nodeStorage()._didNodeId[didAddress];
     if (nodeId == 0) {
         revert InvalidDIDAddress();
     }
@@ -264,7 +266,7 @@ contract VDAStorageNodeFacet is IStorageNode {
     * @dev see { IStorageNode }
     */
   function getNodeByEndpoint(string calldata endpointUri) external view virtual override returns(LibStorageNode.StorageNode memory, string memory) {
-    uint nodeId = LibStorageNode.diamondStorage()._endpointNodeId[endpointUri];
+    uint nodeId = LibStorageNode.nodeStorage()._endpointNodeId[endpointUri];
 
     if (nodeId == 0) {
         revert InvalidEndpointUri();
@@ -280,7 +282,7 @@ contract VDAStorageNodeFacet is IStorageNode {
     * @return StorageNode[] Array of active storage nodes
     */
   function filterActiveStorageNodes(EnumerableSet.UintSet storage ids) internal view virtual returns(LibStorageNode.StorageNode[] memory) {
-    LibStorageNode.DiamondStorage storage ds = LibStorageNode.diamondStorage();
+    LibStorageNode.NodeStorage storage ds = LibStorageNode.nodeStorage();
 
     uint count = ids.length();
     uint removedCount;
@@ -317,21 +319,21 @@ contract VDAStorageNodeFacet is IStorageNode {
     * @dev see { IStorageNode }
     */
   function getNodesByCountry(string calldata countryCode) external view virtual override returns(LibStorageNode.StorageNode[] memory) {
-    return filterActiveStorageNodes(LibStorageNode.diamondStorage()._countryNodeIds[countryCode]);
+    return filterActiveStorageNodes(LibStorageNode.nodeStorage()._countryNodeIds[countryCode]);
   }
 
   /**
     * @dev see { IStorageNode }
     */
   function getNodesByRegion(string calldata regionCode) external view virtual override returns(LibStorageNode.StorageNode[] memory) {
-    return filterActiveStorageNodes(LibStorageNode.diamondStorage()._regionNodeIds[regionCode]);
+    return filterActiveStorageNodes(LibStorageNode.nodeStorage()._regionNodeIds[regionCode]);
   }
 
   /**
     * @dev see { IStorageNode }
     */
   function isStakingRequired() external view virtual override returns(bool) {
-    return LibStorageNode.diamondStorage().isStakingRequired;
+    return LibStorageNode.nodeStorage().isStakingRequired;
   }
 
   /**
@@ -339,7 +341,7 @@ contract VDAStorageNodeFacet is IStorageNode {
     */
   function setStakingRequired(bool isRequired) external virtual override {
     LibDiamond.enforceIsContractOwner();
-    LibStorageNode.DiamondStorage storage ds = LibStorageNode.diamondStorage();
+    LibStorageNode.NodeStorage storage ds = LibStorageNode.nodeStorage();
     if (isRequired == ds.isStakingRequired) {
         revert InvalidValue();
     }
@@ -352,7 +354,7 @@ contract VDAStorageNodeFacet is IStorageNode {
     * @dev see { IStorageNode }
     */
   function getStakePerSlot() external view virtual override returns(uint) {
-      return LibStorageNode.diamondStorage().STAKE_PER_SLOT;
+      return LibStorageNode.nodeStorage().STAKE_PER_SLOT;
   }
 
   /**
@@ -360,7 +362,7 @@ contract VDAStorageNodeFacet is IStorageNode {
     */
   function updateStakePerSlot(uint newVal) external virtual override {
     LibDiamond.enforceIsContractOwner();
-    LibStorageNode.DiamondStorage storage ds = LibStorageNode.diamondStorage();
+    LibStorageNode.NodeStorage storage ds = LibStorageNode.nodeStorage();
     if (newVal == 0 || newVal == ds.STAKE_PER_SLOT) {
         revert InvalidValue();
     }
@@ -373,7 +375,7 @@ contract VDAStorageNodeFacet is IStorageNode {
     * @dev see { IStorageNode }
     */
   function getSlotCountRange() external view virtual override returns(uint, uint) {
-    LibStorageNode.DiamondStorage storage ds = LibStorageNode.diamondStorage();
+    LibStorageNode.NodeStorage storage ds = LibStorageNode.nodeStorage();
     return (ds.MIN_SLOTS, ds.MAX_SLOTS);
   }
 
@@ -382,7 +384,7 @@ contract VDAStorageNodeFacet is IStorageNode {
     */
   function updateMinSlotCount(uint minSlots) external virtual override {
     LibDiamond.enforceIsContractOwner();
-    LibStorageNode.DiamondStorage storage ds = LibStorageNode.diamondStorage();
+    LibStorageNode.NodeStorage storage ds = LibStorageNode.nodeStorage();
     if (minSlots == 0 || minSlots == ds.MIN_SLOTS || minSlots > ds.MAX_SLOTS) {
         revert InvalidValue();
     }
@@ -396,7 +398,7 @@ contract VDAStorageNodeFacet is IStorageNode {
     */
   function updateMaxSlotCount(uint maxSlots) external virtual override {
     LibDiamond.enforceIsContractOwner();
-    LibStorageNode.DiamondStorage storage ds = LibStorageNode.diamondStorage();
+    LibStorageNode.NodeStorage storage ds = LibStorageNode.nodeStorage();
     if (maxSlots == 0 || maxSlots == ds.MAX_SLOTS || maxSlots < ds.MIN_SLOTS) {
         revert InvalidValue();
     }
@@ -409,7 +411,7 @@ contract VDAStorageNodeFacet is IStorageNode {
     * @dev see { IStorageNodeRegistry }
     */
   function getBalance(address didAddress) external view virtual override returns(uint) {
-      return LibStorageNode.diamondStorage()._stakedTokenAmount[didAddress];
+      return LibStorageNode.nodeStorage()._stakedTokenAmount[didAddress];
   }
 
   /**
@@ -419,7 +421,7 @@ contract VDAStorageNodeFacet is IStorageNode {
     * @return uint Return negative value if staked amount is less than the required amount
     */
   function getExcessTokenAmount(address didAddress) internal view virtual returns(int) {
-    LibStorageNode.DiamondStorage storage ds = LibStorageNode.diamondStorage();
+    LibStorageNode.NodeStorage storage ds = LibStorageNode.nodeStorage();
     uint totalAmount;
     uint nodeId = ds._didNodeId[didAddress];
     if (nodeId != 0 && ds.isStakingRequired) {
@@ -450,7 +452,7 @@ contract VDAStorageNodeFacet is IStorageNode {
         LibVerification.verifyRequest(didAddress, params, requestSignature, requestProof);
     }
 
-    LibStorageNode.DiamondStorage storage ds = LibStorageNode.diamondStorage();
+    LibStorageNode.NodeStorage storage ds = LibStorageNode.nodeStorage();
 
     int excessAmount = getExcessTokenAmount(didAddress);
 
@@ -473,7 +475,7 @@ contract VDAStorageNodeFacet is IStorageNode {
     * @dev see { IStorageNodeRegistry }
     */
   function depositToken(address didAddress, uint tokenAmount) external virtual override {
-      LibStorageNode.DiamondStorage storage ds = LibStorageNode.diamondStorage();
+      LibStorageNode.NodeStorage storage ds = LibStorageNode.nodeStorage();
       uint nodeId = ds._didNodeId[didAddress];
       if (nodeId == 0) {
           revert InvalidDIDAddress();
@@ -490,7 +492,7 @@ contract VDAStorageNodeFacet is IStorageNode {
     * @dev see { IStorageNodeRegistry }
     */
   function getNodeIssueFee() external view virtual override returns(uint){
-      return LibStorageNode.diamondStorage().NODE_ISSUE_FEE;
+      return LibStorageNode.nodeStorage().NODE_ISSUE_FEE;
   }
 
   /**
@@ -498,7 +500,7 @@ contract VDAStorageNodeFacet is IStorageNode {
     */
   function updateNodeIssueFee(uint value) external virtual override {
     LibDiamond.enforceIsContractOwner();
-    LibStorageNode.DiamondStorage storage ds = LibStorageNode.diamondStorage();
+    LibStorageNode.NodeStorage storage ds = LibStorageNode.nodeStorage();
 
     if (value == 0 || value == ds.NODE_ISSUE_FEE) {
         revert InvalidValue();
@@ -513,7 +515,7 @@ contract VDAStorageNodeFacet is IStorageNode {
     * @dev see { IStorageNodeRegistry }
     */
   function getTotalIssueFee() external view virtual override returns(uint) {
-    return LibStorageNode.diamondStorage().totalIssueFee;
+    return LibStorageNode.nodeStorage().totalIssueFee;
   }
 
   /**
@@ -521,7 +523,7 @@ contract VDAStorageNodeFacet is IStorageNode {
     */
   function withdrawIssueFee(address to, uint amount) external virtual override {
     LibDiamond.enforceIsContractOwner();
-    LibStorageNode.DiamondStorage storage ds = LibStorageNode.diamondStorage();
+    LibStorageNode.NodeStorage storage ds = LibStorageNode.nodeStorage();
     if (amount > ds.totalIssueFee) {
         revert InvalidValue();
     }
@@ -536,7 +538,7 @@ contract VDAStorageNodeFacet is IStorageNode {
     * @dev see { IStorageNodeRegistry }
     */
   function getSameNodeLogDuration() external view virtual override returns(uint) {
-      return LibStorageNode.diamondStorage().SAME_NODE_LOG_DURATION;
+      return LibStorageNode.nodeStorage().SAME_NODE_LOG_DURATION;
   }
 
   /**
@@ -544,7 +546,7 @@ contract VDAStorageNodeFacet is IStorageNode {
     */
   function updateSameNodeLogDuration(uint value) external virtual override {
       LibDiamond.enforceIsContractOwner();
-      LibStorageNode.DiamondStorage storage ds = LibStorageNode.diamondStorage();
+      LibStorageNode.NodeStorage storage ds = LibStorageNode.nodeStorage();
       if (value == 0 || value == ds.SAME_NODE_LOG_DURATION) {
           revert InvalidValue();
       }
@@ -558,7 +560,7 @@ contract VDAStorageNodeFacet is IStorageNode {
     * @dev see { IStorageNodeRegistry }
     */
   function getLogLimitPerDay() external view virtual override returns(uint) {
-      return LibStorageNode.diamondStorage().LOG_LIMIT_PER_DAY;
+      return LibStorageNode.nodeStorage().LOG_LIMIT_PER_DAY;
   }
 
   /**
@@ -566,7 +568,7 @@ contract VDAStorageNodeFacet is IStorageNode {
     */
   function updateLogLimitPerDay(uint value) external virtual override {
       LibDiamond.enforceIsContractOwner();
-      LibStorageNode.DiamondStorage storage ds = LibStorageNode.diamondStorage();
+      LibStorageNode.NodeStorage storage ds = LibStorageNode.nodeStorage();
       if (value == 0 || value == ds.LOG_LIMIT_PER_DAY) {
           revert InvalidValue();
       }
@@ -581,7 +583,7 @@ contract VDAStorageNodeFacet is IStorageNode {
     */
   function addReasonCode(uint reasonCode, string calldata description) external virtual override {
     LibDiamond.enforceIsContractOwner();
-    LibStorageNode.DiamondStorage storage ds = LibStorageNode.diamondStorage();
+    LibStorageNode.NodeStorage storage ds = LibStorageNode.nodeStorage();
     if (ds._reasonCodeSet.contains(reasonCode)) {
         revert InvalidReasonCode();
     }
@@ -594,7 +596,7 @@ contract VDAStorageNodeFacet is IStorageNode {
     */
   function disableReasonCode(uint reasonCode) external virtual override {
     LibDiamond.enforceIsContractOwner();
-    LibStorageNode.DiamondStorage storage ds = LibStorageNode.diamondStorage();
+    LibStorageNode.NodeStorage storage ds = LibStorageNode.nodeStorage();
     LibStorageNode.LogReasonCode storage codeInfo = ds._reasonCodeInfo[reasonCode];
     if (codeInfo.active == false) {
         revert InvalidReasonCode();
@@ -606,7 +608,7 @@ contract VDAStorageNodeFacet is IStorageNode {
         --ds.activeReasonCodeCount;    
     }
     
-    emit DisableReasonCodde(reasonCode);
+    emit DisableReasonCode(reasonCode);
   }
 
   /**
@@ -614,7 +616,7 @@ contract VDAStorageNodeFacet is IStorageNode {
     */
   function updateReasonCodeDescription(uint reasonCode, string calldata description) external virtual override {
     LibDiamond.enforceIsContractOwner();
-    LibStorageNode.LogReasonCode storage codeInfo = LibStorageNode.diamondStorage()._reasonCodeInfo[reasonCode];
+    LibStorageNode.LogReasonCode storage codeInfo = LibStorageNode.nodeStorage()._reasonCodeInfo[reasonCode];
     if (codeInfo.active == false) {
         revert InvalidReasonCode();
     }
@@ -629,8 +631,8 @@ contract VDAStorageNodeFacet is IStorageNode {
     * @dev see { IStorageNodeRegistry }
     */
   function getReasonCodeDescription(uint reasonCode) external view virtual override returns(string memory) {
-    LibStorageNode.DiamondStorage storage ds = LibStorageNode.diamondStorage();
-    if (ds._reasonCodeSet.contains(reasonCode)) {
+    LibStorageNode.NodeStorage storage ds = LibStorageNode.nodeStorage();
+    if (!ds._reasonCodeSet.contains(reasonCode)) {
         revert InvalidReasonCode();
     }
 
@@ -641,7 +643,7 @@ contract VDAStorageNodeFacet is IStorageNode {
     * @dev see { IStorageNodeRegistry }
     */
   function getReasonCodeList() external view virtual override returns(LogReasonCodeOutput[] memory) {
-    LibStorageNode.DiamondStorage storage ds = LibStorageNode.diamondStorage();
+    LibStorageNode.NodeStorage storage ds = LibStorageNode.nodeStorage();
 
     uint length = ds.activeReasonCodeCount;
     LogReasonCodeOutput[] memory outList = new LogReasonCodeOutput[](length);
@@ -675,7 +677,7 @@ contract VDAStorageNodeFacet is IStorageNode {
       bytes calldata requestSignature,
       bytes calldata requestProof
   ) external virtual override {
-    LibStorageNode.DiamondStorage storage ds = LibStorageNode.diamondStorage();
+    LibStorageNode.NodeStorage storage ds = LibStorageNode.nodeStorage();
     {
         // Check whether nodeDID is registered
         uint nodeId = ds._didNodeId[nodeAddress];
@@ -753,7 +755,7 @@ contract VDAStorageNodeFacet is IStorageNode {
       string calldata moreInfoUrl
   ) external virtual override {
     LibDiamond.enforceIsContractOwner();
-    LibStorageNode.DiamondStorage storage ds = LibStorageNode.diamondStorage();
+    LibStorageNode.NodeStorage storage ds = LibStorageNode.nodeStorage();
 
     if (amount == 0 || amount > ds._stakedTokenAmount[nodeDID]) {
         revert InvalidAmount();

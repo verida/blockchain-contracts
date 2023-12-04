@@ -10,7 +10,7 @@ library LibDataCenter {
 
     using EnumerableSet for EnumerableSet.UintSet;
 
-    bytes32 constant DIAMOND_STORAGE_POSITION = keccak256("vda.storagenode.datacenter.storage");
+    bytes32 constant DATACENTER_STORAGE_POSITION = keccak256("vda.storagenode.datacenter.storage");
 
     /**
      * @notice Struct representing a data center
@@ -49,7 +49,7 @@ library LibDataCenter {
      * @param _datacenterInfo Additional information for `datacenterId`. Contains removed status & number of connected storage nodes
      * @param _datacenterIdCounter datacenterId counter. Starts from 1
      */
-    struct DiamondStorage {
+    struct DataCenterStorage {
         mapping (uint => Datacenter) _dataCenterMap;
         mapping (string => uint) _dataCenterNameToID;
         mapping (string => EnumerableSet.UintSet) _countryDataCenterIds;
@@ -58,8 +58,8 @@ library LibDataCenter {
         uint _datacenterIdCounter;
     }
 
-    function diamondStorage() internal pure returns (DiamondStorage storage ds) {
-        bytes32 position = DIAMOND_STORAGE_POSITION;
+    function dataCenterStorage() internal pure returns (DataCenterStorage storage ds) {
+        bytes32 position = DATACENTER_STORAGE_POSITION;
         assembly {
             ds.slot := position
         }
@@ -71,7 +71,7 @@ library LibDataCenter {
      * @param id datacenterId
      */
     function checkDataCenterIdExistance(uint id) internal view {
-        if (!diamondStorage()._datacenterInfo[id].isActive) {
+        if (!dataCenterStorage()._datacenterInfo[id].isActive) {
             revert InvalidDataCenterId(id);
         }
     }
@@ -80,14 +80,14 @@ library LibDataCenter {
     * @dev see { IDataCenter }
     */
     function isDataCenterNameRegistered(string calldata name) internal view returns(bool) {
-        return diamondStorage()._dataCenterNameToID[name] != 0;
+        return dataCenterStorage()._dataCenterNameToID[name] != 0;
     }
 
     /**
      * @dev see { IDataCenter }
      */
     function getDataCenters(uint[] calldata ids) internal view returns(Datacenter[] memory) {
-        DiamondStorage storage ds = diamondStorage();
+        DataCenterStorage storage ds = dataCenterStorage();
 
         uint count = ids.length;
         Datacenter[] memory list = new Datacenter[](count);
@@ -105,7 +105,7 @@ library LibDataCenter {
      * @dev see { IDataCenter }
      */
     function getDataCentersByName(string[] calldata names) internal view returns(Datacenter[] memory) {
-        DiamondStorage storage ds = diamondStorage();
+        DataCenterStorage storage ds = dataCenterStorage();
         uint count = names.length;
         uint id;
         Datacenter[] memory list = new Datacenter[](count);
@@ -124,7 +124,7 @@ library LibDataCenter {
      * @dev see { IDataCenter }
      */
     function getDataCentersByCountry(string calldata countryCode) internal view returns(Datacenter[] memory) {
-        DiamondStorage storage ds = diamondStorage();
+        DataCenterStorage storage ds = dataCenterStorage();
         
         uint count = ds._countryDataCenterIds[countryCode].length();
         Datacenter[] memory list = new Datacenter[](count);
@@ -143,7 +143,7 @@ library LibDataCenter {
      * @dev see { IDataCenter }
      */
     function getDataCentersByRegion(string calldata regionCode) internal view returns(Datacenter[] memory) {
-        DiamondStorage storage ds = diamondStorage();
+        DataCenterStorage storage ds = dataCenterStorage();
 
         uint count = ds._regionDataCenterIds[regionCode].length();
         Datacenter[] memory list = new Datacenter[](count);
@@ -163,7 +163,7 @@ library LibDataCenter {
      * @param dataCenterId Datacenter ID
      */
     function increaseDataCenterNodeCount(uint dataCenterId) internal {
-        DiamondStorage storage ds = diamondStorage();
+        DataCenterStorage storage ds = dataCenterStorage();
         unchecked {
             ++ds._datacenterInfo[dataCenterId].nodeCount;    
         }
@@ -175,7 +175,7 @@ library LibDataCenter {
      * @param dataCenterId Datacenter ID
      */
     function decreaseDataCenterNodeCount(uint dataCenterId) internal {
-        DiamondStorage storage ds = diamondStorage();
+        DataCenterStorage storage ds = dataCenterStorage();
         unchecked {
             --ds._datacenterInfo[dataCenterId].nodeCount;
         }
