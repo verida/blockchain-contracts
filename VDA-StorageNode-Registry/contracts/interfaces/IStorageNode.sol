@@ -8,6 +8,7 @@ interface IStorageNode {
   /**
     * @notice Struct for StorageNodeInput
     * @dev Used in `addNode()` function
+    * @param name Unique name of the storage node
     * @param didAddress DID address that is associated with the storage node
     * @param endpointUri The storage node endpoint
     * @param countryCode Unique two-character string code
@@ -16,16 +17,33 @@ interface IStorageNode {
     * @param lat Latitude
     * @param long Longitude
     * @param slotCount Number of slots indicationg how many storage slots the node will provide
+    * @param acceptFallbackSlots Indicates if this storage node is willing to accept data from nodes that are shutting down
     */
   struct StorageNodeInput {
-      address didAddress;
-      string endpointUri;
-      string countryCode;
-      string regionCode;
-      uint datacenterId;
-      int lat;
-      int long;
-      uint slotCount;
+    string name;
+    address didAddress;
+    string endpointUri;
+    string countryCode;
+    string regionCode;
+    uint datacenterId;
+    int lat;
+    int long;
+    uint slotCount;
+    bool acceptFallbackSlots;
+  }
+
+  /**
+   * @notice Information for fallback node. Used in `removeNodeStart()` function
+   * @param fallbackNodeAddress DID address of the stroage node that will take responsibility for user data that isn't migrated away from this node before the unregister timestamp.
+   * @param availableSlots Number of available slots of the fallback node
+   * @param fallbackProofTime The time of proo generation
+   * @param availableSlotsProof Proof signed by the fallback node 
+   */
+  struct FallbackNodeInfo {
+    address fallbackNodeAddress;
+    uint availableSlots;
+    uint fallbackProofTime;
+    bytes availableSlotsProof;
   }
 
   /**
@@ -41,24 +59,28 @@ interface IStorageNode {
 
   /**
     * @notice Emitted when a storage node added
+    * @param name Unique name of the storage node
     * @param didAddress DID address that is associated with the storage node
     * @param endpointUri The storage node endpoint
     * @param countryCode Unique two-character string code
     * @param regionCode Unique region string code
     * @param datacenterId Unique datacenter identifier that is created by `addDataCenter()` method.
     * @param slotCount Number of slots indicationg how many storage slots the node will provide
+    * @param acceptFallbackSlots Indicates if this storage node is willing to accept data from nodes that are shutting down
     * @param establishmentDate Node added time in seconds
     */
   event AddNode(
-      address indexed didAddress, 
-      string indexed endpointUri,
-      string countryCode,
-      string regionCode,
-      uint datacenterId,
-      int lat,
-      int long,
-      uint slotCount,
-      uint establishmentDate
+    string indexed name,
+    address indexed didAddress, 
+    string endpointUri,
+    string countryCode,
+    string regionCode,
+    uint datacenterId,
+    int lat,
+    int long,
+    uint slotCount,
+    bool acceptFallbackSlots,
+    uint establishmentDate
   );
 
   /**
@@ -66,14 +88,16 @@ interface IStorageNode {
     * @param didAddress DID address that is to be removed from the network
     * @param unregisterDateTime The unix timestamp of when the storage node should no logner be available for selection.
       Must be at leaset 28 dayse in the future from calling function point
+      @param fallbackNodeAddress DID address of the stroage node that will take responsibility for user data that isn't migrated away from this node before the unregister timestamp.
     */
-  event RemoveNodeStart(address indexed didAddress, uint unregisterDateTime);
+  event RemoveNodeStart(address indexed didAddress, uint unregisterDateTime, address fallbackNodeAddress);
 
   /**
     * @notice Emitted when a removing node is completed
     * @param didAddress DID address that is to be removed from the network
+    * @param fallbackNodeAddress DID address of the fallback stroage node
     */
-  event RemoveNodeComplete(address indexed didAddress);
+  event RemoveNodeComplete(address indexed didAddress, address fallbackNodeAddress);
 
   /**
     * @notice Emitted when the `isStakingRequired` value is updated
@@ -210,12 +234,14 @@ interface IStorageNode {
     * @param didAddress DID address that is to be removed from the network
     * @param unregisterDateTime The unix timestamp in secods of when the storage node should no logner be available for selection.
       Must be at leaset 28 dayse in the future from calling function point
-    * @param requestSignature The request parameters signed by the `didAddress` private key
+    * @param fallbackInfo Information of fallback node
+      @param requestSignature The request parameters signed by the `didAddress` private key
     * @param requestProof Used to verify request
     */
   function removeNodeStart(
       address didAddress,
       uint unregisterDateTime,
+      FallbackNodeInfo calldata fallbackInfo,
       bytes calldata requestSignature,
       bytes calldata requestProof
   ) external;
@@ -223,30 +249,38 @@ interface IStorageNode {
   /**
     * @notice Complete storage node unregisteration
     * @param didAddress DID address that is to be removed from the network
+    * @param fallbackMigrationProof A message signed by the `fallbackNode` specified in the 
+      original `removeNodeStart()` request confirming the migration of any remaining data has been completed.
     * @param requestSignature The request parameters signed by the `didAddress` private key
     * @param requestProof Used to verify request
     */
   function removeNodeComplete(
       address didAddress,
+      bytes calldata fallbackMigrationProof,
       bytes calldata requestSignature,
       bytes calldata requestProof
   ) external;
 
   /**
+    * @notice Returns a storage node for name
+    * @param name The name of the storage node
+    * @return StorageNode Returns storage node
+    */
+  function getNodeByName(string calldata name) external view returns(LibStorageNode.StorageNode memory);
+
+  /**
     * @notice Returns a storage node for didAddress
     * @param didAddress DID address that is associated with the storage node
     * @return StorageNode Returns storage node
-    * @return string Status - "active" or "removed"
     */
-  function getNodeByAddress(address didAddress) external view returns(LibStorageNode.StorageNode memory, string memory);
+  function getNodeByAddress(address didAddress) external view returns(LibStorageNode.StorageNode memory);
 
   /**
     * @notice Returns a storage node for endpoint uri
     * @param endpointUri The storage node endpoint
     * @return StorageNode Returns storage node
-    * @return string Status - "active" or "removed"
     */
-  function getNodeByEndpoint(string calldata endpointUri) external view returns(LibStorageNode.StorageNode memory, string memory);
+  function getNodeByEndpoint(string calldata endpointUri) external view returns(LibStorageNode.StorageNode memory);
 
   /**
     * @notice Return an array of `Storagenode` structs for countryCode

@@ -3,7 +3,9 @@ import { FacetCutAction, getSelectors } from "./diamond";
 
 export interface IDeploymentAddress {
   diamondAddress: string,
-  tokenAddress: string
+  tokenAddress: string,
+  facetsAddress: Record<string, string>,
+  abi: string
 }
 
 export async function deploy(tokenAddress?: string , additionalFacets?: string[]) : Promise<IDeploymentAddress> {
@@ -29,11 +31,19 @@ export async function deploy(tokenAddress?: string , additionalFacets?: string[]
 
   // The `facetCuts` variable is the FacetCut[] that contains the functions to add during diamond deployment
   const facetCuts = [];
+  const retAddress: Record<string, string> = {};
+
+  let abi: any[] = [];
+
   for (let i = 0; i < FacetNames.length; i++)
   {
     const FacetName = FacetNames[i];
     const facet = await ethers.deployContract(FacetName);
     await facet.waitForDeployment();
+
+    const functionFragments = facet.interface.fragments.filter(fragment => fragment.type === "function" )
+    const fragments = functionFragments.map(f => f.format("json"));
+    abi = abi.concat(fragments);
 
     const addr = await facet.getAddress();
 
@@ -43,7 +53,11 @@ export async function deploy(tokenAddress?: string , additionalFacets?: string[]
       action: FacetCutAction.Add,
       functionSelectors: getSelectors(facet)
     })
+
+    retAddress[FacetName] = addr;
   }
+
+  const abiString = JSON.stringify(abi.map((j) => JSON.parse(j)));
 
   if (tokenAddress === undefined) {
     const token = await ethers.deployContract("MockToken", ["VDAMock", "VMT"]);
@@ -71,6 +85,8 @@ export async function deploy(tokenAddress?: string , additionalFacets?: string[]
   console.log("Diamond deployed: ", await diamond.getAddress());
   return {
     diamondAddress: await diamond.getAddress(),
-    tokenAddress
+    tokenAddress,
+    facetsAddress: retAddress,
+    abi: abiString
   };
 }

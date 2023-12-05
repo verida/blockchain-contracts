@@ -3,14 +3,13 @@
 import { deploy } from "../scripts/libraries/deployment";
 import { ethers } from 'hardhat';
 import { expect } from 'chai';
-import { checkAddNode, checkRemoveNodeComplete, checkRemoveNodeStart, createStorageNodeInputStruct, getAddNodeSignatures, getLogNodeIssueSignatures, getWithdrawSignatures } from './utils/helpers';
+import { checkAddNode, createStorageNodeInputStruct, getLogNodeIssueSignatures } from './utils/helpers';
 import { SignerWithAddress } from "@nomicfoundation/hardhat-ethers/signers";
 import { BigNumberish, HDNodeWallet, Wallet } from 'ethers'
 import { SnapshotRestorer, takeSnapshot, time } from "@nomicfoundation/hardhat-network-helpers";
 import { IStorageNode, MockToken, VDADataCenterFacet, VDAStorageNodeFacet, VDAVerificationFacet } from "../typechain-types";
-import { DATA_CENTERS, INVALID_COUNTRY_CODES, INVALID_REGION_CODES, VALID_NUMBER_SLOTS } from "./utils/constant";
-import { days, hours } from "@nomicfoundation/hardhat-network-helpers/dist/src/helpers/time/duration";
-import { LibStorageNode } from "../typechain-types/contracts/facets/VDAStorageNodeFacet";
+import { DATA_CENTERS, VALID_NUMBER_SLOTS } from "./utils/constant";
+import { hours } from "@nomicfoundation/hardhat-network-helpers/dist/src/helpers/time/duration";
 import { anyValue } from "@nomicfoundation/hardhat-chai-matchers/withArgs";
 
 const { assert } = require('chai')
@@ -25,13 +24,14 @@ const storageNode = createStorageNodeInputStruct(
   1,
   -90,
   -180,
-  VALID_NUMBER_SLOTS
+  VALID_NUMBER_SLOTS,
+  true
 );
 
-describe('DiamondTest', async function () {
+describe('SorageNode Log Related Test', async function () {
   let diamondAddress: string
   let tokenAddress: string
-  
+
   let owner: SignerWithAddress;
   let accounts: SignerWithAddress[];
 
@@ -111,7 +111,7 @@ describe('DiamondTest', async function () {
 
     ({
       diamondAddress,
-      tokenAddress
+      tokenAddress,
     } = await deploy(undefined, ['VDAVerificationFacet', 'VDADataCenterFacet', 'VDAStorageNodeFacet']));
 
     verificationContract = await ethers.getContractAt("VDAVerificationFacet", diamondAddress);
@@ -146,7 +146,6 @@ describe('DiamondTest', async function () {
     requestor = accounts[1];
   })
 
-  /*
   describe("Update node issue fee", () => {
     it("Failed : non-owner",async () => {
       await expect(
@@ -251,7 +250,6 @@ describe('DiamondTest', async function () {
       );
     })
   })
-  */
 
   describe("Issue ReasonCode", () => {
     before(async () => {
@@ -259,23 +257,168 @@ describe('DiamondTest', async function () {
     })
 
     describe("Add reason code", () => {
-      
-    })
+      it("Failed : non-owner",async () => {
+        await expect(
+          nodeContract.connect(accounts[0]).addReasonCode(11, "Any description")
+        ).to.be.revertedWithCustomError(nodeContract, "NotContractOwner");
+      })
 
-    describe("Update reason code description", () => {
+      it("Failed : existing code",async () => {
+        const codeList = await nodeContract.getReasonCodeList();
+        expect(codeList.length).to.be.gt(0);
 
-    })
+        await expect(
+          nodeContract.addReasonCode(10, "Any description")
+        ).to.be.revertedWithCustomError(nodeContract, "InvalidReasonCode");
+      })
 
-    describe("Get reason code description", () => {
-
+      it("Success",async () => {
+        const code = 111;
+        const description = "New code";
+        await expect(
+          nodeContract.addReasonCode(code, description)
+        ).to.be.emit(nodeContract, "AddReasonCode").withArgs(
+          code,
+          description
+        );
+      })
     })
 
     describe("Get reason code list", () => {
+      it("Success",async () => {
+        const codeList = await nodeContract.getReasonCodeList();
+        expect(codeList.length).to.be.gt(0);
+      })
+    })
+
+    describe("Get reason code description", () => {
+      let codeList: IStorageNode.LogReasonCodeOutputStructOutput[]
+      before(async () => {
+        codeList = await nodeContract.getReasonCodeList();
+        expect(codeList.length).to.be.gt(0);
+      })
+
+      it("Failed : Invalid reason code",async () => {
+        const unregistedCode = 1919n;
+        expect(codeList.findIndex(item => item.reasonCode === unregistedCode)).to.be.eq(-1);
+
+        await expect(
+          nodeContract.getReasonCodeDescription(unregistedCode)
+        ).to.be.revertedWithCustomError(nodeContract, "InvalidReasonCode");
+      })
+
+      it("Success",async () => {
+        expect(
+          await nodeContract.getReasonCodeDescription(codeList[0].reasonCode)
+        ).to.be.eq(codeList[0].description);
+      })
+
+      it("Success - disabled code",async () => {
+        const currentSnapshot = await takeSnapshot();
+
+        // Disaable a reason code
+        await expect(
+          nodeContract.disableReasonCode(codeList[0].reasonCode)
+        ).to.be.emit(nodeContract, "DisableReasonCode");
+
+        expect(
+          await nodeContract.getReasonCodeDescription(codeList[0].reasonCode)
+        ).to.be.eq(codeList[0].description);
+
+        await currentSnapshot.restore();
+      })
 
     })
 
+    describe("Update reason code description", () => {
+      let codeList: IStorageNode.LogReasonCodeOutputStructOutput[]
+      before(async () => {
+        codeList = await nodeContract.getReasonCodeList();
+        expect(codeList.length).to.be.gt(0);
+      })
+
+      it("Failed : non-owner",async () => {
+        await expect(
+          nodeContract.connect(accounts[0]).updateReasonCodeDescription(codeList[0].reasonCode, "New description")
+        ).to.be.revertedWithCustomError(nodeContract, "NotContractOwner");
+      })
+
+      it("Failed : Invalid reason code - not exist",async () => {
+        const unregistedCode = 1919n;
+        expect(codeList.findIndex(item => item.reasonCode === unregistedCode)).to.be.eq(-1);
+
+        await expect(
+          nodeContract.updateReasonCodeDescription(unregistedCode, "Any description")
+        ).to.be.revertedWithCustomError(nodeContract, "InvalidReasonCode");
+      })
+
+      it("Failed : Invalid reason code - disabled",async () => {
+        const currentSnapshot = await takeSnapshot();
+
+        // Disaable a reason code
+        await expect(
+          nodeContract.disableReasonCode(codeList[0].reasonCode)
+        ).to.be.emit(nodeContract, "DisableReasonCode");
+
+        await expect(
+          nodeContract.updateReasonCodeDescription(codeList[0].reasonCode, "New Description")
+        ).to.be.revertedWithCustomError(nodeContract, "InvalidReasonCode");
+
+        await currentSnapshot.restore();
+      })
+
+      it("Success",async () => {
+        const orgDesc = codeList[0].description;
+        const newDesc = "New description"
+        await expect(
+          nodeContract.updateReasonCodeDescription(codeList[0].reasonCode, newDesc)
+        ).to.be.emit(nodeContract, "UpdateReasonCodeDescription").withArgs(
+          codeList[0].reasonCode,
+          orgDesc,
+          newDesc
+        );
+
+        expect(await nodeContract.getReasonCodeDescription(codeList[0].reasonCode)).to.be.eq(newDesc);
+      })
+    })
+
     describe("Disable reason code", () => {
-      
+      let codeList: IStorageNode.LogReasonCodeOutputStructOutput[]
+      before(async () => {
+        codeList = await nodeContract.getReasonCodeList();
+        expect(codeList.length).to.be.gt(0);
+      })
+
+      it ("Failed : non-owner",async () => {
+        const anyCode = 10n;
+        await expect(
+          nodeContract.connect(accounts[0]).disableReasonCode(anyCode)
+        ).to.be.revertedWithCustomError(nodeContract, "NotContractOwner");
+      })
+
+      it("Failed : Invalid reason code - not exist",async () => {
+        const unregisteredCode = 11n;
+
+        expect(codeList.findIndex(item => item.reasonCode === unregisteredCode)).to.be.eq(-1);
+
+        await expect(
+          nodeContract.disableReasonCode(unregisteredCode)
+        ).to.be.revertedWithCustomError(nodeContract, "InvalidReasonCode");
+      })
+
+      it("Success",async () => {
+        await expect(
+          nodeContract.disableReasonCode(codeList[0].reasonCode)
+        ).to.be.emit(nodeContract, "DisableReasonCode").withArgs(
+          codeList[0].reasonCode
+        );
+      })
+
+      it("Failed : Invalid reason code - disabled",async () => {
+        await expect(
+          nodeContract.disableReasonCode(codeList[0].reasonCode)
+        ).to.be.revertedWithCustomError(nodeContract, "InvalidReasonCode");
+      })
     })
   })
 
@@ -347,7 +490,8 @@ describe('DiamondTest', async function () {
             1,
             -90,
             -180,
-            VALID_NUMBER_SLOTS
+            VALID_NUMBER_SLOTS,
+            true
           );
           // Approve Token
           await approveToken(BigInt(storageNode.slotCount), owner, diamondAddress, true);
@@ -596,5 +740,5 @@ describe('DiamondTest', async function () {
       // Confirm receiver received tokens
       expect(await tokenContract.balanceOf(receiver.address)).to.be.eq(curIssueFee);
     })
-  })  
+  })
 })

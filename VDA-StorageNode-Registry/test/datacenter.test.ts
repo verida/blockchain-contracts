@@ -14,9 +14,7 @@ import { anyValue } from "@nomicfoundation/hardhat-chai-matchers/withArgs";
 import { FacetCutAction, getSelectors } from "../scripts/libraries/diamond";
 import { days } from "@nomicfoundation/hardhat-network-helpers/dist/src/helpers/time/duration";
 
-const { assert } = require('chai')
-
-describe('DiamondTest', async function () {
+describe('DataCenter Test', async function () {
   let diamondAddress: string
   let tokenAddress: string
   
@@ -44,24 +42,6 @@ describe('DiamondTest', async function () {
 
     contract = await ethers.getContractAt("VDADataCenterFacet", diamondAddress)
   })
-
-  /*
-  it('should test function call', async () => {
-    const datacenter = createDatacenterStruct("center-1", "us", "north america", -90, -150);
-
-    const datacenterFacet = await ethers.getContractAt("VDADataCenterFacet", diamondAddress);
-    
-    const tx = await datacenterFacet.addDataCenter(datacenter);
-
-    await expect(tx).to.emit(datacenterFacet, "AddDataCenter");
-  })
-  */
-
-  // it.only("Node selector test",async () => {
-  //   const nodeFacet = await ethers.deployContract("VDAStorageNodeFacet");
-  //   const selectors = getSelectors(nodeFacet);
-  //   console.log(selectors);
-  // })
 
   describe("Add datacenter", () => {
     it("Failed : non-owner", async () => {
@@ -412,7 +392,8 @@ describe('DiamondTest', async function () {
           1,
           -90,
           -180,
-          VALID_NUMBER_SLOTS
+          VALID_NUMBER_SLOTS,
+          true
       );
 
       let storageNodeContract: VDAStorageNodeFacet;

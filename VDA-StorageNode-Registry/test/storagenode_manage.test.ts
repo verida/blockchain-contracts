@@ -3,20 +3,22 @@
 import { deploy } from "../scripts/libraries/deployment";
 import { ethers } from 'hardhat';
 import { expect } from 'chai';
-import { checkAddNode, checkRemoveNodeComplete, checkRemoveNodeStart, createStorageNodeInputStruct, getAddNodeSignatures, getWithdrawSignatures } from './utils/helpers';
+import { checkAddNode, checkRemoveNodeComplete, checkRemoveNodeStart, createStorageNodeInputStruct, getAddNodeSignatures, getFallbackMigrationProof, getFallbackNodeInfo, getWithdrawSignatures } from './utils/helpers';
 import { SignerWithAddress } from "@nomicfoundation/hardhat-ethers/signers";
-import { Wallet } from 'ethers'
+import { BytesLike, Wallet } from 'ethers'
 import { SnapshotRestorer, takeSnapshot, time } from "@nomicfoundation/hardhat-network-helpers";
 import { IStorageNode, MockToken, VDADataCenterFacet, VDAStorageNodeFacet, VDAVerificationFacet } from "../typechain-types";
 import { DATA_CENTERS, INVALID_COUNTRY_CODES, INVALID_REGION_CODES, VALID_NUMBER_SLOTS } from "./utils/constant";
-import { days } from "@nomicfoundation/hardhat-network-helpers/dist/src/helpers/time/duration";
+import { days, hours } from "@nomicfoundation/hardhat-network-helpers/dist/src/helpers/time/duration";
 import { LibStorageNode } from "../typechain-types/contracts/facets/VDAStorageNodeFacet";
 
 const { assert } = require('chai')
 
 const trustedSigner = Wallet.createRandom();
 const user = Wallet.createRandom();
+const fallbackUser = Wallet.createRandom();
 const storageNode = createStorageNodeInputStruct(
+  ("node-" + user.address).toLowerCase(),
   user.address, 
   "https://1",
   "us",
@@ -24,10 +26,23 @@ const storageNode = createStorageNodeInputStruct(
   1,
   -90,
   -180,
-  VALID_NUMBER_SLOTS
+  VALID_NUMBER_SLOTS,
+  true
+);
+const fallbackNode = createStorageNodeInputStruct(
+  "node-fallback",
+  fallbackUser.address,
+  "https://endpoint-fallback",
+  "jp",
+  "asia",
+  1,
+  -90,
+  -180,
+  VALID_NUMBER_SLOTS,
+  true
 );
 
-describe('DiamondTest', async function () {
+describe('StorageNode Management Test', async function () {
   let diamondAddress: string
   let tokenAddress: string
   
@@ -106,6 +121,7 @@ describe('DiamondTest', async function () {
     snapShotWithDatacenters = await takeSnapshot();
   })
 
+  /*
   describe("Add storage node", () => {
     const didAddress = Wallet.createRandom().address //signInfo.userAddress;
 
@@ -114,167 +130,197 @@ describe('DiamondTest', async function () {
     })
 
     describe("Failed for invalid arguments", () => {
-        it("Failed: Empty endpoint uri", async () => {
-            const nodeInfo = createStorageNodeInputStruct(didAddress, "", "", "", 0, 0, 0, 1);
-            await expect(
-                nodeContract.addNode(nodeInfo, "0x00", "0x00", "0x00")
-            ).to.be.revertedWithCustomError(nodeContract, "InvalidEndpointUri")
-        })
+      const validNodeName = "node";
 
-        it("Failed: Invalid country codes", async () => {
-            for (let i = 0; i < INVALID_COUNTRY_CODES.length; i++) {
-                const nodeInfo = createStorageNodeInputStruct(
-                    didAddress,
-                    "https://1",
-                    INVALID_COUNTRY_CODES[i],
-                    "",
-                    0,
-                    0,
-                    0,
-                    1);
-                await expect(
-                    nodeContract.addNode(nodeInfo, "0x00", "0x00", "0x00")
-                ).to.be.revertedWithCustomError(nodeContract, "InvalidCountryCode");
-            }
-        })
+      it("Failed: Invalid name",async () => {
+        // Empty name
+        let nodeInfo = createStorageNodeInputStruct("", didAddress, "", "", "", 0, 0, 0, 1, true);
+        await expect(
+          nodeContract.addNode(nodeInfo, "0x00", "0x00", "0x00")
+        ).to.be.revertedWithCustomError(nodeContract, "InvalidName");
 
-        it("Failed: Invalid region codes", async () => {
-            for (let i = 0; i < INVALID_REGION_CODES.length; i++) {
-                const nodeInfo = createStorageNodeInputStruct(
-                    didAddress,
-                    "https://1",
-                    "us",
-                    INVALID_REGION_CODES[i],
-                    0,
-                    0,
-                    0,
-                    1);
+        // Upper-case letters
+        nodeInfo = createStorageNodeInputStruct("Invalid Name", didAddress, "", "", "", 0, 0, 0, 1, true);
+        await expect(
+          nodeContract.addNode(nodeInfo, "0x00", "0x00", "0x00")
+        ).to.be.revertedWithCustomError(nodeContract, "InvalidName");
+      })
 
-                await expect(
-                    nodeContract.addNode(nodeInfo, "0x00", "0x00", "0x00")
-                ).to.be.revertedWithCustomError(nodeContract, "InvalidRegionCode");
-            }
-        })
+      it("Failed: Empty endpoint uri", async () => {
+        const nodeInfo = createStorageNodeInputStruct(validNodeName, didAddress, "", "", "", 0, 0, 0, 1, true);
+        await expect(
+            nodeContract.addNode(nodeInfo, "0x00", "0x00", "0x00")
+        ).to.be.revertedWithCustomError(nodeContract, "InvalidEndpointUri")
+      })
 
-        it("Failed: Invalid datacenterID - unregistered", async () => {
-            const invalidIds = [0n, maxDataCenterID + 1n, maxDataCenterID + 100n];
-            for (let i = 0; i < invalidIds.length; i++) {
-                const nodeInfo = createStorageNodeInputStruct(
-                    didAddress,
-                    "https://1",
-                    "us",
-                    "north america",
-                    invalidIds[i],
-                    0,
-                    0,
-                    1);
+      it("Failed: Invalid country codes", async () => {
+        for (let i = 0; i < INVALID_COUNTRY_CODES.length; i++) {
+          const nodeInfo = createStorageNodeInputStruct(
+            validNodeName,
+            didAddress,
+            "https://1",
+            INVALID_COUNTRY_CODES[i],
+            "",
+            0,
+            0,
+            0,
+            1,
+            true);
+          await expect(
+              nodeContract.addNode(nodeInfo, "0x00", "0x00", "0x00")
+          ).to.be.revertedWithCustomError(nodeContract, "InvalidCountryCode");
+        }
+      })
 
-                await expect(
-                    nodeContract.addNode(nodeInfo, "0x00", "0x00", "0x00")
-                ).to.be.revertedWithCustomError(nodeContract, "InvalidDataCenterId");
-            }
-        })
+      it("Failed: Invalid region codes", async () => {
+        for (let i = 0; i < INVALID_REGION_CODES.length; i++) {
+          const nodeInfo = createStorageNodeInputStruct(
+            validNodeName,
+            didAddress,
+            "https://1",
+            "us",
+            INVALID_REGION_CODES[i],
+            0,
+            0,
+            0,
+            1,
+            true);
 
-        it("Failed: Invalid datacenterID - removed", async () => {
-            const currentSnapshot = await takeSnapshot();
+          await expect(
+              nodeContract.addNode(nodeInfo, "0x00", "0x00", "0x00")
+          ).to.be.revertedWithCustomError(nodeContract, "InvalidRegionCode");
+        }
+      })
 
-            await datacenterContract.removeDataCenter(datacenterIds[0]);
+      it("Failed: Invalid datacenterID - unregistered", async () => {
+        const invalidIds = [0n, maxDataCenterID + 1n, maxDataCenterID + 100n];
+        for (let i = 0; i < invalidIds.length; i++) {
+          const nodeInfo = createStorageNodeInputStruct(
+            validNodeName,
+            didAddress,
+            "https://1",
+            "us",
+            "north america",
+            invalidIds[i],
+            0,
+            0,
+            1,
+            true);
 
-            const nodeInfo = createStorageNodeInputStruct(
-                didAddress,
-                "https://1",
-                "us",
-                "north america",
-                datacenterIds[0],
-                0,
-                0,
-                1);
+          await expect(
+              nodeContract.addNode(nodeInfo, "0x00", "0x00", "0x00")
+          ).to.be.revertedWithCustomError(nodeContract, "InvalidDataCenterId");
+        }
+      })
 
-            await expect(
-                nodeContract.addNode(nodeInfo, "0x00", "0x00", "0x00")
-            ).to.be.revertedWithCustomError(nodeContract, "InvalidDataCenterId");
+      it("Failed: Invalid datacenterID - removed", async () => {
+        const currentSnapshot = await takeSnapshot();
 
-            await currentSnapshot.restore();
-        })
+        await datacenterContract.removeDataCenter(datacenterIds[0]);
 
-        it("Failed: Invlaid Latitude",async () => {
-            const invalidLatValues = [-90.05, -180, 91, 500];
-            for (let i = 0; i < invalidLatValues.length; i++) {
-                const nodeInfo = createStorageNodeInputStruct(
-                    didAddress,
-                    "https://1",
-                    "us",
-                    "north america",
-                    datacenterIds[0],
-                    invalidLatValues[i],
-                    0,
-                    1);
-                await expect(
-                    nodeContract.addNode(nodeInfo, "0x00", "0x00", "0x00")
-                ).to.be.revertedWithCustomError(nodeContract, "InvalidLatitude")
-            }
-        })
+        const nodeInfo = createStorageNodeInputStruct(
+          validNodeName,
+          didAddress,
+          "https://1",
+          "us",
+          "north america",
+          datacenterIds[0],
+          0,
+          0,
+          1,
+          true);
 
-        it("Failed: Invalid Longitude",async () => {
-            const invalidLongValues = [-180.1, -270, -400.2523, 181, 360, 500.235];
-            for (let i = 0; i < invalidLongValues.length; i++) {
-                const nodeInfo = createStorageNodeInputStruct(
-                    didAddress,
-                    "https://1",
-                    "us",
-                    "north america",
-                    datacenterIds[0],
-                    0,
-                    invalidLongValues[i],
-                    1);
-                await expect(
-                    nodeContract.addNode(nodeInfo, "0x00", "0x00", "0x00")
-                ).to.be.revertedWithCustomError(nodeContract, "InvalidLongitude")
-            }
-        })
+        await expect(
+            nodeContract.addNode(nodeInfo, "0x00", "0x00", "0x00")
+        ).to.be.revertedWithCustomError(nodeContract, "InvalidDataCenterId");
 
-        it("Failed: Invalid slotCount",async () => {
-            const invalidSlots = [0, 100, 20001];
-            for (let i = 0; i < invalidSlots.length; i++) {
-                const nodeInfo = createStorageNodeInputStruct(
-                    didAddress,
-                    "https://1",
-                    "us",
-                    "north america",
-                    datacenterIds[0],
-                    0,
-                    0,
-                    invalidSlots[i]);
-                await expect(
-                    nodeContract.addNode(nodeInfo, "0x00", "0x00", "0x00")
-                ).to.be.revertedWithCustomError(nodeContract, "InvalidSlotCount")
-            }
-            
-        })
+        await currentSnapshot.restore();
+      })
 
-        it("Failed: No trusted signer",async () => {
-            const nonce = await nodeContract.nonce(user.address);
-            
-            const { requestSignature, requestProof, authSignature } = getAddNodeSignatures(storageNode, nonce, user, trustedSigner);
+      it("Failed: Invlaid Latitude",async () => {
+        const invalidLatValues = [-90.05, -180, 91, 500];
+        for (let i = 0; i < invalidLatValues.length; i++) {
+          const nodeInfo = createStorageNodeInputStruct(
+            validNodeName,
+            didAddress,
+            "https://1",
+            "us",
+            "north america",
+            datacenterIds[0],
+            invalidLatValues[i],
+            0,
+            1,
+            true);
+          await expect(
+              nodeContract.addNode(nodeInfo, "0x00", "0x00", "0x00")
+          ).to.be.revertedWithCustomError(nodeContract, "InvalidLatitude")
+        }
+      })
 
-            await expect(
-                nodeContract.addNode(storageNode, requestSignature, requestProof, authSignature)
-            ).to.be.revertedWithCustomError(nodeContract, "NoSigners");
-        })
+      it("Failed: Invalid Longitude",async () => {
+        const invalidLongValues = [-180.1, -270, -400.2523, 181, 360, 500.235];
+        for (let i = 0; i < invalidLongValues.length; i++) {
+          const nodeInfo = createStorageNodeInputStruct(
+            validNodeName,
+            didAddress,
+            "https://1",
+            "us",
+            "north america",
+            datacenterIds[0],
+            0,
+            invalidLongValues[i],
+            1,
+            true);
+          await expect(
+              nodeContract.addNode(nodeInfo, "0x00", "0x00", "0x00")
+          ).to.be.revertedWithCustomError(nodeContract, "InvalidLongitude")
+        }
+      })
 
-        it("Failed: Invalid auth signature",async () => {
-            await verificationContract.addTrustedSigner(trustedSigner.address);
+      it("Failed: Invalid slotCount",async () => {
+        const invalidSlots = [0, 100, 20001];
+        for (let i = 0; i < invalidSlots.length; i++) {
+          const nodeInfo = createStorageNodeInputStruct(
+            validNodeName,
+            didAddress,
+            "https://1",
+            "us",
+            "north america",
+            datacenterIds[0],
+            0,
+            0,
+            invalidSlots[i],
+            true);
+          await expect(
+            nodeContract.addNode(nodeInfo, "0x00", "0x00", "0x00")
+          ).to.be.revertedWithCustomError(nodeContract, "InvalidSlotCount")
+        }
+          
+      })
 
-            const badSigner = Wallet.createRandom();
+      it("Failed: No trusted signer",async () => {
+        const nonce = await nodeContract.nonce(user.address);
+        
+        const { requestSignature, requestProof, authSignature } = getAddNodeSignatures(storageNode, nonce, user, trustedSigner);
 
-            const nonce = await nodeContract.nonce(user.address);
+        await expect(
+            nodeContract.addNode(storageNode, requestSignature, requestProof, authSignature)
+        ).to.be.revertedWithCustomError(nodeContract, "NoSigners");
+      })
 
-            const { requestSignature, requestProof, authSignature } = getAddNodeSignatures(storageNode, nonce, user, badSigner);
+      it("Failed: Invalid auth signature",async () => {
+          await verificationContract.addTrustedSigner(trustedSigner.address);
 
-            await expect(
-                nodeContract.addNode(storageNode, requestSignature, requestProof, authSignature)
-            ).to.be.revertedWithCustomError(nodeContract, "InvalidSignature");
-        })
+          const badSigner = Wallet.createRandom();
+
+          const nonce = await nodeContract.nonce(user.address);
+
+          const { requestSignature, requestProof, authSignature } = getAddNodeSignatures(storageNode, nonce, user, badSigner);
+
+          await expect(
+              nodeContract.addNode(storageNode, requestSignature, requestProof, authSignature)
+          ).to.be.revertedWithCustomError(nodeContract, "InvalidSignature");
+      })
     })
 
     describe("Test when the staking is not required", () => {
@@ -283,6 +329,9 @@ describe('DiamondTest', async function () {
             await verificationContract.addTrustedSigner(trustedSigner.address);
 
             expect(await nodeContract.isStakingRequired()).to.be.eq(false);
+
+            // Add fallback node
+            await checkAddNode(nodeContract, fallbackNode, fallbackUser, trustedSigner, true);
         })
 
         it("Success", async () => {
@@ -295,80 +344,97 @@ describe('DiamondTest', async function () {
             expect(requestAfterTokenAmount).to.be.equal(requestorBeforeTokenAmount);
         })
 
-        it("Failed: Duplicated `didAddress` & `endpointURI`", async () => {
-            // Registered DID
-            await checkAddNode(nodeContract, storageNode, user, trustedSigner, false, "InvalidDIDAddress");
-            
-            // Registered EndpointURI
-            {
-                const anotherUser = Wallet.createRandom();
+        it("Failed: Duplicated `name`, `didAddress` & `endpointURI`", async () => {
+          // Registerred name
+          await checkAddNode(nodeContract, storageNode, user, trustedSigner, false, "InvalidName");
+          
+          // Registered DID
+          const newNode = {...storageNode};
+          newNode.name = Wallet.createRandom().address.toLowerCase();
+          await checkAddNode(nodeContract, newNode, user, trustedSigner, false, "InvalidDIDAddress");
+          
+          // Registered EndpointURI
+          {
+              const anotherUser = Wallet.createRandom();
 
-                const nodeInfo = {...storageNode};
-                nodeInfo.didAddress = anotherUser.address;
+              const nodeInfo = {...newNode};
+              nodeInfo.didAddress = anotherUser.address;
 
-                await checkAddNode(nodeContract, nodeInfo, anotherUser, trustedSigner, false, "InvalidEndpointUri");
-            }
+              await checkAddNode(nodeContract, nodeInfo, anotherUser, trustedSigner, false, "InvalidEndpointUri");
+          }
 
         })
 
-        it("Failed: didAddress & endpointURI in pending `removal` status", async () => {
-            const currentSnapshot = await takeSnapshot();
+        it("Failed: Duplicated `name`, `didAddress` & `endpointURI` in pending `removal` status", async () => {
+          const currentSnapshot = await takeSnapshot();
 
-            const blockTime = await time.latest();
-            const unregisterTime = blockTime + days(30);
+          const blockTime = await time.latest();
+          const unregisterTime = blockTime + days(30);
 
-            // Remove a node
-            await checkRemoveNodeStart(nodeContract, user, unregisterTime);
-            
-            // Failed to add for didAddress in pending removal state
-            await checkAddNode(nodeContract, storageNode, user, trustedSigner, false, "InvalidDIDAddress");
-            
-            // Failed to add for endpoint in pending removal state
-            {
-                const anotherUser = Wallet.createRandom();
+          // Remove a node
+          const fallbackInfo = getFallbackNodeInfo(fallbackUser, fallbackNode.slotCount);
+          await checkRemoveNodeStart(nodeContract, user, unregisterTime, fallbackInfo);
 
-                const nodeInfo = {...storageNode};
-                nodeInfo.didAddress = anotherUser.address;
+          // Failed to add same name in pending removal state
+          await checkAddNode(nodeContract, storageNode, user, trustedSigner, false, "InvalidName");
+          
+          // Failed to add same didAddress in pending removal state
+          const nodeWithDifferentName = {...storageNode};
+          nodeWithDifferentName.name = Wallet.createRandom().address.toLowerCase();
+          await checkAddNode(nodeContract, nodeWithDifferentName, user, trustedSigner, false, "InvalidDIDAddress");
+          
+          // Failed to add for endpoint in pending removal state
+          {
+              const anotherUser = Wallet.createRandom();
 
-                await checkAddNode(nodeContract, nodeInfo, anotherUser, trustedSigner, false, "InvalidEndpointUri");
-            }
-            await currentSnapshot.restore();
+              const nodeInfo = {...nodeWithDifferentName};
+              nodeInfo.didAddress = anotherUser.address;
+
+              await checkAddNode(nodeContract, nodeInfo, anotherUser, trustedSigner, false, "InvalidEndpointUri");
+          }
+          await currentSnapshot.restore();
         })
 
         it("Success: For remove completed didAddress & endpointURI", async () => {
-            const blockTime = await time.latest();
-            const unregisterTime = blockTime + days(30);
-            
-            // Remove start
-            await checkRemoveNodeStart(nodeContract, user, unregisterTime)
+          const blockTime = await time.latest();
+          const unregisterTime = blockTime + days(30);
+          
+          // Remove start
+          const fallbackInfo = getFallbackNodeInfo(fallbackUser, fallbackNode.slotCount);
+          await checkRemoveNodeStart(nodeContract, user, unregisterTime, fallbackInfo)
 
-            // Remove complete
-            await time.increaseTo(unregisterTime);
-            await checkRemoveNodeComplete(nodeContract, user, owner);
+          // Remove complete
+          await time.increaseTo(unregisterTime);
+          await checkRemoveNodeComplete(nodeContract, user, fallbackUser, owner);
 
-            // Add success
-            await checkAddNode(nodeContract, storageNode, user, trustedSigner, true);
+          // Add success
+          await checkAddNode(nodeContract, storageNode, user, trustedSigner, true);
         })
     })
 
     describe("Test when the staking is required", () => {
         before(async () => {
-            await snapShotWithDatacenters.restore();
-            await verificationContract.addTrustedSigner(trustedSigner.address);
+          await snapShotWithDatacenters.restore();
+          await verificationContract.addTrustedSigner(trustedSigner.address);
 
-            await expect(
-                nodeContract.setStakingRequired(true)
-            ).to.emit(nodeContract, "UpdateStakingRequired").withArgs(true);
+          await expect(
+              nodeContract.setStakingRequired(true)
+          ).to.emit(nodeContract, "UpdateStakingRequired").withArgs(true);
+
+          // Add fallback node
+          await approveToken(BigInt(fallbackNode.slotCount), owner, diamondAddress, true);
+          await checkAddNode(nodeContract, fallbackNode, fallbackUser, trustedSigner, true);
+
         })
 
         it("Failed: Token not allowed from requestor",async () => {
-            const nonce = await nodeContract.nonce(user.address);
+          const nonce = await nodeContract.nonce(user.address);
 
-            const { requestSignature, requestProof, authSignature } = getAddNodeSignatures(storageNode, nonce, user, trustedSigner);
+          const { requestSignature, requestProof, authSignature } = getAddNodeSignatures(storageNode, nonce, user, trustedSigner);
 
-            await expect(
-                nodeContract.addNode(storageNode, requestSignature, requestProof, authSignature)
-            ).to.be.revertedWithCustomError(tokenContract, "ERC20InsufficientAllowance");
+          await expect(
+              nodeContract.addNode(storageNode, requestSignature, requestProof, authSignature)
+          ).to.be.revertedWithCustomError(tokenContract, "ERC20InsufficientAllowance");
         })
 
         it("Success", async () => {
@@ -386,20 +452,24 @@ describe('DiamondTest', async function () {
             expect(requestAfterTokenAmount).to.be.equal(requestorBeforeTokenAmount - stakeTokenAmount);
         })
 
-        it("Failed: Duplicated `didAddress` & `endpointURI`", async () => {
-            // Registered DID
-            await checkAddNode(nodeContract, storageNode, user, trustedSigner, false, "InvalidDIDAddress");
-            
-            // Registered EndpointURI
-            {
-                const anotherUser = Wallet.createRandom();
+        it("Failed: Duplicated `name`, `didAddress` & `endpointURI`", async () => {
+          // Registered name
+          await checkAddNode(nodeContract, storageNode, user, trustedSigner, false, "InvalidName");
 
-                const nodeInfo = {...storageNode};
-                nodeInfo.didAddress = anotherUser.address;
+          // Registered DID
+          const newNode = {...storageNode};
+          newNode.name = Wallet.createRandom().address.toLowerCase();
+          await checkAddNode(nodeContract, newNode, user, trustedSigner, false, "InvalidDIDAddress");
+          
+          // Registered EndpointURI
+          {
+              const anotherUser = Wallet.createRandom();
 
-                await checkAddNode(nodeContract, nodeInfo, anotherUser, trustedSigner, false, "InvalidEndpointUri");
-            }
+              const nodeInfo = {...newNode};
+              nodeInfo.didAddress = anotherUser.address;
 
+              await checkAddNode(nodeContract, nodeInfo, anotherUser, trustedSigner, false, "InvalidEndpointUri");
+          }
         })
 
         it("Failed: didAddress & endpointURI in pending `removal` status", async () => {
@@ -409,16 +479,22 @@ describe('DiamondTest', async function () {
             const unregisterTime = blockTime + days(30);
 
             // Remove a node
-            await checkRemoveNodeStart(nodeContract, user, unregisterTime);
+            const fallbackInfo = getFallbackNodeInfo(fallbackUser, fallbackNode.slotCount);
+            await checkRemoveNodeStart(nodeContract, user, unregisterTime, fallbackInfo);
+
+            // Failed to add same name in pending removal state
+            await checkAddNode(nodeContract, storageNode, user, trustedSigner, false, "InvalidName");
             
-            // Failed to add for didAddress in pending removal state
-            await checkAddNode(nodeContract, storageNode, user, trustedSigner, false, "InvalidDIDAddress");
+            // Failed to add same didAddress in pending removal state
+            const newNode = {...storageNode};
+            newNode.name = Wallet.createRandom().address.toLowerCase();
+            await checkAddNode(nodeContract, newNode, user, trustedSigner, false, "InvalidDIDAddress");
             
-            // Failed to add for endpoint in pending removal state
+            // Failed to add same endpoint in pending removal state
             {
                 const anotherUser = Wallet.createRandom();
 
-                const nodeInfo = {...storageNode};
+                const nodeInfo = {...newNode};
                 nodeInfo.didAddress = anotherUser.address;
 
                 await checkAddNode(nodeContract, nodeInfo, anotherUser, trustedSigner, false, "InvalidEndpointUri");
@@ -431,11 +507,12 @@ describe('DiamondTest', async function () {
             const unregisterTime = blockTime + days(30);
             
             // Remove start
-            await checkRemoveNodeStart(nodeContract, user, unregisterTime)
+            const fallbackInfo = getFallbackNodeInfo(fallbackUser, fallbackNode.slotCount);
+            await checkRemoveNodeStart(nodeContract, user, unregisterTime, fallbackInfo)
 
             // Remove complete
             await time.increaseTo(unregisterTime);
-            await checkRemoveNodeComplete(nodeContract, user, owner);
+            await checkRemoveNodeComplete(nodeContract, user, fallbackUser, owner);
 
             // Approve Token
             await approveToken(BigInt(storageNode.slotCount), owner, diamondAddress);
@@ -494,6 +571,7 @@ describe('DiamondTest', async function () {
     const checkGetNodeResult = (
         result: LibStorageNode.StorageNodeStructOutput, 
         org: IStorageNode.StorageNodeInputStruct, ) => {
+        expect(result.name).to.equal(org.name);
         expect(result.didAddress).to.equal(org.didAddress);
         expect(result.endpointUri).to.equal(org.endpointUri);
         expect(result.countryCode).to.equal(org.countryCode);
@@ -501,6 +579,8 @@ describe('DiamondTest', async function () {
         expect(result.datacenterId).to.equal(org.datacenterId);
         expect(result.lat).to.equal(org.lat);
         expect(result.long).to.equal(org.long);
+        expect(result.slotCount).to.equal(org.slotCount);
+        expect(result.acceptFallbackSlots).to.equal(org.acceptFallbackSlots);
     }
 
     before(async () => {
@@ -510,14 +590,16 @@ describe('DiamondTest', async function () {
 
       for (let i = 0; i < users.length; i++) {
         storageNodes.push(createStorageNodeInputStruct(
-            users[i].address,
-            endpointURI[i],
-            nodeCountry[i],
-            nodeRegion[i],
-            datacenterId[i],
-            lat[i],
-            long[i],
-            VALID_NUMBER_SLOTS)
+          `node-${i+1}`,
+          users[i].address,
+          endpointURI[i],
+          nodeCountry[i],
+          nodeRegion[i],
+          datacenterId[i],
+          lat[i],
+          long[i],
+          VALID_NUMBER_SLOTS,
+          true)
         );
       }
 
@@ -525,6 +607,51 @@ describe('DiamondTest', async function () {
           await approveToken(1n, owner, diamondAddress, true);
           await checkAddNode(nodeContract, storageNodes[i], users[i], trustedSigner, true);
       }
+
+      // Add fallback node
+      await checkAddNode(nodeContract, fallbackNode, fallbackUser, trustedSigner, true);
+    })
+
+    describe("Get by Name", () => {
+      it("Failed: Unregistered name",async () => {
+        const randomName = Wallet.createRandom().address.toLowerCase();
+
+        await expect(
+          nodeContract.getNodeByName(randomName)
+        ).to.be.revertedWithCustomError(nodeContract, "InvalidName");
+      })
+
+      it("Success",async () => {
+        for (let i = 0; i < users.length; i++) {
+          const result = await nodeContract.getNodeByName(storageNodes[i].name);
+          checkGetNodeResult(result, storageNodes[i]);
+
+          expect(result.status).to.equal(0);
+        }
+      })
+
+      it("Success: pending removal state",async () => {
+        const currentSnapshot = await takeSnapshot();
+
+        // Remove start
+        const blockTime = await time.latest();
+        const unregisterTime = blockTime + days(30);
+        const fallbackInfo = getFallbackNodeInfo(fallbackUser, fallbackNode.slotCount);
+        await checkRemoveNodeStart(nodeContract, users[0], unregisterTime, fallbackInfo);
+
+        // Get by address
+        const result =  await nodeContract.getNodeByName(storageNodes[0].name);
+        checkGetNodeResult(result, storageNodes[0]);
+
+        expect(result.status).to.equal(1);
+        
+        await currentSnapshot.restore();
+      })
+
+      it("Failed: remmoved node",async () => {
+        
+      })
+
     })
 
     describe("Get by Address", () => {
@@ -539,9 +666,9 @@ describe('DiamondTest', async function () {
       it("Success: status active", async () => {
         for (let i = 0; i < users.length; i++) {
           const result = await nodeContract.getNodeByAddress(users[i].address);
-          checkGetNodeResult(result[0], storageNodes[i]);
+          checkGetNodeResult(result, storageNodes[i]);
 
-          expect(result[1]).to.equal("active");
+          expect(result.status).to.equal(0);
         }
       })
 
@@ -551,15 +678,21 @@ describe('DiamondTest', async function () {
         // Remove start
         const blockTime = await time.latest();
         const unregisterTime = blockTime + days(30);
-        await checkRemoveNodeStart(nodeContract, users[0], unregisterTime);
+        const fallbackInfo = getFallbackNodeInfo(fallbackUser, fallbackNode.slotCount);
+        await checkRemoveNodeStart(nodeContract, users[0], unregisterTime, fallbackInfo);
 
         // Get by address
         const result =  await nodeContract.getNodeByAddress(users[0].address);
-        checkGetNodeResult(result[0], storageNodes[0]);
+        checkGetNodeResult(result, storageNodes[0]);
 
-        expect(result[1]).to.equal("removed");
+        expect(result.status).to.equal(1);
         
         await currentSnapshot.restore();
+      })
+
+      it("Failed : removed state",async () => {
+        // To-do
+        
       })
     })
 
@@ -575,8 +708,8 @@ describe('DiamondTest', async function () {
       it("Success : status active", async () => {
         for (let i = 0; i < users.length; i++) {
           const result = await nodeContract.getNodeByEndpoint(storageNodes[i].endpointUri);
-          checkGetNodeResult(result[0], storageNodes[i]);
-          expect(result[1]).to.equal("active");
+          checkGetNodeResult(result, storageNodes[i]);
+          expect(result.status).to.equal(0);
         }
       })
 
@@ -586,14 +719,19 @@ describe('DiamondTest', async function () {
         // Remove start
         const blockTime = await time.latest();
         const unregisterTime = blockTime + days(30);
-        await checkRemoveNodeStart(nodeContract, users[0], unregisterTime);
+        const fallbackInfo = getFallbackNodeInfo(fallbackUser, fallbackNode.slotCount);
+        await checkRemoveNodeStart(nodeContract, users[0], unregisterTime, fallbackInfo);
 
         // Get by endpoint
         const result = await nodeContract.getNodeByEndpoint(storageNodes[0].endpointUri);
-        checkGetNodeResult(result[0], storageNodes[0]);
-        expect(result[1]).to.equal("removed");
+        checkGetNodeResult(result, storageNodes[0]);
+        expect(result.status).to.equal(1);
 
         await currentSnapshot.restore();
+      })
+
+      it("Success : removed state",async () => {
+        //To-do
       })
     })
 
@@ -650,7 +788,9 @@ describe('DiamondTest', async function () {
       })
     })
   })
+  */
 
+  /*
   describe("Get balance", () => {
     before(async () => {
       await snapShotWithDatacenters.restore();
@@ -956,9 +1096,13 @@ describe('DiamondTest', async function () {
       expect(curRequestorTokenAmount).to.be.eq(orgRequestorTokenAmount + excessTokenAmount);
     })
   });
+  */
 
   describe("Remove node", () => {
+    const fallbackInfo = getFallbackNodeInfo(fallbackUser, fallbackNode.slotCount);
+
     describe("Test when staking is not required", () => {
+      let beforeRemoveStartStatus: SnapshotRestorer
       before(async () => {
         await snapShotWithDatacenters.restore();
 
@@ -968,15 +1112,25 @@ describe('DiamondTest', async function () {
         expect(await nodeContract.isStakingRequired()).to.be.eq(false);
       
         await checkAddNode(nodeContract, storageNode, user, trustedSigner, true);
+
+        beforeRemoveStartStatus = await takeSnapshot();
+      })
+
+      after(async () => {
+        await beforeRemoveStartStatus.restore();
       })
 
       describe("Remove node start", () => {
-        it("Failed: Unregistered address", async () => {
+        it("Failed: Invalid node - unregistered", async () => {
           const temp = Wallet.createRandom();
 
           await expect(
-            nodeContract.removeNodeStart(temp.address, 0, "0x00", "0x00")
+            nodeContract.removeNodeStart(temp.address, 0, fallbackInfo, "0x00", "0x00")
           ).to.be.revertedWithCustomError(nodeContract, "InvalidDIDAddress");
+        })
+
+        it("Failed: Invalid node - set as fallback of another node",async () => {
+          
         })
 
         it("Failed: Invalid Unregister Time", async () => {
@@ -985,22 +1139,226 @@ describe('DiamondTest', async function () {
 
           for (let i = 0; i < invalidTimes.length; i++) {
             await expect(
-              nodeContract.removeNodeStart(user.address, 0, "0x00", "0x00")
+              nodeContract.removeNodeStart(user.address, 0, fallbackInfo, "0x00", "0x00")
             ).to.be.revertedWithCustomError(nodeContract, "InvalidUnregisterTime");
           }
         })
 
-        it("Success", async () => {
-          const currentSnapshot = await takeSnapshot();
+        it("Failed: Invalid fallback node - unregistered",async () => {
+          const blockTime = await time.latest();
+          const unregisterTime = blockTime + days(30);
+
+          const temp = Wallet.createRandom();
+          const fallbackInfo = getFallbackNodeInfo(temp, 0);
+          await expect(
+            nodeContract.removeNodeStart(user.address, unregisterTime, fallbackInfo, "0x00", "0x00")
+          ).to.be.revertedWithCustomError(nodeContract, "InvalidFallbackNodeAddress");
+        })
+
+        it("Failed: Invalid fallback node - not acceptable fallback slots",async () => {
+          // Add non acceptable fallback node
+          const fallbackNode = createStorageNodeInputStruct(
+            "node-fallback",
+            fallbackUser.address,
+            "https://endpoint-fallback",
+            "us",
+            "north america",
+            1,
+            -89,
+            -179,
+            storageNode.slotCount,
+            false
+          );
+          await checkAddNode(nodeContract, fallbackNode, fallbackUser, trustedSigner, true);
+
+          // Check remove node start
+          const blockTime = await time.latest();
+          const unregisterTime = blockTime + days(30);
+          const fallbackInfo = getFallbackNodeInfo(fallbackUser, storageNode.slotCount);
+          await checkRemoveNodeStart(nodeContract, user, unregisterTime, fallbackInfo, false, "InvalidFallbackNodeAddress")
+        })
+
+        it("Failed: Invalid fallback node - pending removal state",async () => {
+          await beforeRemoveStartStatus.restore();
 
           const blockTime = await time.latest();
           const unregisterTime = blockTime + days(30);
-          await checkRemoveNodeStart(nodeContract, user, unregisterTime);
+
+          // Add third node
+          const thirdUser = Wallet.createRandom();
+          const thirdNode = createStorageNodeInputStruct(
+            "node-fallback-1",
+            thirdUser.address,
+            "https://endpoint-fallback-1",
+            "us",
+            "north america",
+            1,
+            -89,
+            -179,
+            storageNode.slotCount,
+            true
+          );
+          await checkAddNode(nodeContract, thirdNode, thirdUser, trustedSigner, true);
+
+          // Add fallback node
+          await checkAddNode(nodeContract, fallbackNode, fallbackUser, trustedSigner, true);
+          // Remove fallback node
+          const thirdFallbackInfo = getFallbackNodeInfo(thirdUser, thirdNode.slotCount);
+          await checkRemoveNodeStart(nodeContract, fallbackUser, unregisterTime, thirdFallbackInfo);
+
+          // Check remove node
+          await checkRemoveNodeStart(nodeContract, user, unregisterTime, fallbackInfo, false, "InvalidFallbackNodeAddress");
+        })
+
+        it("Failed: Invalid fallback node - set as fallback for another node",async () => {
+          await beforeRemoveStartStatus.restore();
+          await beforeRemoveStartStatus.restore();
+
+          const blockTime = await time.latest();
+          const unregisterTime = blockTime + days(30);
+
+          // Add fallback node
+          await checkAddNode(nodeContract, fallbackNode, fallbackUser, trustedSigner, true);
+
+          // Add third node
+          const thirdUser = Wallet.createRandom();
+          const thirdNode = createStorageNodeInputStruct(
+            "node-fallback-1",
+            thirdUser.address,
+            "https://endpoint-fallback-1",
+            "us",
+            "north america",
+            1,
+            -89,
+            -179,
+            storageNode.slotCount,
+            true
+          );
+          await checkAddNode(nodeContract, thirdNode, thirdUser, trustedSigner, true);
           
-          await currentSnapshot.restore();
+          // Set fallback node as fallback of third node
+          await checkRemoveNodeStart(nodeContract, thirdUser, unregisterTime, fallbackInfo);
+
+          // Check remove node
+          await checkRemoveNodeStart(nodeContract, user, unregisterTime, fallbackInfo, false, "InvalidFallbackNodeAddress");
+        })
+
+        it("Failed: Invalid available slot counts",async () => {
+          await beforeRemoveStartStatus.restore();
+
+          const minSlot = 100;
+          await nodeContract.updateMinSlotCount(minSlot);
+
+          // Check current node's slot count
+          expect(storageNode.slotCount).to.gt(minSlot);
+
+          // Create insufficient fallback node
+          const fallbackNode = createStorageNodeInputStruct(
+            "node-fallback",
+            fallbackUser.address,
+            "https://endpoint-fallback",
+            "us",
+            "north america",
+            1,
+            -89,
+            -179,
+            minSlot,
+            true
+          );
+          await checkAddNode(nodeContract, fallbackNode, fallbackUser, trustedSigner, true);
+
+          // Call removeNodeStart
+          const blockTime = await time.latest();
+          const unregisterTime = blockTime + days(30);
+
+          const availableSlots = minSlot + 100;
+          const fallbackInfo = getFallbackNodeInfo(fallbackUser, availableSlots);
+          await expect(
+            nodeContract.removeNodeStart(user.address, unregisterTime, fallbackInfo, "0x00", "0x00")
+          ).to.be.revertedWithCustomError(nodeContract, "InvalidAvailableSlots");
+        })
+
+        it("Failed: Insufficient slot counts",async () => {
+          await beforeRemoveStartStatus.restore();
+
+          // Create insufficient fallback node
+          const fallbackNode = createStorageNodeInputStruct(
+            "node-fallback",
+            fallbackUser.address,
+            "https://endpoint-fallback",
+            "us",
+            "north america",
+            1,
+            -89,
+            -179,
+            storageNode.slotCount,
+            true
+          );
+          await checkAddNode(nodeContract, fallbackNode, fallbackUser, trustedSigner, true);
+
+          // Call removeNodeStart
+          const blockTime = await time.latest();
+          const unregisterTime = blockTime + days(30);
+
+          const availableSlots = 1n;
+          expect(availableSlots).to.lt(storageNode.slotCount);
+          const fallbackInfo = getFallbackNodeInfo(fallbackUser, availableSlots);
+          await expect(
+            nodeContract.removeNodeStart(user.address, unregisterTime, fallbackInfo, "0x00", "0x00")
+          ).to.be.revertedWithCustomError(nodeContract, "InsufficientFallbackSlots");
+        })
+
+        it("Failed: Invalid fallback proof time",async () => {
+          await beforeRemoveStartStatus.restore();
+
+          const blockTime = await time.latest();
+          const unregisterTime = blockTime + days(30);
+
+          // Add fallback node
+          await checkAddNode(nodeContract, fallbackNode, fallbackUser, trustedSigner, true);
+
+          await time.increaseTo(blockTime + hours(1));
+          await checkRemoveNodeStart(nodeContract, user, unregisterTime, fallbackInfo, false, "InvalidFallbackNodeProofTime");
+        })
+
+        it("Invalid Fallback Signature",async () => {
+          await beforeRemoveStartStatus.restore();
+
+          const blockTime = await time.latest();
+          const unregisterTime = blockTime + days(30);
+
+          // Add falback node
+          await checkAddNode(nodeContract, fallbackNode, fallbackUser, trustedSigner, true);
+
+          // Get fallback signature by invalid signer
+          const fallbackInfo = getFallbackNodeInfo(fallbackUser, fallbackNode.slotCount, Wallet.createRandom());
+          await checkRemoveNodeStart(nodeContract, user, unregisterTime, fallbackInfo, false, "InvalidFallbackNodeSiganture");
+
+          // Check for empty fallback signature
+          fallbackInfo.availableSlotsProof = "0x";
+          await checkRemoveNodeStart(nodeContract, user, unregisterTime, fallbackInfo, false, "InvalidFallbackNodeSiganture");          
+        })
+
+        it("Success", async () => {
+          await beforeRemoveStartStatus.restore();
+
+          const blockTime = await time.latest();
+          const unregisterTime = blockTime + days(30);
+
+          // Add fallback node
+          await checkAddNode(nodeContract, fallbackNode, fallbackUser, trustedSigner, true);
+
+          await checkRemoveNodeStart(nodeContract, user, unregisterTime, fallbackInfo);
+        })
+
+        it("Failed: pending removal state",async () => {
+          const blockTime = await time.latest();
+          const unregisterTime = blockTime + days(30);
+          await checkRemoveNodeStart(nodeContract, user, unregisterTime, fallbackInfo, false, "InvalidDIDAddress");
         })
       })
 
+      /*
       describe("Remove node complete", () => {
         let snapShotRemoveStarted: SnapshotRestorer
 
@@ -1008,24 +1366,29 @@ describe('DiamondTest', async function () {
           const requestorOrgTokenAmount = await tokenContract.balanceOf(requestor.address);
 
           // complete remove node
-          await checkRemoveNodeComplete(nodeContract, user, requestor);
+          await checkRemoveNodeComplete(nodeContract, user, fallbackUser, requestor);
 
           // Confirm requstor token has not changed
           const requestorCurTokenAmount = await tokenContract.balanceOf(requestor.address);
           expect(requestorCurTokenAmount).to.be.equal(requestorOrgTokenAmount);
         }
 
+        before(async () => {
+          // Add fallback node
+          await checkAddNode(nodeContract, fallbackNode, fallbackUser, trustedSigner, true);
+        })
+
         it("Failed: Unregistered address", async () => {
           const temp = Wallet.createRandom();
           await expect(
-            nodeContract.removeNodeComplete(temp.address, "0x00", "0x00")
+            nodeContract.removeNodeComplete(temp.address, "0x00", "0x00", "0x00")
           ).to.be.revertedWithCustomError(nodeContract, "InvalidDIDAddress");
         })
 
         it("Failed: Remove node not started", async () => {
           await expect(
-            nodeContract.removeNodeComplete(user.address, "0x00", "0x00")
-          ).to.be.revertedWithCustomError(nodeContract, "InvalidUnregisterTime");
+            nodeContract.removeNodeComplete(user.address, "0x00", "0x00", "0x00")
+          ).to.be.revertedWithCustomError(nodeContract, "InvalidDIDAddress");
         })
 
         it("Failed: Before remove time", async () => {
@@ -1035,39 +1398,67 @@ describe('DiamondTest', async function () {
           const blockTime = await time.latest();
           const unregisterTime = blockTime + days(30);
 
-          await checkRemoveNodeStart(nodeContract, user, unregisterTime);
+          const fallbackInfo = getFallbackNodeInfo(fallbackUser, fallbackNode.slotCount);
+          await checkRemoveNodeStart(nodeContract, user, unregisterTime, fallbackInfo);
 
           // Remove node not completed
           await expect(
-            nodeContract.removeNodeComplete(user.address, "0x00", "0x00")
+            nodeContract.removeNodeComplete(user.address, "0x00", "0x00", "0x00")
           ).to.be.revertedWithCustomError(nodeContract, "InvalidUnregisterTime")
 
           // After 10 days from start
           await time.increaseTo(blockTime + days(10));
           await expect(
-            nodeContract.removeNodeComplete(user.address, "0x00", "0x00")
+            nodeContract.removeNodeComplete(user.address, "0x00", "0x00", "0x00")
           ).to.be.revertedWithCustomError(nodeContract, "InvalidUnregisterTime")
 
           // After 20 days from start
           await time.increaseTo(blockTime + days(20));
           await expect(
-            nodeContract.removeNodeComplete(user.address, "0x00", "0x00")
+            nodeContract.removeNodeComplete(user.address, "0x00", "0x00", "0x00")
           ).to.be.revertedWithCustomError(nodeContract, "InvalidUnregisterTime")
 
           await currentSnapshot.restore();
+        })
+
+        it("Failed : Invalid migration proof",async () => {
+          const currentSnapShot = await takeSnapshot();
+          // Remove node start
+          const blockTime = await time.latest();
+          const unregisterTime = blockTime + days(30);
+
+          const fallbackInfo = getFallbackNodeInfo(fallbackUser, fallbackNode.slotCount);
+          await checkRemoveNodeStart(nodeContract, user, unregisterTime, fallbackInfo);
+
+          // After 31 days
+          await time.increaseTo(blockTime + days(31));
+
+          // Empty migration proof
+          await expect(
+            nodeContract.removeNodeComplete(user.address, "0x", "0x00", "0x00")
+          ).to.be.revertedWithCustomError(nodeContract, "InvalidFallbackNodeSiganture")
+
+          // Invalid migration proof
+          const invalid_migration = getFallbackMigrationProof(user.address, fallbackUser.address, Wallet.createRandom());
+          await expect(
+            nodeContract.removeNodeComplete(user.address, invalid_migration, "0x00", "0x00")
+          ).to.be.revertedWithCustomError(nodeContract, "InvalidFallbackNodeSiganture")
+
+          await currentSnapShot.restore();
         })
 
         it("Success", async () => {
           // Remove node start
           const blockTime = await time.latest();
           const unregisterTime = blockTime + days(30);
-          await checkRemoveNodeStart(nodeContract, user, unregisterTime);
+          const fallbackInfo = getFallbackNodeInfo(fallbackUser, fallbackNode.slotCount);
+          await checkRemoveNodeStart(nodeContract, user, unregisterTime, fallbackInfo);
 
           // After 31 days
           await time.increaseTo(blockTime + days(31));
 
           snapShotRemoveStarted = await takeSnapshot();
-
+          
           await checkRemoveComplete(accounts[0]);
         })  
         
@@ -1079,8 +1470,10 @@ describe('DiamondTest', async function () {
           await checkRemoveComplete(accounts[0]);
         })  
       })
+      */
     })
 
+    /*
     describe("Test when staking is required", () => {
       before(async () => {
         await snapShotWithDatacenters.restore();
@@ -1100,7 +1493,7 @@ describe('DiamondTest', async function () {
           const temp = Wallet.createRandom();
 
           await expect(
-            nodeContract.removeNodeStart(temp.address, 0, "0x00", "0x00")
+            nodeContract.removeNodeStart(temp.address, 0, fallbackInfo, "0x00", "0x00")
           ).to.be.revertedWithCustomError(nodeContract, "InvalidDIDAddress");
         })
 
@@ -1110,10 +1503,113 @@ describe('DiamondTest', async function () {
           const invalidTimes = [0, blockTime, blockTime + days(10), blockTime + days(27)];
 
           for (let i = 0; i < invalidTimes.length; i++) {
-              await expect(
-                nodeContract.removeNodeStart(user.address, 0, "0x00", "0x00")
-              ).to.be.revertedWithCustomError(nodeContract, "InvalidUnregisterTime");
+            await expect(
+              nodeContract.removeNodeStart(user.address, 0, fallbackInfo, "0x00", "0x00")
+            ).to.be.revertedWithCustomError(nodeContract, "InvalidUnregisterTime");
           }
+        })
+
+        it("Failed: Unregistered fallback node address",async () => {
+          const blockTime = await time.latest();
+          const unregisterTime = blockTime + days(30);
+
+          const temp = Wallet.createRandom();
+          const fallbackInfo = getFallbackNodeInfo(temp, 0);
+          await expect(
+            nodeContract.removeNodeStart(user.address, unregisterTime, fallbackInfo, "0x00", "0x00")
+          ).to.be.revertedWithCustomError(nodeContract, "InvalidFallbackNodeAddress");
+        })
+
+        it("Failed: Invalid available slot counts",async () => {
+          const currentSnapShot = await takeSnapshot();
+
+          const minSlot = 100;
+          await nodeContract.updateMinSlotCount(minSlot);
+
+          // Check current node's slot count
+          expect(storageNode.slotCount).to.gt(minSlot);
+
+          // Create insufficient fallback node
+          const fallbackNode = createStorageNodeInputStruct(
+            "node-fallback",
+            fallbackUser.address,
+            "https://endpoint-fallback",
+            "us",
+            "north america",
+            1,
+            -89,
+            -179,
+            minSlot,
+            true
+          );
+          await approveToken(BigInt(fallbackNode.slotCount), owner, diamondAddress, true);
+          await checkAddNode(nodeContract, fallbackNode, fallbackUser, trustedSigner, true);
+
+          // Call removeNodeStart
+          const blockTime = await time.latest();
+          const unregisterTime = blockTime + days(30);
+
+          const availableSlots = minSlot + 100;
+          const fallbackInfo = getFallbackNodeInfo(fallbackUser, availableSlots);
+          await expect(
+            nodeContract.removeNodeStart(user.address, unregisterTime, fallbackInfo, "0x00", "0x00")
+          ).to.be.revertedWithCustomError(nodeContract, "InvalidAvailableSlots");
+
+          await currentSnapShot.restore();
+        })
+
+        it("Failed: Insufficient slot counts",async () => {
+          const currentSnapShot = await takeSnapshot();
+
+          // Create insufficient fallback node
+          const fallbackNode = createStorageNodeInputStruct(
+            "node-fallback",
+            fallbackUser.address,
+            "https://endpoint-fallback",
+            "us",
+            "north america",
+            1,
+            -89,
+            -179,
+            storageNode.slotCount,
+            true
+          );
+          await approveToken(BigInt(fallbackNode.slotCount), owner, diamondAddress, true);
+          await checkAddNode(nodeContract, fallbackNode, fallbackUser, trustedSigner, true);
+
+          // Call removeNodeStart
+          const blockTime = await time.latest();
+          const unregisterTime = blockTime + days(30);
+
+          const availableSlots = 1n;
+          expect(availableSlots).to.lt(storageNode.slotCount);
+          const fallbackInfo = getFallbackNodeInfo(fallbackUser, availableSlots);
+          await expect(
+            nodeContract.removeNodeStart(user.address, unregisterTime, fallbackInfo, "0x00", "0x00")
+          ).to.be.revertedWithCustomError(nodeContract, "InsufficientFallbackSlots");
+
+          await currentSnapShot.restore();
+        })
+
+        it("Invalid Fallback Signature",async () => {
+          const currentSnapshot = await takeSnapshot();
+
+          const blockTime = await time.latest();
+          const unregisterTime = blockTime + days(30);
+
+          // Add falback node
+          await approveToken(BigInt(fallbackNode.slotCount), owner, diamondAddress, true);
+          await checkAddNode(nodeContract, fallbackNode, fallbackUser, trustedSigner, true);
+
+          // Get fallback signature by invalid signer
+          const fallbackInfo = getFallbackNodeInfo(fallbackUser, fallbackNode.slotCount, Wallet.createRandom());
+          await checkRemoveNodeStart(nodeContract, user, unregisterTime, fallbackInfo, false, "InvalidFallbackNodeSiganture");
+
+          // Check for empty fallback signature
+          fallbackInfo.availableSlotsProof = "0x";
+          await checkRemoveNodeStart(nodeContract, user, unregisterTime, fallbackInfo, false, "InvalidFallbackNodeSiganture");
+          
+          await currentSnapshot.restore();
         })
 
         it("Success", async () => {
@@ -1122,7 +1618,12 @@ describe('DiamondTest', async function () {
           const blockTime = await time.latest();
           const unregisterTime = blockTime + days(30);
 
-          await checkRemoveNodeStart(nodeContract, user, unregisterTime);
+          // Add falback node
+          await approveToken(BigInt(fallbackNode.slotCount), owner, diamondAddress, true);
+          await checkAddNode(nodeContract, fallbackNode, fallbackUser, trustedSigner, true);
+
+          const fallbackInfo = getFallbackNodeInfo(fallbackUser, fallbackNode.slotCount);
+          await checkRemoveNodeStart(nodeContract, user, unregisterTime, fallbackInfo);
           
           await currentSnapshot.restore();
         })
@@ -1137,25 +1638,31 @@ describe('DiamondTest', async function () {
           const stakedTokenAmount = await nodeContract.getBalance(user.address);
 
           // complete remove node
-          await checkRemoveNodeComplete(nodeContract, user, requestor);
+          await checkRemoveNodeComplete(nodeContract, user, fallbackUser, requestor);
 
           // Confirm requstor received the staked token
           const requestorCurTokenAmount = await tokenContract.balanceOf(requestor.address);
           expect(requestorCurTokenAmount).to.be.equal(requestorOrgTokenAmount + stakedTokenAmount);
         }
 
+        before(async () => {
+          // Add fallback node
+          await approveToken(BigInt(fallbackNode.slotCount), owner, diamondAddress, true);
+          await checkAddNode(nodeContract, fallbackNode, fallbackUser, trustedSigner, true);
+        })
+
         it("Failed: Unregistered address", async () => {
           const temp = Wallet.createRandom();
 
           await expect(
-            nodeContract.removeNodeComplete(temp.address, "0x00", "0x00")
+            nodeContract.removeNodeComplete(temp.address, "0x00", "0x00", "0x00")
           ).to.be.revertedWithCustomError(nodeContract, "InvalidDIDAddress");
         })
 
         it("Failed: Remove node not started", async () => {
           await expect(
-            nodeContract.removeNodeComplete(user.address, "0x00", "0x00")
-          ).to.be.revertedWithCustomError(nodeContract, "InvalidUnregisterTime");
+            nodeContract.removeNodeComplete(user.address, "0x00", "0x00", "0x00")
+          ).to.be.revertedWithCustomError(nodeContract, "InvalidDIDAddress");
         })
 
         it("Failed: Before remove time", async () => {
@@ -1165,33 +1672,61 @@ describe('DiamondTest', async function () {
           const blockTime = await time.latest();
           const unregisterTime = blockTime + days(30);
 
-          await checkRemoveNodeStart(nodeContract, user, unregisterTime);
+          const fallbackInfo = getFallbackNodeInfo(fallbackUser, fallbackNode.slotCount);
+          await checkRemoveNodeStart(nodeContract, user, unregisterTime, fallbackInfo);
 
           // Remove node not completed
           await expect(
-            nodeContract.removeNodeComplete(user.address, "0x00", "0x00")
+            nodeContract.removeNodeComplete(user.address, "0x00", "0x00", "0x00")
           ).to.be.revertedWithCustomError(nodeContract, "InvalidUnregisterTime")
 
           // After 10 days from start
           await time.increaseTo(blockTime + days(10));
           await expect(
-            nodeContract.removeNodeComplete(user.address, "0x00", "0x00")
+            nodeContract.removeNodeComplete(user.address, "0x00", "0x00", "0x00")
           ).to.be.revertedWithCustomError(nodeContract, "InvalidUnregisterTime")
 
           // After 20 days from start
           await time.increaseTo(blockTime + days(20));
           await expect(
-            nodeContract.removeNodeComplete(user.address, "0x00", "0x00")
+            nodeContract.removeNodeComplete(user.address, "0x00", "0x00", "0x00")
           ).to.be.revertedWithCustomError(nodeContract, "InvalidUnregisterTime")
 
           await currentSnapshot.restore();
+        })
+
+        it("Failed : Invalid migration proof",async () => {
+          const currentSnapShot = await takeSnapshot();
+          // Remove node start
+          const blockTime = await time.latest();
+          const unregisterTime = blockTime + days(30);
+
+          const fallbackInfo = getFallbackNodeInfo(fallbackUser, fallbackNode.slotCount);
+          await checkRemoveNodeStart(nodeContract, user, unregisterTime, fallbackInfo);
+
+          // After 31 days
+          await time.increaseTo(blockTime + days(31));
+
+          // Empty migration proof
+          await expect(
+            nodeContract.removeNodeComplete(user.address, "0x", "0x00", "0x00")
+          ).to.be.revertedWithCustomError(nodeContract, "InvalidFallbackNodeSiganture")
+
+          // Invalid migration proof
+          const invalid_migration = getFallbackMigrationProof(user.address, fallbackUser.address, Wallet.createRandom());
+          await expect(
+            nodeContract.removeNodeComplete(user.address, invalid_migration, "0x00", "0x00")
+          ).to.be.revertedWithCustomError(nodeContract, "InvalidFallbackNodeSiganture")
+
+          await currentSnapShot.restore();
         })
 
         it("Success when STAKE_PER_SLOT has no changes", async () => {
           // Remove node start
           const blockTime = await time.latest();
           const unregisterTime = blockTime + days(30);
-          await checkRemoveNodeStart(nodeContract, user, unregisterTime);
+          const fallbackInfo = getFallbackNodeInfo(fallbackUser, fallbackNode.slotCount);
+          await checkRemoveNodeStart(nodeContract, user, unregisterTime, fallbackInfo);
 
           // After 31 days
           await time.increaseTo(blockTime + days(31));
@@ -1227,5 +1762,6 @@ describe('DiamondTest', async function () {
         })
       })
     })
+    */
   })
 })

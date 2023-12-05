@@ -1,5 +1,5 @@
 import { ethers } from "hardhat";
-import { BigNumberish, HDNodeWallet, Wallet } from "ethers";
+import { BigNumberish, BytesLike, HDNodeWallet, Wallet } from "ethers";
 import EncryptionUtils from "@verida/encryption-utils";
 import { IDataCenter, IStorageNode, VDAStorageNodeFacet } from "../../typechain-types";
 import { expect } from "chai";
@@ -24,6 +24,7 @@ export function createDatacenterStruct(
 }
 
 export function createStorageNodeInputStruct(
+    name: string,
     address: string,
     endpointUri: string,
     countryCode: string,
@@ -31,9 +32,11 @@ export function createStorageNodeInputStruct(
     datacenterId: BigNumberish,
     lat: number,
     long: number,
-    slotCount: number) : IStorageNode.StorageNodeInputStruct {
+    slotCount: BigNumberish,
+    acceptFallbackSlots: boolean) : IStorageNode.StorageNodeInputStruct {
     
     return {
+        name,
         didAddress: address,
         endpointUri,
         countryCode,
@@ -41,7 +44,8 @@ export function createStorageNodeInputStruct(
         datacenterId,
         lat: ethers.parseUnits(lat.toString(), CONTRACT_DECIMAL),
         long: ethers.parseUnits(long.toString(), CONTRACT_DECIMAL),
-        slotCount: slotCount
+        slotCount: slotCount,
+        acceptFallbackSlots
     }
 }
 
@@ -58,8 +62,8 @@ export function getAddNodeSignatures(
     signer : Wallet | HDNodeWallet
 ) : RequestSignature {
     const rawmsg = ethers.solidityPacked(
-        ["address", "string", "uint", "int", "int", "uint", "uint"],
-        [node.didAddress, `${node.endpointUri}${node.countryCode}${node.regionCode}`, node.datacenterId, node.lat, node.long, node.slotCount, nonce]
+        ["string", "address", "string", "uint", "int", "int", "uint", "bool", "uint"],
+        [node.name, node.didAddress, `${node.endpointUri}${node.countryCode}${node.regionCode}`, node.datacenterId, node.lat, node.long, node.slotCount, node.acceptFallbackSlots, nonce]
     );
 
     const privateKeyBuffer = new Uint8Array(Buffer.from(user.privateKey.slice(2), 'hex'));
@@ -90,11 +94,12 @@ export interface RemoveSignature {
 export function getRemoveStartSignatures(
     user: Wallet | HDNodeWallet,
     unregisterTime : BigNumberish,
+    fallbackInfo: IStorageNode.FallbackNodeInfoStruct,
     nonce: BigNumberish
 ) : RemoveSignature {
     const rawMsg = ethers.solidityPacked(
-        ["address", "uint", "uint"],
-        [user.address, unregisterTime, nonce]
+        ["address", "uint", "address", "uint", "uint", "bytes", "uint"],
+        [user.address, unregisterTime, fallbackInfo.fallbackNodeAddress, fallbackInfo.availableSlots, fallbackInfo.fallbackProofTime, fallbackInfo.availableSlotsProof, nonce]
     );
     
     const privateKeyBuffer = new Uint8Array(Buffer.from(user.privateKey.slice(2), 'hex'));
@@ -111,11 +116,13 @@ export function getRemoveStartSignatures(
 
 export function getRemoveCompleteSignatures(
     user: Wallet | HDNodeWallet,
+    migrationProof: string,
     nonce: BigNumberish
 ) : RemoveSignature {
+
     const rawMsg = ethers.solidityPacked(
-        ["address", "uint"],
-        [user.address, nonce]
+        ["address", "bytes", "uint"],
+        [user.address, migrationProof, nonce]
     );
 
     const privateKeyBuffer = new Uint8Array(Buffer.from(user.privateKey.slice(2), 'hex'));
@@ -190,6 +197,7 @@ export const checkAddNode = async (
         const tx = await contract.addNode(storageNode, requestSignature, requestProof, authSignature);
 
         await expect(tx).to.emit(contract, "AddNode").withArgs(
+            storageNode.name,
             storageNode.didAddress,
             storageNode.endpointUri,
             storageNode.countryCode,
@@ -198,33 +206,83 @@ export const checkAddNode = async (
             storageNode.lat,
             storageNode.long,
             storageNode.slotCount,
+            storageNode.acceptFallbackSlots,
             anyValue
         );
     } else {
         await expect(
             contract.addNode(storageNode, requestSignature, requestProof, authSignature)
         ).to.be.revertedWithCustomError(contract, revertError!);
+    }Date.now() / 1000
+}
+
+/**
+ * Get fallback node information
+ * @param user Fallback node owner
+ * @param node fallback node
+ * @param signer Signer that signs the message. This parameter is for testing invalid signature tests.
+ * @returns fallback node information for `removeNodeStart()` function
+ */
+export const getFallbackNodeInfo = (user:Wallet | HDNodeWallet, slotCount: BigNumberish, signer: Wallet|HDNodeWallet|undefined = undefined) : IStorageNode.FallbackNodeInfoStruct => {
+    const timeInSec = Math.floor(Date.now() / 1000);
+
+    const rawmsg = ethers.solidityPacked(
+        ["address", "string", "uint", "string", "uint"],
+        [user.address, "/", slotCount, "/", timeInSec]
+    );
+    if (signer === undefined) {
+        signer = user;
     }
+
+    const privateKeyBuffer = new Uint8Array(Buffer.from(signer.privateKey.slice(2), 'hex'));
+    const signature = EncryptionUtils.signData(rawmsg, privateKeyBuffer);
+
+    return {
+        fallbackNodeAddress: user.address,
+        availableSlots: slotCount,
+        fallbackProofTime: timeInSec,
+        availableSlotsProof: signature
+    };
+}
+
+/**
+ * Get migration proof for `removeNodeComplete()` function
+ * @param nodeAddress Addres of node that will be removed
+ * @param fallbackNodeAddress The address of fallback node
+ * @param signer Signer of the message
+ */
+export const getFallbackMigrationProof = (nodeAddress: string, fallbackNodeAddress:string, signer: Wallet|HDNodeWallet) => {
+    const rawmsg = ethers.solidityPacked(
+        ["address", "string", "address", "string"],
+        [nodeAddress, "/", fallbackNodeAddress, "-migrated"]
+    );
+    const privateKeyBuffer = new Uint8Array(Buffer.from(signer.privateKey.slice(2), 'hex'));
+    return EncryptionUtils.signData(rawmsg, privateKeyBuffer);
 }
 
 export const checkRemoveNodeStart = async (
     contract: VDAStorageNodeFacet,
     user: HDNodeWallet,
     unregisterTime: number,
+    fallbackInfo: IStorageNode.FallbackNodeInfoStruct,
     expectResult: boolean = true,
     revertError: string | null = null
 ) => {
     const nonce = await contract.nonce(user.address);
 
-    const { requestSignature, requestProof } = getRemoveStartSignatures(user, unregisterTime, nonce);
+    const { requestSignature, requestProof } = getRemoveStartSignatures(user, unregisterTime, fallbackInfo, nonce);
 
     if (expectResult === true) {
         await expect(
-            contract.removeNodeStart(user.address, unregisterTime, requestSignature, requestProof)
-        ).to.emit(contract, "RemoveNodeStart").withArgs(user.address, unregisterTime);
+            contract.removeNodeStart(user.address, unregisterTime, fallbackInfo, requestSignature, requestProof)
+        ).to.emit(contract, "RemoveNodeStart").withArgs(
+            user.address, 
+            unregisterTime,
+            fallbackInfo.fallbackNodeAddress
+        );
     } else {
         await expect(
-            contract.removeNodeStart(user.address, unregisterTime, requestSignature, requestProof)
+            contract.removeNodeStart(user.address, unregisterTime, fallbackInfo, requestSignature, requestProof)
         ).to.be.revertedWithCustomError(contract, revertError!);
     }    
 }
@@ -232,20 +290,23 @@ export const checkRemoveNodeStart = async (
 export const checkRemoveNodeComplete = async (
     contract: VDAStorageNodeFacet,
     user: HDNodeWallet,
+    fallbackUser: HDNodeWallet,
     requestor: SignerWithAddress,
     expectResult: boolean = true,
     revertError: string | null = null
 ) => {
     const nonce = await contract.nonce(user.address);
-    const {requestSignature, requestProof} = getRemoveCompleteSignatures(user, nonce);
+
+    const migrationProof = getFallbackMigrationProof(user.address, fallbackUser.address, fallbackUser);
+    const {requestSignature, requestProof} = getRemoveCompleteSignatures(user, migrationProof, nonce);
 
     if (expectResult === true) {
         await expect(
-            contract.connect(requestor).removeNodeComplete(user.address, requestSignature, requestProof)
-        ).to.emit(contract, "RemoveNodeComplete").withArgs(user.address);
+            contract.connect(requestor).removeNodeComplete(user.address, migrationProof, requestSignature, requestProof)
+        ).to.emit(contract, "RemoveNodeComplete").withArgs(user.address, fallbackUser.address);
     } else {
         await expect(
-            contract.connect(requestor).removeNodeComplete(user.address, requestSignature, requestProof)
+            contract.connect(requestor).removeNodeComplete(user.address, migrationProof, requestSignature, requestProof)
         ).to.be.revertedWithCustomError(contract, revertError!);
     }
 }

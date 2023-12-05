@@ -7,6 +7,7 @@ import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
 error NoSigners();
 error InvalidSignature();
+error InvalidFallbackNodeSiganture();
 
 library LibVerification {
     using EnumerableSet for EnumerableSet.AddressSet;
@@ -139,7 +140,7 @@ library LibVerification {
         }
     }
     
-     /**
+    /**
      * @notice Verify whether a given request is valid. Verifies the nonce of the DID making the request.
      * 
      * @dev Verify the signature & proof signed by valid signers
@@ -216,5 +217,29 @@ library LibVerification {
         if (!isVerified) {
             revert InvalidSignature();
         }   
+    }
+
+    /**
+     * @notice Check the signer of the `signature`
+     * @dev Used in the `removeNodeStart()` and `removeNodeComplete()` functions
+     * @param msgSigner Signer address
+     * @param data Raw message data
+     * @param signature Data signed by the fallback node
+     */
+    function verifyFallbackNodeSignature(
+        address msgSigner, 
+        bytes memory data, 
+        bytes calldata signature
+    ) internal pure {
+        if (data.length == 0 || signature.length == 0) {
+            revert InvalidFallbackNodeSiganture();
+        }
+
+        bytes32 dataHash = keccak256(data);
+        address recoveredSigner = ECDSA.recover(dataHash, signature);
+        if (msgSigner != recoveredSigner) {
+            revert InvalidFallbackNodeSiganture();
+        }
+
     }
 }

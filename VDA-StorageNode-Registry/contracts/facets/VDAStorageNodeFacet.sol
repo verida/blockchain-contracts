@@ -14,11 +14,16 @@ import { IStorageNode } from "../interfaces/IStorageNode.sol";
 
 // import "hardhat/console.sol";
 
+error InvalidName();
 error InvalidDIDAddress();
 error InvalidEndpointUri();
 error InvalidUnregisterTime();
 error InvalidSlotCount();
 error InvalidValue();
+error InvalidFallbackNodeAddress();
+error InvalidFallbackNodeProofTime();
+error InvalidAvailableSlots();
+error InsufficientFallbackSlots();
 
 error NoExcessTokenAmount();
 error TimeNotElapsed(); // `LOG_LIMIT_PER_DAY` logs in 24 hour
@@ -45,38 +50,44 @@ contract VDAStorageNodeFacet is IStorageNode {
   function storeNodeInfo(StorageNodeInput memory nodeInfo) internal virtual {
     LibStorageNode.NodeStorage storage ds = LibStorageNode.nodeStorage();
     {
-        uint nodeId = ++ds._nodeIdCounter;
-        LibStorageNode.StorageNode storage node = ds._nodeMap[nodeId];
+      uint nodeId = ++ds._nodeIdCounter;
+      LibStorageNode.StorageNode storage node = ds._nodeMap[nodeId];
 
-        node.didAddress = nodeInfo.didAddress;
-        node.endpointUri = nodeInfo.endpointUri;
-        node.countryCode = nodeInfo.countryCode;
-        node.regionCode = nodeInfo.regionCode;
-        node.datacenterId = nodeInfo.datacenterId;
-        node.lat = nodeInfo.lat;
-        node.long = nodeInfo.long;
-        node.slotCount = nodeInfo.slotCount;
-        node.establishmentDate = block.timestamp;
+      node.name = nodeInfo.name;
+      node.didAddress = nodeInfo.didAddress;
+      node.endpointUri = nodeInfo.endpointUri;
+      node.countryCode = nodeInfo.countryCode;
+      node.regionCode = nodeInfo.regionCode;
+      node.datacenterId = nodeInfo.datacenterId;
+      node.lat = nodeInfo.lat;
+      node.long = nodeInfo.long;
+      node.slotCount = nodeInfo.slotCount;
+      node.establishmentDate = block.timestamp;
+      node.acceptFallbackSlots = nodeInfo.acceptFallbackSlots;
+      node.status = LibStorageNode.EnumNodeStatus.active;
 
-        ds._didNodeId[nodeInfo.didAddress] = nodeId;
-        ds._endpointNodeId[nodeInfo.endpointUri] = nodeId;
-        ds._countryNodeIds[nodeInfo.countryCode].add(nodeId);
-        ds._regionNodeIds[nodeInfo.regionCode].add(nodeId);
+      ds._nameNodeId[nodeInfo.name] = nodeId;
+      ds._didNodeId[nodeInfo.didAddress] = nodeId;
+      ds._endpointNodeId[nodeInfo.endpointUri] = nodeId;
+      ds._countryNodeIds[nodeInfo.countryCode].add(nodeId);
+      ds._regionNodeIds[nodeInfo.regionCode].add(nodeId);
 
-        LibDataCenter.increaseDataCenterNodeCount(nodeInfo.datacenterId);
+      LibDataCenter.increaseDataCenterNodeCount(nodeInfo.datacenterId);
     }
 
     emit AddNode(
-        nodeInfo.didAddress, 
-        nodeInfo.endpointUri, 
-        nodeInfo.countryCode, 
-        nodeInfo.regionCode, 
-        nodeInfo.datacenterId,
-        nodeInfo.lat,
-        nodeInfo.long,
-        nodeInfo.slotCount,
-        block.timestamp
-        );
+      nodeInfo.name,
+      nodeInfo.didAddress, 
+      nodeInfo.endpointUri, 
+      nodeInfo.countryCode, 
+      nodeInfo.regionCode, 
+      nodeInfo.datacenterId,
+      nodeInfo.lat,
+      nodeInfo.long,
+      nodeInfo.slotCount,
+      nodeInfo.acceptFallbackSlots,
+      block.timestamp
+    );
   }
 
   /**
@@ -100,6 +111,10 @@ contract VDAStorageNodeFacet is IStorageNode {
   ) external virtual override {
     LibStorageNode.NodeStorage storage ds = LibStorageNode.nodeStorage();
     {
+      if (bytes(nodeInfo.name).length == 0 || !LibUtils.isLowerCase(nodeInfo.name)) {
+        revert InvalidName();
+      }
+
       // Check whether endpointUri is empty
       if (bytes(nodeInfo.endpointUri).length == 0) {
           revert InvalidEndpointUri();
@@ -109,37 +124,44 @@ contract VDAStorageNodeFacet is IStorageNode {
       LibUtils.validateRegionCode(nodeInfo.regionCode);
       LibDataCenter.checkDataCenterIdExistance(nodeInfo.datacenterId);
       LibUtils.validateGeoPosition(nodeInfo.lat, nodeInfo.long);
+
+      // Check whether name was registered before
+      if (ds._nameNodeId[nodeInfo.name] != 0)  {
+        revert InvalidName();
+      }
       
       // Check whether didAddress was registered before
       if (ds._didNodeId[nodeInfo.didAddress] != 0) {
-          revert InvalidDIDAddress();
+        revert InvalidDIDAddress();
       }
 
       // Check whether endpoint was registered before
       if (ds._endpointNodeId[nodeInfo.endpointUri] != 0) {
-          revert InvalidEndpointUri();
+        revert InvalidEndpointUri();
       }
 
       // Check whether the slotCount is zero
       if (nodeInfo.slotCount < ds.MIN_SLOTS || nodeInfo.slotCount > ds.MAX_SLOTS) {
-          revert InvalidSlotCount();
+        revert InvalidSlotCount();
       }
       
       bytes memory params = abi.encodePacked(
-          nodeInfo.didAddress,
-          nodeInfo.endpointUri,
-          nodeInfo.countryCode);
+        nodeInfo.name,
+        nodeInfo.didAddress,
+        nodeInfo.endpointUri,
+        nodeInfo.countryCode);
 
       params = abi.encodePacked(
-          params,
-          nodeInfo.regionCode,
-          nodeInfo.datacenterId);
+        params,
+        nodeInfo.regionCode,
+        nodeInfo.datacenterId);
           
       params = abi.encodePacked(
-          params,
-          nodeInfo.lat,
-          nodeInfo.long,
-          nodeInfo.slotCount
+        params,
+        nodeInfo.lat,
+        nodeInfo.long,
+        nodeInfo.slotCount,
+        nodeInfo.acceptFallbackSlots
       );
 
       LibVerification.verifyRequest(nodeInfo.didAddress, params, requestSignature, requestProof);
@@ -162,29 +184,83 @@ contract VDAStorageNodeFacet is IStorageNode {
   function removeNodeStart(
       address didAddress,
       uint unregisterDateTime,
+      FallbackNodeInfo calldata fallbackInfo,
       bytes calldata requestSignature,
       bytes calldata requestProof
   ) external virtual override {
 
     LibStorageNode.NodeStorage storage ds = LibStorageNode.nodeStorage();
     uint nodeId = ds._didNodeId[didAddress];
+    uint fallbackNodeId = ds._didNodeId[fallbackInfo.fallbackNodeAddress];
+
+    LibStorageNode.StorageNode storage nodeInfo = ds._nodeMap[nodeId];
+
     {
       // Check whether didAddress was registered before
-      if (nodeId == 0 || ds._nodeUnregisterTime[nodeId] != 0) {
-          revert InvalidDIDAddress();
+      if (nodeId == 0 || 
+        nodeInfo.status != LibStorageNode.EnumNodeStatus.active ||
+        ds._isFallbackSet[didAddress]
+      ) {
+        revert InvalidDIDAddress();
       }
 
+      // Check whether unregistertime is after 28 days from now
       if (unregisterDateTime < (block.timestamp + 28 days)) {
-          revert InvalidUnregisterTime();
+        revert InvalidUnregisterTime();
       }
 
-      bytes memory params = abi.encodePacked(didAddress, unregisterDateTime);
+      LibStorageNode.StorageNode storage fallbackNode = ds._nodeMap[fallbackNodeId];
+      // Check whether fallback node registered and its' status is active
+      if (fallbackNodeId == 0 || 
+          fallbackNode.status != LibStorageNode.EnumNodeStatus.active ||
+          !fallbackNode.acceptFallbackSlots  ||
+          ds._isFallbackSet[fallbackInfo.fallbackNodeAddress]
+      ) {
+        revert InvalidFallbackNodeAddress();
+      }
+
+      // Check available slots
+      if (fallbackInfo.availableSlots > fallbackNode.slotCount) {
+        revert InvalidAvailableSlots();
+      }
+      if (fallbackInfo.availableSlots < nodeInfo.slotCount) {
+        revert InsufficientFallbackSlots();
+      }
+
+      // Verify the `availableSlotsProof`
+      if (fallbackInfo.fallbackProofTime < (block.timestamp - 30 minutes)) {
+        revert InvalidFallbackNodeProofTime();
+      }
+
+      bytes memory params = abi.encodePacked(
+        fallbackInfo.fallbackNodeAddress,
+        "/",
+        fallbackInfo.availableSlots,
+        "/",
+        fallbackInfo.fallbackProofTime
+      );
+      LibVerification.verifyFallbackNodeSignature(fallbackInfo.fallbackNodeAddress, params, fallbackInfo.availableSlotsProof);
+
+      // Verify the request
+      params = abi.encodePacked(
+        didAddress, 
+        unregisterDateTime, 
+        fallbackInfo.fallbackNodeAddress,
+        fallbackInfo.availableSlots,
+        fallbackInfo.fallbackProofTime,
+        fallbackInfo.availableSlotsProof
+      );
       LibVerification.verifyRequest(didAddress, params, requestSignature, requestProof);
     }
 
+    // Change status to `removing`
+    nodeInfo.status = LibStorageNode.EnumNodeStatus.removing;
+    nodeInfo.fallbackNodeAddress = fallbackInfo.fallbackNodeAddress;
+
     ds._nodeUnregisterTime[nodeId] = unregisterDateTime;
+    ds._isFallbackSet[fallbackInfo.fallbackNodeAddress] = true;
     
-    emit RemoveNodeStart(didAddress, unregisterDateTime);
+    emit RemoveNodeStart(didAddress, unregisterDateTime, fallbackInfo.fallbackNodeAddress);
   }
   
   /**
@@ -192,22 +268,35 @@ contract VDAStorageNodeFacet is IStorageNode {
     */
   function removeNodeComplete(
       address didAddress,
+      bytes calldata fallbackMigrationProof,
       bytes calldata requestSignature,
       bytes calldata requestProof
   ) external virtual override {
 
     LibStorageNode.NodeStorage storage ds = LibStorageNode.nodeStorage();
     uint nodeId = ds._didNodeId[didAddress];
+    LibStorageNode.StorageNode storage nodeInfo = ds._nodeMap[nodeId];
+
     {
-      if (nodeId == 0) {
+      if (nodeId == 0 || nodeInfo.status != LibStorageNode.EnumNodeStatus.removing) {
           revert InvalidDIDAddress();
       }
 
-      if (ds._nodeUnregisterTime[nodeId] == 0 || ds._nodeUnregisterTime[nodeId] > block.timestamp) {
+      if (ds._nodeUnregisterTime[nodeId] > block.timestamp) {
           revert InvalidUnregisterTime();
       }
 
-      bytes memory params = abi.encodePacked(didAddress);
+      // Verify the migration proof
+      bytes memory params = abi.encodePacked(
+        didAddress,
+        "/",
+        nodeInfo.fallbackNodeAddress,
+        "-migrated"
+      );
+      LibVerification.verifyFallbackNodeSignature(nodeInfo.fallbackNodeAddress, params, fallbackMigrationProof);
+
+      // Verify the request
+      params = abi.encodePacked(didAddress, fallbackMigrationProof);
       LibVerification.verifyRequest(didAddress, params, requestSignature, requestProof);
     }
 
@@ -219,60 +308,64 @@ contract VDAStorageNodeFacet is IStorageNode {
     }        
 
     // Clear registered information
-    LibStorageNode.StorageNode storage nodeInfo = ds._nodeMap[nodeId];
+    
+    nodeInfo.status = LibStorageNode.EnumNodeStatus.removed;
 
     LibDataCenter.decreaseDataCenterNodeCount(nodeInfo.datacenterId);
+    
+    address fallbackAddress = nodeInfo.fallbackNodeAddress;
 
     ds._countryNodeIds[nodeInfo.countryCode].remove(nodeId);
     ds._regionNodeIds[nodeInfo.regionCode].remove(nodeId);
     delete ds._endpointNodeId[nodeInfo.endpointUri];
     delete ds._didNodeId[didAddress];
+    delete ds._nameNodeId[nodeInfo.name];
     delete ds._nodeMap[nodeId];
 
     delete ds._nodeUnregisterTime[nodeId];
+    delete ds._isFallbackSet[fallbackAddress];
 
-    emit RemoveNodeComplete(didAddress);
-  }
-
-  /**
-    * @notice Create tuple for StorageNode with status
-    * @param nodeId StorageNode ID created by `addNode()` function
-    * @return StorageNode StoargeNode struct
-    * @return string Status string
-    */
-  function getNodeWithStatus(uint nodeId) internal view virtual returns(LibStorageNode.StorageNode memory, string memory) {
-    string memory status = "active";
-    LibStorageNode.NodeStorage storage ds = LibStorageNode.nodeStorage();
-    if (ds._nodeUnregisterTime[nodeId] != 0) {
-        status = "removed";
-    }
-
-    return (ds._nodeMap[nodeId], status);
+    emit RemoveNodeComplete(didAddress, fallbackAddress);
   }
 
   /**
     * @dev see { IStorageNode }
     */
-  function getNodeByAddress(address didAddress) external view virtual override returns(LibStorageNode.StorageNode memory, string memory) {
-    uint nodeId = LibStorageNode.nodeStorage()._didNodeId[didAddress];
+  function getNodeByName(string calldata name) external view returns(LibStorageNode.StorageNode memory) {
+    LibStorageNode.NodeStorage storage ds = LibStorageNode.nodeStorage();
+    uint nodeId = ds._nameNodeId[name];
+    if (nodeId == 0) {
+        revert InvalidName();
+    }
+
+    return ds._nodeMap[nodeId];
+  }
+  
+  /**
+    * @dev see { IStorageNode }
+    */
+  function getNodeByAddress(address didAddress) external view virtual override returns(LibStorageNode.StorageNode memory) {
+    LibStorageNode.NodeStorage storage ds = LibStorageNode.nodeStorage();
+    uint nodeId = ds._didNodeId[didAddress];
     if (nodeId == 0) {
         revert InvalidDIDAddress();
     }
 
-    return getNodeWithStatus(nodeId);
+    return ds._nodeMap[nodeId];
   }
 
   /**
     * @dev see { IStorageNode }
     */
-  function getNodeByEndpoint(string calldata endpointUri) external view virtual override returns(LibStorageNode.StorageNode memory, string memory) {
-    uint nodeId = LibStorageNode.nodeStorage()._endpointNodeId[endpointUri];
+  function getNodeByEndpoint(string calldata endpointUri) external view virtual override returns(LibStorageNode.StorageNode memory) {
+    LibStorageNode.NodeStorage storage ds = LibStorageNode.nodeStorage();
+    uint nodeId = ds._endpointNodeId[endpointUri];
 
     if (nodeId == 0) {
         revert InvalidEndpointUri();
     }
 
-    return getNodeWithStatus(nodeId);
+    return ds._nodeMap[nodeId];
   }
 
   /**

@@ -1,7 +1,7 @@
 {
   "name": "@verida/storage-node-registry",
   "description": "Register storage node operator.",
-  "version": "0.2.5",
+  "version": "1.0.0",
   "author": "Alex J <alex@verida.io>m trust2ray@gmail.com",
   "license": "MIT",
   "repository": {
@@ -25,6 +25,7 @@
     "@types/mocha": "^10.0.6",
     "@types/node": "^20.10.0",
     "chai": "^4.3.10",
+    "dotenv": "^16.3.1",
     "ethers": "^6.8.1",
     "hardhat": "^2.19.1",
     "hardhat-gas-reporter": "^1.0.9",

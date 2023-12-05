@@ -11,8 +11,15 @@ library LibStorageNode {
 
     using EnumerableSet for EnumerableSet.UintSet;
 
+    enum EnumNodeStatus{
+        active,
+        removing,
+        removed
+    }
+
     /**
      * @notice Struct representing a storage node
+     * @param name Unique name of the storage node
      * @param didAddress DID address that is associated with the storage node
      * @param endpointUri The storage node endpoint
      * @param countryCode Unique two-character string code
@@ -22,8 +29,12 @@ library LibStorageNode {
      * @param long Longitude
      * @param slotCount Number of slots indicationg how many storage slots the node will provide
      * @param establishmentDate Node added time in seconds
+     * @param acceptFallbackSlots Indicates if this storage node is willing to accept data from nodes that are shutting down
+     * @param status Indicates the statua of node
+     * @param fallbackNodeAddress (Optional) Only specified when `status=removing`. DID address of the storage node that is assigned to be the fallback storage node
      */
     struct StorageNode {
+        string name;
         address didAddress;
         string endpointUri;
         string countryCode;
@@ -33,6 +44,9 @@ library LibStorageNode {
         int long;
         uint slotCount;
         uint establishmentDate;
+        bool acceptFallbackSlots;
+        EnumNodeStatus status;
+        address fallbackNodeAddress;
     }
 
     /**
@@ -72,6 +86,8 @@ library LibStorageNode {
     /**
      * @param _nodeMap StorageNode by nodeId
      * @param _nodeUnregisterTime UnregisterTime of each storage node. Value is over 0 if unregistered
+     * @param _isFallbackSet Set by `removeNodeStart()` function. Shows the node is set as fallback node of another
+     * @param _nameNodeId nodeId per name
      * @param _didNodeId nodeId per did address
      * @param _endpointNodeId nodeId per endpointUri
      * @param _countryNodeIds nodeId list per country code
@@ -95,6 +111,8 @@ library LibStorageNode {
     struct NodeStorage {
         mapping (uint => StorageNode) _nodeMap;
         mapping (uint => uint) _nodeUnregisterTime;
+        mapping (address => bool) _isFallbackSet;
+        mapping (string => uint) _nameNodeId;
         mapping (address => uint) _didNodeId;
         mapping (string => uint) _endpointNodeId;
 
