@@ -23,7 +23,6 @@ contract VDAVerificationFacet {
     */
   event RemoveTrustedSigner(address signerAddress);
 
-
   /**
     * @notice Add a trusted signer
     * @param didAddress Trusted signer address

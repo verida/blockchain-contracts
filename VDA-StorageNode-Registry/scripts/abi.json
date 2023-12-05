@@ -470,73 +470,6 @@
     },
     {
       "type": "function",
-      "name": "addNode",
-      "constant": false,
-      "payable": false,
-      "inputs": [
-        {
-          "type": "tuple",
-          "name": "nodeInfo",
-          "components": [
-            {
-              "type": "string",
-              "name": "name"
-            },
-            {
-              "type": "address",
-              "name": "didAddress"
-            },
-            {
-              "type": "string",
-              "name": "endpointUri"
-            },
-            {
-              "type": "string",
-              "name": "countryCode"
-            },
-            {
-              "type": "string",
-              "name": "regionCode"
-            },
-            {
-              "type": "uint256",
-              "name": "datacenterId"
-            },
-            {
-              "type": "int256",
-              "name": "lat"
-            },
-            {
-              "type": "int256",
-              "name": "long"
-            },
-            {
-              "type": "uint256",
-              "name": "slotCount"
-            },
-            {
-              "type": "bool",
-              "name": "acceptFallbackSlots"
-            }
-          ]
-        },
-        {
-          "type": "bytes",
-          "name": "requestSignature"
-        },
-        {
-          "type": "bytes",
-          "name": "requestProof"
-        },
-        {
-          "type": "bytes",
-          "name": "authSignature"
-        }
-      ],
-      "outputs": []
-    },
-    {
-      "type": "function",
       "name": "addReasonCode",
       "constant": false,
       "payable": false,
@@ -636,225 +569,6 @@
     },
     {
       "type": "function",
-      "name": "getNodeByAddress",
-      "constant": true,
-      "stateMutability": "view",
-      "payable": false,
-      "inputs": [
-        {
-          "type": "address",
-          "name": "didAddress"
-        }
-      ],
-      "outputs": [
-        {
-          "type": "tuple",
-          "name": "",
-          "components": [
-            {
-              "type": "string",
-              "name": "name"
-            },
-            {
-              "type": "address",
-              "name": "didAddress"
-            },
-            {
-              "type": "string",
-              "name": "endpointUri"
-            },
-            {
-              "type": "string",
-              "name": "countryCode"
-            },
-            {
-              "type": "string",
-              "name": "regionCode"
-            },
-            {
-              "type": "uint256",
-              "name": "datacenterId"
-            },
-            {
-              "type": "int256",
-              "name": "lat"
-            },
-            {
-              "type": "int256",
-              "name": "long"
-            },
-            {
-              "type": "uint256",
-              "name": "slotCount"
-            },
-            {
-              "type": "uint256",
-              "name": "establishmentDate"
-            },
-            {
-              "type": "bool",
-              "name": "acceptFallbackSlots"
-            },
-            {
-              "type": "uint8",
-              "name": "status"
-            },
-            {
-              "type": "address",
-              "name": "fallbackNodeAddress"
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "type": "function",
-      "name": "getNodeByEndpoint",
-      "constant": true,
-      "stateMutability": "view",
-      "payable": false,
-      "inputs": [
-        {
-          "type": "string",
-          "name": "endpointUri"
-        }
-      ],
-      "outputs": [
-        {
-          "type": "tuple",
-          "name": "",
-          "components": [
-            {
-              "type": "string",
-              "name": "name"
-            },
-            {
-              "type": "address",
-              "name": "didAddress"
-            },
-            {
-              "type": "string",
-              "name": "endpointUri"
-            },
-            {
-              "type": "string",
-              "name": "countryCode"
-            },
-            {
-              "type": "string",
-              "name": "regionCode"
-            },
-            {
-              "type": "uint256",
-              "name": "datacenterId"
-            },
-            {
-              "type": "int256",
-              "name": "lat"
-            },
-            {
-              "type": "int256",
-              "name": "long"
-            },
-            {
-              "type": "uint256",
-              "name": "slotCount"
-            },
-            {
-              "type": "uint256",
-              "name": "establishmentDate"
-            },
-            {
-              "type": "bool",
-              "name": "acceptFallbackSlots"
-            },
-            {
-              "type": "uint8",
-              "name": "status"
-            },
-            {
-              "type": "address",
-              "name": "fallbackNodeAddress"
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "type": "function",
-      "name": "getNodeByName",
-      "constant": true,
-      "stateMutability": "view",
-      "payable": false,
-      "inputs": [
-        {
-          "type": "string",
-          "name": "name"
-        }
-      ],
-      "outputs": [
-        {
-          "type": "tuple",
-          "name": "",
-          "components": [
-            {
-              "type": "string",
-              "name": "name"
-            },
-            {
-              "type": "address",
-              "name": "didAddress"
-            },
-            {
-              "type": "string",
-              "name": "endpointUri"
-            },
-            {
-              "type": "string",
-              "name": "countryCode"
-            },
-            {
-              "type": "string",
-              "name": "regionCode"
-            },
-            {
-              "type": "uint256",
-              "name": "datacenterId"
-            },
-            {
-              "type": "int256",
-              "name": "lat"
-            },
-            {
-              "type": "int256",
-              "name": "long"
-            },
-            {
-              "type": "uint256",
-              "name": "slotCount"
-            },
-            {
-              "type": "uint256",
-              "name": "establishmentDate"
-            },
-            {
-              "type": "bool",
-              "name": "acceptFallbackSlots"
-            },
-            {
-              "type": "uint8",
-              "name": "status"
-            },
-            {
-              "type": "address",
-              "name": "fallbackNodeAddress"
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "type": "function",
       "name": "getNodeIssueFee",
       "constant": true,
       "stateMutability": "view",
@@ -864,152 +578,6 @@
         {
           "type": "uint256",
           "name": ""
-        }
-      ]
-    },
-    {
-      "type": "function",
-      "name": "getNodesByCountry",
-      "constant": true,
-      "stateMutability": "view",
-      "payable": false,
-      "inputs": [
-        {
-          "type": "string",
-          "name": "countryCode"
-        }
-      ],
-      "outputs": [
-        {
-          "type": "tuple[]",
-          "name": "",
-          "components": [
-            {
-              "type": "string",
-              "name": "name"
-            },
-            {
-              "type": "address",
-              "name": "didAddress"
-            },
-            {
-              "type": "string",
-              "name": "endpointUri"
-            },
-            {
-              "type": "string",
-              "name": "countryCode"
-            },
-            {
-              "type": "string",
-              "name": "regionCode"
-            },
-            {
-              "type": "uint256",
-              "name": "datacenterId"
-            },
-            {
-              "type": "int256",
-              "name": "lat"
-            },
-            {
-              "type": "int256",
-              "name": "long"
-            },
-            {
-              "type": "uint256",
-              "name": "slotCount"
-            },
-            {
-              "type": "uint256",
-              "name": "establishmentDate"
-            },
-            {
-              "type": "bool",
-              "name": "acceptFallbackSlots"
-            },
-            {
-              "type": "uint8",
-              "name": "status"
-            },
-            {
-              "type": "address",
-              "name": "fallbackNodeAddress"
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "type": "function",
-      "name": "getNodesByRegion",
-      "constant": true,
-      "stateMutability": "view",
-      "payable": false,
-      "inputs": [
-        {
-          "type": "string",
-          "name": "regionCode"
-        }
-      ],
-      "outputs": [
-        {
-          "type": "tuple[]",
-          "name": "",
-          "components": [
-            {
-              "type": "string",
-              "name": "name"
-            },
-            {
-              "type": "address",
-              "name": "didAddress"
-            },
-            {
-              "type": "string",
-              "name": "endpointUri"
-            },
-            {
-              "type": "string",
-              "name": "countryCode"
-            },
-            {
-              "type": "string",
-              "name": "regionCode"
-            },
-            {
-              "type": "uint256",
-              "name": "datacenterId"
-            },
-            {
-              "type": "int256",
-              "name": "lat"
-            },
-            {
-              "type": "int256",
-              "name": "long"
-            },
-            {
-              "type": "uint256",
-              "name": "slotCount"
-            },
-            {
-              "type": "uint256",
-              "name": "establishmentDate"
-            },
-            {
-              "type": "bool",
-              "name": "acceptFallbackSlots"
-            },
-            {
-              "type": "uint8",
-              "name": "status"
-            },
-            {
-              "type": "address",
-              "name": "fallbackNodeAddress"
-            }
-          ]
         }
       ]
     },
@@ -1147,97 +715,6 @@
         {
           "type": "uint256",
           "name": "reasonCode"
-        },
-        {
-          "type": "bytes",
-          "name": "requestSignature"
-        },
-        {
-          "type": "bytes",
-          "name": "requestProof"
-        }
-      ],
-      "outputs": []
-    },
-    {
-      "type": "function",
-      "name": "nonce",
-      "constant": true,
-      "stateMutability": "view",
-      "payable": false,
-      "inputs": [
-        {
-          "type": "address",
-          "name": "did"
-        }
-      ],
-      "outputs": [
-        {
-          "type": "uint256",
-          "name": ""
-        }
-      ]
-    },
-    {
-      "type": "function",
-      "name": "removeNodeComplete",
-      "constant": false,
-      "payable": false,
-      "inputs": [
-        {
-          "type": "address",
-          "name": "didAddress"
-        },
-        {
-          "type": "bytes",
-          "name": "fallbackMigrationProof"
-        },
-        {
-          "type": "bytes",
-          "name": "requestSignature"
-        },
-        {
-          "type": "bytes",
-          "name": "requestProof"
-        }
-      ],
-      "outputs": []
-    },
-    {
-      "type": "function",
-      "name": "removeNodeStart",
-      "constant": false,
-      "payable": false,
-      "inputs": [
-        {
-          "type": "address",
-          "name": "didAddress"
-        },
-        {
-          "type": "uint256",
-          "name": "unregisterDateTime"
-        },
-        {
-          "type": "tuple",
-          "name": "fallbackInfo",
-          "components": [
-            {
-              "type": "address",
-              "name": "fallbackNodeAddress"
-            },
-            {
-              "type": "uint256",
-              "name": "availableSlots"
-            },
-            {
-              "type": "uint256",
-              "name": "fallbackProofTime"
-            },
-            {
-              "type": "bytes",
-              "name": "availableSlotsProof"
-            }
-          ]
         },
         {
           "type": "bytes",
@@ -1421,6 +898,711 @@
         {
           "type": "uint256",
           "name": "amount"
+        }
+      ],
+      "outputs": []
+    },
+    {
+      "type": "function",
+      "name": "addNode",
+      "constant": false,
+      "payable": false,
+      "inputs": [
+        {
+          "type": "tuple",
+          "name": "nodeInfo",
+          "components": [
+            {
+              "type": "string",
+              "name": "name"
+            },
+            {
+              "type": "address",
+              "name": "didAddress"
+            },
+            {
+              "type": "string",
+              "name": "endpointUri"
+            },
+            {
+              "type": "string",
+              "name": "countryCode"
+            },
+            {
+              "type": "string",
+              "name": "regionCode"
+            },
+            {
+              "type": "uint256",
+              "name": "datacenterId"
+            },
+            {
+              "type": "int256",
+              "name": "lat"
+            },
+            {
+              "type": "int256",
+              "name": "long"
+            },
+            {
+              "type": "uint256",
+              "name": "slotCount"
+            },
+            {
+              "type": "bool",
+              "name": "acceptFallbackSlots"
+            }
+          ]
+        },
+        {
+          "type": "bytes",
+          "name": "requestSignature"
+        },
+        {
+          "type": "bytes",
+          "name": "requestProof"
+        },
+        {
+          "type": "bytes",
+          "name": "authSignature"
+        }
+      ],
+      "outputs": []
+    },
+    {
+      "type": "function",
+      "name": "getNodeByAddress",
+      "constant": true,
+      "stateMutability": "view",
+      "payable": false,
+      "inputs": [
+        {
+          "type": "address",
+          "name": "didAddress"
+        }
+      ],
+      "outputs": [
+        {
+          "type": "tuple",
+          "name": "",
+          "components": [
+            {
+              "type": "string",
+              "name": "name"
+            },
+            {
+              "type": "address",
+              "name": "didAddress"
+            },
+            {
+              "type": "string",
+              "name": "endpointUri"
+            },
+            {
+              "type": "string",
+              "name": "countryCode"
+            },
+            {
+              "type": "string",
+              "name": "regionCode"
+            },
+            {
+              "type": "uint256",
+              "name": "datacenterId"
+            },
+            {
+              "type": "int256",
+              "name": "lat"
+            },
+            {
+              "type": "int256",
+              "name": "long"
+            },
+            {
+              "type": "uint256",
+              "name": "slotCount"
+            },
+            {
+              "type": "uint256",
+              "name": "establishmentDate"
+            },
+            {
+              "type": "bool",
+              "name": "acceptFallbackSlots"
+            },
+            {
+              "type": "uint8",
+              "name": "status"
+            },
+            {
+              "type": "uint256",
+              "name": "unregisterTime"
+            },
+            {
+              "type": "address",
+              "name": "fallbackNodeAddress"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "function",
+      "name": "getNodeByEndpoint",
+      "constant": true,
+      "stateMutability": "view",
+      "payable": false,
+      "inputs": [
+        {
+          "type": "string",
+          "name": "endpointUri"
+        }
+      ],
+      "outputs": [
+        {
+          "type": "tuple",
+          "name": "",
+          "components": [
+            {
+              "type": "string",
+              "name": "name"
+            },
+            {
+              "type": "address",
+              "name": "didAddress"
+            },
+            {
+              "type": "string",
+              "name": "endpointUri"
+            },
+            {
+              "type": "string",
+              "name": "countryCode"
+            },
+            {
+              "type": "string",
+              "name": "regionCode"
+            },
+            {
+              "type": "uint256",
+              "name": "datacenterId"
+            },
+            {
+              "type": "int256",
+              "name": "lat"
+            },
+            {
+              "type": "int256",
+              "name": "long"
+            },
+            {
+              "type": "uint256",
+              "name": "slotCount"
+            },
+            {
+              "type": "uint256",
+              "name": "establishmentDate"
+            },
+            {
+              "type": "bool",
+              "name": "acceptFallbackSlots"
+            },
+            {
+              "type": "uint8",
+              "name": "status"
+            },
+            {
+              "type": "uint256",
+              "name": "unregisterTime"
+            },
+            {
+              "type": "address",
+              "name": "fallbackNodeAddress"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "function",
+      "name": "getNodeByName",
+      "constant": true,
+      "stateMutability": "view",
+      "payable": false,
+      "inputs": [
+        {
+          "type": "string",
+          "name": "name"
+        }
+      ],
+      "outputs": [
+        {
+          "type": "tuple",
+          "name": "",
+          "components": [
+            {
+              "type": "string",
+              "name": "name"
+            },
+            {
+              "type": "address",
+              "name": "didAddress"
+            },
+            {
+              "type": "string",
+              "name": "endpointUri"
+            },
+            {
+              "type": "string",
+              "name": "countryCode"
+            },
+            {
+              "type": "string",
+              "name": "regionCode"
+            },
+            {
+              "type": "uint256",
+              "name": "datacenterId"
+            },
+            {
+              "type": "int256",
+              "name": "lat"
+            },
+            {
+              "type": "int256",
+              "name": "long"
+            },
+            {
+              "type": "uint256",
+              "name": "slotCount"
+            },
+            {
+              "type": "uint256",
+              "name": "establishmentDate"
+            },
+            {
+              "type": "bool",
+              "name": "acceptFallbackSlots"
+            },
+            {
+              "type": "uint8",
+              "name": "status"
+            },
+            {
+              "type": "uint256",
+              "name": "unregisterTime"
+            },
+            {
+              "type": "address",
+              "name": "fallbackNodeAddress"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "function",
+      "name": "getNodesByCountry",
+      "constant": true,
+      "stateMutability": "view",
+      "payable": false,
+      "inputs": [
+        {
+          "type": "string",
+          "name": "countryCode"
+        },
+        {
+          "type": "uint8",
+          "name": "status"
+        }
+      ],
+      "outputs": [
+        {
+          "type": "tuple[]",
+          "name": "",
+          "components": [
+            {
+              "type": "string",
+              "name": "name"
+            },
+            {
+              "type": "address",
+              "name": "didAddress"
+            },
+            {
+              "type": "string",
+              "name": "endpointUri"
+            },
+            {
+              "type": "string",
+              "name": "countryCode"
+            },
+            {
+              "type": "string",
+              "name": "regionCode"
+            },
+            {
+              "type": "uint256",
+              "name": "datacenterId"
+            },
+            {
+              "type": "int256",
+              "name": "lat"
+            },
+            {
+              "type": "int256",
+              "name": "long"
+            },
+            {
+              "type": "uint256",
+              "name": "slotCount"
+            },
+            {
+              "type": "uint256",
+              "name": "establishmentDate"
+            },
+            {
+              "type": "bool",
+              "name": "acceptFallbackSlots"
+            },
+            {
+              "type": "uint8",
+              "name": "status"
+            },
+            {
+              "type": "uint256",
+              "name": "unregisterTime"
+            },
+            {
+              "type": "address",
+              "name": "fallbackNodeAddress"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "function",
+      "name": "getNodesByCountry",
+      "constant": true,
+      "stateMutability": "view",
+      "payable": false,
+      "inputs": [
+        {
+          "type": "string",
+          "name": "countryCode"
+        }
+      ],
+      "outputs": [
+        {
+          "type": "tuple[]",
+          "name": "",
+          "components": [
+            {
+              "type": "string",
+              "name": "name"
+            },
+            {
+              "type": "address",
+              "name": "didAddress"
+            },
+            {
+              "type": "string",
+              "name": "endpointUri"
+            },
+            {
+              "type": "string",
+              "name": "countryCode"
+            },
+            {
+              "type": "string",
+              "name": "regionCode"
+            },
+            {
+              "type": "uint256",
+              "name": "datacenterId"
+            },
+            {
+              "type": "int256",
+              "name": "lat"
+            },
+            {
+              "type": "int256",
+              "name": "long"
+            },
+            {
+              "type": "uint256",
+              "name": "slotCount"
+            },
+            {
+              "type": "uint256",
+              "name": "establishmentDate"
+            },
+            {
+              "type": "bool",
+              "name": "acceptFallbackSlots"
+            },
+            {
+              "type": "uint8",
+              "name": "status"
+            },
+            {
+              "type": "uint256",
+              "name": "unregisterTime"
+            },
+            {
+              "type": "address",
+              "name": "fallbackNodeAddress"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "function",
+      "name": "getNodesByRegion",
+      "constant": true,
+      "stateMutability": "view",
+      "payable": false,
+      "inputs": [
+        {
+          "type": "string",
+          "name": "regionCode"
+        }
+      ],
+      "outputs": [
+        {
+          "type": "tuple[]",
+          "name": "",
+          "components": [
+            {
+              "type": "string",
+              "name": "name"
+            },
+            {
+              "type": "address",
+              "name": "didAddress"
+            },
+            {
+              "type": "string",
+              "name": "endpointUri"
+            },
+            {
+              "type": "string",
+              "name": "countryCode"
+            },
+            {
+              "type": "string",
+              "name": "regionCode"
+            },
+            {
+              "type": "uint256",
+              "name": "datacenterId"
+            },
+            {
+              "type": "int256",
+              "name": "lat"
+            },
+            {
+              "type": "int256",
+              "name": "long"
+            },
+            {
+              "type": "uint256",
+              "name": "slotCount"
+            },
+            {
+              "type": "uint256",
+              "name": "establishmentDate"
+            },
+            {
+              "type": "bool",
+              "name": "acceptFallbackSlots"
+            },
+            {
+              "type": "uint8",
+              "name": "status"
+            },
+            {
+              "type": "uint256",
+              "name": "unregisterTime"
+            },
+            {
+              "type": "address",
+              "name": "fallbackNodeAddress"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "function",
+      "name": "getNodesByRegion",
+      "constant": true,
+      "stateMutability": "view",
+      "payable": false,
+      "inputs": [
+        {
+          "type": "string",
+          "name": "regionCode"
+        },
+        {
+          "type": "uint8",
+          "name": "status"
+        }
+      ],
+      "outputs": [
+        {
+          "type": "tuple[]",
+          "name": "",
+          "components": [
+            {
+              "type": "string",
+              "name": "name"
+            },
+            {
+              "type": "address",
+              "name": "didAddress"
+            },
+            {
+              "type": "string",
+              "name": "endpointUri"
+            },
+            {
+              "type": "string",
+              "name": "countryCode"
+            },
+            {
+              "type": "string",
+              "name": "regionCode"
+            },
+            {
+              "type": "uint256",
+              "name": "datacenterId"
+            },
+            {
+              "type": "int256",
+              "name": "lat"
+            },
+            {
+              "type": "int256",
+              "name": "long"
+            },
+            {
+              "type": "uint256",
+              "name": "slotCount"
+            },
+            {
+              "type": "uint256",
+              "name": "establishmentDate"
+            },
+            {
+              "type": "bool",
+              "name": "acceptFallbackSlots"
+            },
+            {
+              "type": "uint8",
+              "name": "status"
+            },
+            {
+              "type": "uint256",
+              "name": "unregisterTime"
+            },
+            {
+              "type": "address",
+              "name": "fallbackNodeAddress"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "function",
+      "name": "nonce",
+      "constant": true,
+      "stateMutability": "view",
+      "payable": false,
+      "inputs": [
+        {
+          "type": "address",
+          "name": "did"
+        }
+      ],
+      "outputs": [
+        {
+          "type": "uint256",
+          "name": ""
+        }
+      ]
+    },
+    {
+      "type": "function",
+      "name": "removeNodeComplete",
+      "constant": false,
+      "payable": false,
+      "inputs": [
+        {
+          "type": "address",
+          "name": "didAddress"
+        },
+        {
+          "type": "bytes",
+          "name": "fallbackMigrationProof"
+        },
+        {
+          "type": "bytes",
+          "name": "requestSignature"
+        },
+        {
+          "type": "bytes",
+          "name": "requestProof"
+        }
+      ],
+      "outputs": []
+    },
+    {
+      "type": "function",
+      "name": "removeNodeStart",
+      "constant": false,
+      "payable": false,
+      "inputs": [
+        {
+          "type": "address",
+          "name": "didAddress"
+        },
+        {
+          "type": "uint256",
+          "name": "unregisterDateTime"
+        },
+        {
+          "type": "tuple",
+          "name": "fallbackInfo",
+          "components": [
+            {
+              "type": "address",
+              "name": "fallbackNodeAddress"
+            },
+            {
+              "type": "uint256",
+              "name": "availableSlots"
+            },
+            {
+              "type": "uint256",
+              "name": "fallbackProofTime"
+            },
+            {
+              "type": "bytes",
+              "name": "availableSlotsProof"
+            }
+          ]
+        },
+        {
+          "type": "bytes",
+          "name": "requestSignature"
+        },
+        {
+          "type": "bytes",
+          "name": "requestProof"
         }
       ],
       "outputs": []

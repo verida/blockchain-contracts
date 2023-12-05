@@ -31,6 +31,7 @@ library LibStorageNode {
      * @param establishmentDate Node added time in seconds
      * @param acceptFallbackSlots Indicates if this storage node is willing to accept data from nodes that are shutting down
      * @param status Indicates the statua of node
+     * @param unregisterTime Indicates the removed time. 0 if not removed
      * @param fallbackNodeAddress (Optional) Only specified when `status=removing`. DID address of the storage node that is assigned to be the fallback storage node
      */
     struct StorageNode {
@@ -46,6 +47,7 @@ library LibStorageNode {
         uint establishmentDate;
         bool acceptFallbackSlots;
         EnumNodeStatus status;
+        uint unregisterTime;
         address fallbackNodeAddress;
     }
 
@@ -85,7 +87,6 @@ library LibStorageNode {
     
     /**
      * @param _nodeMap StorageNode by nodeId
-     * @param _nodeUnregisterTime UnregisterTime of each storage node. Value is over 0 if unregistered
      * @param _isFallbackSet Set by `removeNodeStart()` function. Shows the node is set as fallback node of another
      * @param _nameNodeId nodeId per name
      * @param _didNodeId nodeId per did address
@@ -110,7 +111,6 @@ library LibStorageNode {
      */
     struct NodeStorage {
         mapping (uint => StorageNode) _nodeMap;
-        mapping (uint => uint) _nodeUnregisterTime;
         mapping (address => bool) _isFallbackSet;
         mapping (string => uint) _nameNodeId;
         mapping (address => uint) _didNodeId;
@@ -145,6 +145,10 @@ library LibStorageNode {
         address vdaTokenAddress;
     }
 
+    /**
+     * @notice return the storage node for `StorageNode`
+     * @return ds diamond storage for `StorageNode`
+     */
     function nodeStorage() internal pure returns (NodeStorage storage ds) {
         bytes32 position = NODE_STORAGE_POSITION;
         assembly {
@@ -152,6 +156,12 @@ library LibStorageNode {
         }
     }
 
+    /**
+     * @notice Add a reason code for logging issue feature
+     * @dev Called by `StorageNodeFacet`
+     * @param reasonCode Reason code
+     * @param description Description of the reason code
+     */
     function addReasonCode(uint reasonCode, string memory description) internal {
         NodeStorage storage ds = nodeStorage();
 
@@ -164,5 +174,15 @@ library LibStorageNode {
         unchecked {
             ++ds.activeReasonCodeCount;    
         }
+    }
+
+    /**
+     * @notice Calculate the required token amount for slots
+     * @dev Internal function. Used in `stakeToken()` and `getExcessTokenAmount()` functions
+     * @param numberSlot Number of slots
+     * @return uint Required token amount
+     */
+    function requiredTokenAmount(uint numberSlot) internal view returns(uint) {
+        return numberSlot * nodeStorage().STAKE_PER_SLOT;
     }
 }

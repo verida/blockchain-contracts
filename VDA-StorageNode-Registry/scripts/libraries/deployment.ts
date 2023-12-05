@@ -34,6 +34,7 @@ export async function deploy(tokenAddress?: string , additionalFacets?: string[]
   const retAddress: Record<string, string> = {};
 
   let abi: any[] = [];
+  let selectors: string[] = [];
 
   for (let i = 0; i < FacetNames.length; i++)
   {
@@ -41,22 +42,28 @@ export async function deploy(tokenAddress?: string , additionalFacets?: string[]
     const facet = await ethers.deployContract(FacetName);
     await facet.waitForDeployment();
 
+    // Generage ABI
     const functionFragments = facet.interface.fragments.filter(fragment => fragment.type === "function" )
     const fragments = functionFragments.map(f => f.format("json"));
     abi = abi.concat(fragments);
-
+    
+    // Selector
     const addr = await facet.getAddress();
+    const functionSelectors = getSelectors(facet, selectors);  
+    selectors = selectors.concat(functionSelectors);
 
     console.log(`${FacetName} deployed: ${addr}`);
     facetCuts.push({
       facetAddress: addr,
       action: FacetCutAction.Add,
-      functionSelectors: getSelectors(facet)
+      functionSelectors: functionSelectors
     })
 
     retAddress[FacetName] = addr;
   }
 
+  // remove duplicates from abi
+  // abi = [...new Set(abi)]; //Array.concat() remove duplicates
   const abiString = JSON.stringify(abi.map((j) => JSON.parse(j)));
 
   if (tokenAddress === undefined) {

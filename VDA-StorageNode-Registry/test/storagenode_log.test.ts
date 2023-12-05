@@ -7,7 +7,7 @@ import { checkAddNode, createStorageNodeInputStruct, getLogNodeIssueSignatures }
 import { SignerWithAddress } from "@nomicfoundation/hardhat-ethers/signers";
 import { BigNumberish, HDNodeWallet, Wallet } from 'ethers'
 import { SnapshotRestorer, takeSnapshot, time } from "@nomicfoundation/hardhat-network-helpers";
-import { IStorageNode, MockToken, VDADataCenterFacet, VDAStorageNodeFacet, VDAVerificationFacet } from "../typechain-types";
+import { IStorageNode, MockToken, VDADataCenterFacet, VDAStorageNodeFacet, VDAStorageNodeManagementFacet, VDAVerificationFacet } from "../typechain-types";
 import { DATA_CENTERS, VALID_NUMBER_SLOTS } from "./utils/constant";
 import { hours } from "@nomicfoundation/hardhat-network-helpers/dist/src/helpers/time/duration";
 import { anyValue } from "@nomicfoundation/hardhat-chai-matchers/withArgs";
@@ -17,6 +17,7 @@ const { assert } = require('chai')
 const trustedSigner = Wallet.createRandom();
 const user = Wallet.createRandom();
 const storageNode = createStorageNodeInputStruct(
+  ("node-" + user.address).toLowerCase(),
   user.address, 
   "https://1",
   "us",
@@ -38,6 +39,7 @@ describe('SorageNode Log Related Test', async function () {
   let verificationContract: VDAVerificationFacet;
   let datacenterContract: VDADataCenterFacet;
   let nodeContract: VDAStorageNodeFacet;
+  let nodeManageContract: VDAStorageNodeManagementFacet;
   let tokenContract: MockToken;
 
   const datacenterIds : bigint[] = [];
@@ -80,7 +82,7 @@ describe('SorageNode Log Related Test', async function () {
       await tokenContract.connect(requestor).approve(diamondAddress, nodeIssueFee);
     }
 
-    const nonce = await nodeContract.nonce(logger.address);
+    const nonce = await nodeManageContract.nonce(logger.address);
     const { requestSignature, requestProof } = getLogNodeIssueSignatures(logger, nodeDID, reasonCode, nonce);
 
     if (expectResult === true) {
@@ -112,11 +114,14 @@ describe('SorageNode Log Related Test', async function () {
     ({
       diamondAddress,
       tokenAddress,
-    } = await deploy(undefined, ['VDAVerificationFacet', 'VDADataCenterFacet', 'VDAStorageNodeFacet']));
+    } = await deploy(undefined, [
+      'VDAVerificationFacet', 'VDADataCenterFacet', 'VDAStorageNodeFacet', 'VDAStorageNodeManagementFacet'
+    ]));
 
     verificationContract = await ethers.getContractAt("VDAVerificationFacet", diamondAddress);
     datacenterContract = await ethers.getContractAt("VDADataCenterFacet", diamondAddress)
     nodeContract = await ethers.getContractAt("VDAStorageNodeFacet", diamondAddress);
+    nodeManageContract = await ethers.getContractAt("VDAStorageNodeManagementFacet", diamondAddress);
     
     tokenContract = await ethers.getContractAt("MockToken", tokenAddress);
 
@@ -140,7 +145,7 @@ describe('SorageNode Log Related Test', async function () {
     await verificationContract.addTrustedSigner(trustedSigner.address);
     await nodeContract.setStakingRequired(true);
     await approveToken(BigInt(storageNode.slotCount), owner, diamondAddress, true);
-    await checkAddNode(nodeContract, storageNode, user, trustedSigner, true);
+    await checkAddNode(nodeManageContract, storageNode, user, trustedSigner, true);
     snapShotWithNodeAdded = await takeSnapshot();
 
     requestor = accounts[1];
@@ -440,7 +445,7 @@ describe('SorageNode Log Related Test', async function () {
       })
 
       it("Failed : Token not approved or insufficient",async () => {
-        const nonce = await nodeContract.nonce(logger.address);
+        const nonce = await nodeManageContract.nonce(logger.address);
         const { requestSignature, requestProof } = getLogNodeIssueSignatures(logger, node.address, 10, nonce);
         await expect(
           nodeContract.connect(requestor).logNodeIssue(logger.address, node.address, 10, requestSignature, requestProof)
@@ -483,6 +488,7 @@ describe('SorageNode Log Related Test', async function () {
         // Add different nodes for test
         for (let i = 0; i < nodes.length; i++) {
           const storageNode = createStorageNodeInputStruct(
+            `name-${i+1}`,
             nodes[i].address, 
             "https://1" + i,
             "us",
@@ -496,7 +502,7 @@ describe('SorageNode Log Related Test', async function () {
           // Approve Token
           await approveToken(BigInt(storageNode.slotCount), owner, diamondAddress, true);
           // Add node
-          await checkAddNode(nodeContract, storageNode, nodes[i], trustedSigner, true);
+          await checkAddNode(nodeManageContract, storageNode, nodes[i], trustedSigner, true);
         }
 
         // Add logs till current limit per day

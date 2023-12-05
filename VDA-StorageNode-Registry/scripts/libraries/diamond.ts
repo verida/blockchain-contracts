@@ -12,10 +12,15 @@ interface SelectorType {
 
 // get function selectors from ABI
 // export function getSelectors(contract: ContractFactory | Contract) : SelectorType {
-export function getSelectors(contract: any) : any {
+export function getSelectors(contract: any, registeredSelectors?: string[]) : any {
     let selectors : any = [];
     contract.interface.forEachFunction((functionFragment: any) => {
-        selectors.push(functionFragment.selector);
+        const selector = functionFragment.selector
+        if (registeredSelectors === undefined) {
+            selectors.push(selector);
+        } else if (registeredSelectors.indexOf(selector) === -1) {
+            selectors.push(selector);
+        }
     })
     selectors.contract = contract;
     selectors.remove = remove;

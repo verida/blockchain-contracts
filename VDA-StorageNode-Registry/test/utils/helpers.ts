@@ -1,7 +1,7 @@
 import { ethers } from "hardhat";
 import { BigNumberish, BytesLike, HDNodeWallet, Wallet } from "ethers";
 import EncryptionUtils from "@verida/encryption-utils";
-import { IDataCenter, IStorageNode, VDAStorageNodeFacet } from "../../typechain-types";
+import { IDataCenter, IStorageNode, IStorageNodeManagement, VDAStorageNodeFacet, VDAStorageNodeManagementFacet } from "../../typechain-types";
 import { expect } from "chai";
 import { anyValue } from "@nomicfoundation/hardhat-chai-matchers/withArgs";
 import { SignerWithAddress } from "@nomicfoundation/hardhat-ethers/signers";
@@ -33,7 +33,7 @@ export function createStorageNodeInputStruct(
     lat: number,
     long: number,
     slotCount: BigNumberish,
-    acceptFallbackSlots: boolean) : IStorageNode.StorageNodeInputStruct {
+    acceptFallbackSlots: boolean) : IStorageNodeManagement.StorageNodeInputStruct {
     
     return {
         name,
@@ -56,7 +56,7 @@ export interface RequestSignature {
 }
 
 export function getAddNodeSignatures(
-    node: IStorageNode.StorageNodeInputStruct,
+    node: IStorageNodeManagement.StorageNodeInputStruct,
     nonce: BigNumberish,
     user : Wallet | HDNodeWallet,
     signer : Wallet | HDNodeWallet
@@ -94,7 +94,7 @@ export interface RemoveSignature {
 export function getRemoveStartSignatures(
     user: Wallet | HDNodeWallet,
     unregisterTime : BigNumberish,
-    fallbackInfo: IStorageNode.FallbackNodeInfoStruct,
+    fallbackInfo: IStorageNodeManagement.FallbackNodeInfoStruct,
     nonce: BigNumberish
 ) : RemoveSignature {
     const rawMsg = ethers.solidityPacked(
@@ -183,8 +183,8 @@ export function getLogNodeIssueSignatures(
 }
 
 export const checkAddNode = async (
-    contract: VDAStorageNodeFacet,
-    storageNode: IStorageNode.StorageNodeInputStruct,
+    contract: VDAStorageNodeManagementFacet,
+    storageNode: IStorageNodeManagement.StorageNodeInputStruct,
     user: HDNodeWallet,
     trustedSigner: HDNodeWallet,
     expectResult: boolean = true,
@@ -213,7 +213,7 @@ export const checkAddNode = async (
         await expect(
             contract.addNode(storageNode, requestSignature, requestProof, authSignature)
         ).to.be.revertedWithCustomError(contract, revertError!);
-    }Date.now() / 1000
+    }
 }
 
 /**
@@ -223,7 +223,11 @@ export const checkAddNode = async (
  * @param signer Signer that signs the message. This parameter is for testing invalid signature tests.
  * @returns fallback node information for `removeNodeStart()` function
  */
-export const getFallbackNodeInfo = (user:Wallet | HDNodeWallet, slotCount: BigNumberish, signer: Wallet|HDNodeWallet|undefined = undefined) : IStorageNode.FallbackNodeInfoStruct => {
+export const getFallbackNodeInfo = (
+    user:Wallet | HDNodeWallet, 
+    slotCount: BigNumberish, 
+    signer: Wallet|HDNodeWallet|undefined = undefined
+    ) : IStorageNodeManagement.FallbackNodeInfoStruct => {
     const timeInSec = Math.floor(Date.now() / 1000);
 
     const rawmsg = ethers.solidityPacked(
@@ -261,10 +265,10 @@ export const getFallbackMigrationProof = (nodeAddress: string, fallbackNodeAddre
 }
 
 export const checkRemoveNodeStart = async (
-    contract: VDAStorageNodeFacet,
-    user: HDNodeWallet,
+    contract: VDAStorageNodeManagementFacet,
+    user: HDNodeWallet | Wallet,
     unregisterTime: number,
-    fallbackInfo: IStorageNode.FallbackNodeInfoStruct,
+    fallbackInfo: IStorageNodeManagement.FallbackNodeInfoStruct,
     expectResult: boolean = true,
     revertError: string | null = null
 ) => {
@@ -288,7 +292,7 @@ export const checkRemoveNodeStart = async (
 }
 
 export const checkRemoveNodeComplete = async (
-    contract: VDAStorageNodeFacet,
+    contract: VDAStorageNodeManagementFacet,
     user: HDNodeWallet,
     fallbackUser: HDNodeWallet,
     requestor: SignerWithAddress,
