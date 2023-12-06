@@ -3,12 +3,12 @@
 import { deploy } from "../scripts/libraries/deployment";
 import { ethers } from 'hardhat';
 import { expect } from 'chai';
-import { checkAddNode, checkRemoveNodeComplete, checkRemoveNodeStart, createDatacenterStruct, createStorageNodeInputStruct } from './utils/helpers';
+import { checkAddNode, checkRemoveNodeComplete, checkRemoveNodeStart, createDatacenterStruct, createStorageNodeInputStruct, getFallbackNodeInfo } from './utils/helpers';
 import { SignerWithAddress } from "@nomicfoundation/hardhat-ethers/signers";
 import { BigNumberish, Wallet } from 'ethers'
 import { SnapshotRestorer, takeSnapshot, time } from "@nomicfoundation/hardhat-network-helpers";
-import { IDataCenter, VDADataCenterFacet, VDAStorageNodeFacet, VDAVerificationFacet } from "../typechain-types";
-import { DATA_CENTERS, INVALID_COUNTRY_CODES, INVALID_REGION_CODES, VALID_NUMBER_SLOTS } from "./utils/constant";
+import { IDataCenter, MockToken, VDADataCenterFacet, VDAStorageNodeFacet, VDAStorageNodeManagementFacet, VDAVerificationFacet } from "../typechain-types";
+import { DATA_CENTERS, EnumStatus, INVALID_COUNTRY_CODES, INVALID_REGION_CODES, VALID_NUMBER_SLOTS } from "./utils/constant";
 import { LibDataCenter } from "../typechain-types/contracts/facets/VDADataCenterFacet";
 import { anyValue } from "@nomicfoundation/hardhat-chai-matchers/withArgs";
 import { FacetCutAction, getSelectors } from "../scripts/libraries/diamond";
@@ -38,9 +38,10 @@ describe('DataCenter Test', async function () {
     ({
       diamondAddress,
       tokenAddress
-    } = await deploy(undefined, ['VDADataCenterFacet', 'VDAStorageNodeFacet']));
+    } = await deploy(undefined, ['VDADataCenterFacet', 'VDAStorageNodeFacet', 'VDAStorageNodeManagementFacet']));
 
     contract = await ethers.getContractAt("VDADataCenterFacet", diamondAddress)
+
   })
 
   describe("Add datacenter", () => {
@@ -118,7 +119,7 @@ describe('DataCenter Test', async function () {
       }
     })
 
-    it("Failed : Registered datacenter name", async () => {
+    it("Failed: Registered datacenter name", async () => {
       const invalidDatacenters = [
           createDatacenterStruct("center-1", "us", "north america", -90, -150),
           createDatacenterStruct("center-1", "uk", "europe", 0, 0),
@@ -133,48 +134,60 @@ describe('DataCenter Test', async function () {
       }
     })
 
-    it("Can reuse datacenter name once removed", async () => {
+    it("Failed: removed datacenter name", async () => {
       const currentSnapshot = await takeSnapshot();
 
       let tx = await contract.removeDataCenter(datacenterIds[0])
       await expect(tx).to.emit(contract, "RemoveDataCenter").withArgs(datacenterIds[0], DATA_CENTERS[0].name);
 
       // Re register removed name
-      tx = await contract.addDataCenter(DATA_CENTERS[0]);
-      await expect(tx).to.emit(contract, "AddDataCenter");
+      await expect(
+        contract.addDataCenter(DATA_CENTERS[0])
+      ).to.be.revertedWithCustomError(contract, "InvalidDataCenterName");
 
       await currentSnapshot.restore();
     })
   })
 
+  /*
   describe("Is datacenter name registered", () => {
-      const dataCenter = createDatacenterStruct("center-x", "us", "north america", -90, -150);
+    let currentSnapShot: SnapshotRestorer;
+    const dataCenter = createDatacenterStruct("center-x", "us", "north america", -90, -150);
 
-      it("Return `False` for unregistered name",async () => {
-          expect(await contract.isDataCenterNameRegistered(dataCenter.name)).to.be.eq(false);
-      })
+    before(async () => {
+      currentSnapShot = await takeSnapshot();
+    })
+    after(async () => {
+      await currentSnapShot.restore();
+    })
 
-      it("Return `True` for registered name",async () => {
-          // Add data center
-          await expect(
-              contract.addDataCenter(dataCenter)
-          ).to.emit(contract, "AddDataCenter");
+    it("Return `False` for unregistered name",async () => {
+        expect(await contract.isDataCenterNameRegistered(dataCenter.name)).to.be.eq(false);
+    })
 
-          expect(await contract.isDataCenterNameRegistered(dataCenter.name)).to.be.eq(true);
-      })
+    it("Return `True` for registered name",async () => {
+        // Add data center
+        await expect(
+            contract.addDataCenter(dataCenter)
+        ).to.emit(contract, "AddDataCenter");
 
-      it("Return `False` for unregistered name",async () => {
-          // Remove data center
-          await expect(
-              contract.removeDataCenterByName(dataCenter.name)
-          ).to.emit(contract, "RemoveDataCenter");
+        expect(await contract.isDataCenterNameRegistered(dataCenter.name)).to.be.eq(true);
+    })
 
-          expect(await contract.isDataCenterNameRegistered(dataCenter.name)).to.be.eq(false);
-      })
+    it("Return `True` for removed name",async () => {
+
+        // Remove data center
+        await expect(
+            contract.removeDataCenterByName(dataCenter.name)
+        ).to.emit(contract, "RemoveDataCenter");
+
+        expect(await contract.isDataCenterNameRegistered(dataCenter.name)).to.be.eq(true);
+    })
   })
+  */
 
   describe("Get datacenters", () => {
-    const checkDatacenterResult = (result: LibDataCenter.DatacenterStructOutput, org: IDataCenter.DatacenterInputStruct) => {
+    const checkDatacenterResult = (result: LibDataCenter.DataCenterStructOutput, org: IDataCenter.DatacenterInputStruct) => {
       expect(result.name).to.equal(org.name);
       expect(result.countryCode).to.equal(org.countryCode);
       expect(result.regionCode).to.equal(org.regionCode);
@@ -183,78 +196,61 @@ describe('DataCenter Test', async function () {
     }
 
     describe("Get datacenters by names", () => {
-      let currentSnapshot : SnapshotRestorer;
-      let dataCenterId : BigNumberish;
-      const dataCenter = createDatacenterStruct("center-x", "us", "north america", -90, -150);
-
-      before(async () => {
-        currentSnapshot = await takeSnapshot();
-
-        const tx = await contract.addDataCenter(dataCenter);
-
-        await expect(tx).to.emit(contract, "AddDataCenter");
-
-        const transactionReceipt = await tx.wait();
-        const events = await contract.queryFilter(
-          contract.filters.AddDataCenter,
-          transactionReceipt?.blockNumber,
-          transactionReceipt?.blockNumber
-        );
-
-        if (events.length > 0) {
-          dataCenterId = events[0].args[0];
-        }
-      })
-
       it("Failed : Unregistered name",async () => {
         await expect(
             contract.getDataCentersByName(["invalid name"])
         ).to.be.revertedWithCustomError(contract, "InvalidDataCenterName");
 
         await expect(
-            contract.getDataCentersByName(["invalid name", dataCenter.name])
+            contract.getDataCentersByName(["invalid name", DATA_CENTERS[0].name])
         ).to.be.revertedWithCustomError(contract, "InvalidDataCenterName");
 
         await expect(
-            contract.getDataCentersByName([dataCenter.name, "invalid name"])
+            contract.getDataCentersByName([DATA_CENTERS[0].name, "invalid name"])
         ).to.be.revertedWithCustomError(contract, "InvalidDataCenterName");
       })
 
       it("Success",async () => {
-        const result = await contract.getDataCentersByName([dataCenter.name]);
-        expect(result.length === 1, "Returned a data center");
-        checkDatacenterResult(result[0], dataCenter);
+        const names = DATA_CENTERS.map(item => item.name);
+
+        const result = await contract.getDataCentersByName(names);
+        for (let i = 0; i < DATA_CENTERS.length; i++) {
+            checkDatacenterResult(result[i], DATA_CENTERS[i]);
+            expect(result[i].status).to.be.eq(EnumStatus.active);
+        }
       })
 
-      it("Failed : Removed data center",async () => {
+      it("Success : Removed data center",async () => {
+        const currentSnapshot = await takeSnapshot();
+
         await expect(
-            contract.removeDataCenter(dataCenterId)
+            contract.removeDataCenter(datacenterIds[0])
         ).to.emit(contract, "RemoveDataCenter");
 
-        await expect(
-            contract.getDataCentersByName([dataCenter.name])
-        ).to.be.revertedWithCustomError(contract, "InvalidDataCenterName");
-      })
+        const result = await contract.getDataCentersByName([DATA_CENTERS[0].name]);
+        expect(result.length === 1, "Returned a data center");
+        checkDatacenterResult(result[0], DATA_CENTERS[0]);
 
-      after(async () => {
-          await currentSnapshot.restore();
+        expect(result[0].status).to.be.eq(EnumStatus.removed);
+
+        await currentSnapshot.restore();
       })
     })
 
     describe("Get datacenters by IDs", () => {
       let maxDataCenterID : bigint;
-      before(() => {
-          maxDataCenterID = datacenterIds[datacenterIds.length -1];
+      before(async() => {
+        maxDataCenterID = datacenterIds[datacenterIds.length -1];
       })
 
       it("Failed: Invalid IDs", async () => {
-        let invalidIDs: BigNumberish[] = [0n];
+        let invalidIDs: bigint[] = [0n];
         await expect(contract.getDataCenters(invalidIDs)).to.be.revertedWithCustomError(contract, "InvalidDataCenterId");
 
         invalidIDs = [0n, maxDataCenterID + 1n];
         await expect(contract.getDataCenters(invalidIDs)).to.be.revertedWithCustomError(contract, "InvalidDataCenterId");
 
-        invalidIDs = [0, datacenterIds[0]];
+        invalidIDs = [0n, datacenterIds[0]];
         await expect(contract.getDataCenters(invalidIDs)).to.be.revertedWithCustomError(contract, "InvalidDataCenterId");
 
         invalidIDs = [datacenterIds[0], maxDataCenterID + 1n];
@@ -265,284 +261,432 @@ describe('DataCenter Test', async function () {
         const result = await contract.getDataCenters(datacenterIds);
         for (let i = 0; i < DATA_CENTERS.length; i++) {
             checkDatacenterResult(result[i], DATA_CENTERS[i]);
+            expect(result[i].status).to.be.eq(EnumStatus.active);
         }
       })
 
-      it("Failed: Removed datacenter ID", async () => {
+      it("Success: Removed datacenter ID", async () => {
         const currentSnapshot = await takeSnapshot();
 
         // Remove datacenter ID
         const tx = await contract.removeDataCenter(datacenterIds[0]);
         await expect(tx).to.emit(contract, "RemoveDataCenter").withArgs(datacenterIds[0], DATA_CENTERS[0].name);
 
-        // Failed to get datacenters
-        await expect(contract.getDataCenters(datacenterIds)).to.be.revertedWithCustomError(contract, "InvalidDataCenterId");
+        const result = await contract.getDataCenters([datacenterIds[0]]);
+        checkDatacenterResult(result[0], DATA_CENTERS[0]);
+        expect(result[0].status).to.be.eq(EnumStatus.removed);
 
         await currentSnapshot.restore();
       })
-
     })
 
     describe("Get datacenters by country code", () => {
-      it("Failed: Invalid country code", async () => {
-        for (let i = 0; i < INVALID_COUNTRY_CODES.length; i++) {
-            await expect(contract.getDataCentersByCountry(INVALID_COUNTRY_CODES[i])).to.be.revertedWithCustomError(contract, "InvalidCountryCode");
-        }
-      })
-
-      it("Return empty array for unregistered counry codes", async () => {
-        const unregisteredCountryCodes = ["at", "by", "sg"];
-        for (let i = 0; i < unregisteredCountryCodes.length; i++) {
-            expect(
-                await contract.getDataCentersByCountry(unregisteredCountryCodes[i])
-            ).to.deep.equal([]);
-        }
-      })
-
-      it("Success", async () => {
-        let result = await contract.getDataCentersByCountry("us");
-        expect(result.length).to.equal(2);
-        checkDatacenterResult(result[0], DATA_CENTERS[0]);
-        checkDatacenterResult(result[1], DATA_CENTERS[2]);
-
-        result = await contract.getDataCentersByCountry("uk");
-        expect(result.length).to.equal(1);
-        checkDatacenterResult(result[0], DATA_CENTERS[1]);
-      })
-
-      it("Should not include removed data centers", async () => {
-        const currentSnapshot = await takeSnapshot();
-
-        // Remove datacenters
-        for (let i = 0; i < 2; i++) {
-          await expect(
-              contract.removeDataCenter(datacenterIds[i])
-          ).to.emit(contract, "RemoveDataCenter").withArgs(datacenterIds[i], DATA_CENTERS[i].name);
-        }
-        
-        // Check getDataCentersByCountry
-        let result = await contract.getDataCentersByCountry("us");
-        expect(result.length).to.equal(1);
-        checkDatacenterResult(result[0], DATA_CENTERS[2]);
-
-        result = await contract.getDataCentersByCountry("uk");
-        expect(result.length).to.equal(0);
-
-        await currentSnapshot.restore();
-      })
-    })
-
-    describe("Get datacenters by region code", () => {
-      it("Failed: Invalid region code", async () => {
-          await expect(contract.getDataCentersByRegion("")).to.be.revertedWithCustomError(contract, "InvalidRegionCode");
-      })
-
-      it("Return empty arry for unregistered region codes", async () => {
-        const unregisteredRegionCodes = ["asia", "africa"];
-        for (let i = 0; i < unregisteredRegionCodes.length; i++) {
-            expect(await contract.getDataCentersByRegion(unregisteredRegionCodes[i])).to.deep.equal([]);
-        }
-      })
-
-      it("Success", async () => {
-        let result = await contract.getDataCentersByRegion("north america");
-        expect(result.length).to.equal(2);
-        checkDatacenterResult(result[0], DATA_CENTERS[0]);
-        checkDatacenterResult(result[1], DATA_CENTERS[2]);
-
-        result = await contract.getDataCentersByRegion("europe");
-        expect(result.length).to.equal(1);
-        checkDatacenterResult(result[0], DATA_CENTERS[1]);
-      })
-
-      it("Should not include removed data centers", async () => {
-        const currentSnapshot = await takeSnapshot();
-
-        // Remove datacenter IDs
-        for (let i = 0; i < 2; i++) {
+      describe("Get without status filter", () => {
+        it("Failed: Invalid country code", async () => {
+          for (let i = 0; i < INVALID_COUNTRY_CODES.length; i++) {
+              await expect(contract["getDataCentersByCountry(string)"](INVALID_COUNTRY_CODES[i])).to.be.revertedWithCustomError(contract, "InvalidCountryCode");
+          }
+        })
+  
+        it("Return empty array for unregistered counry codes", async () => {
+          const unregisteredCountryCodes = ["at", "by", "sg"];
+          for (let i = 0; i < unregisteredCountryCodes.length; i++) {
+              expect(
+                  await contract["getDataCentersByCountry(string)"](unregisteredCountryCodes[i])
+              ).to.deep.equal([]);
+          }
+        })
+  
+        it("Success", async () => {
+          let result = await contract["getDataCentersByCountry(string)"]("us");
+          expect(result.length).to.equal(2);
+          checkDatacenterResult(result[0], DATA_CENTERS[0]);
+          checkDatacenterResult(result[1], DATA_CENTERS[2]);
+  
+          result = await contract["getDataCentersByCountry(string)"]("uk");
+          expect(result.length).to.equal(1);
+          checkDatacenterResult(result[0], DATA_CENTERS[1]);
+        })
+  
+        it("Should contain removed data centers", async () => {
+          const currentSnapshot = await takeSnapshot();
+  
+          // Remove datacenters
+          for (let i = 0; i < 2; i++) {
             await expect(
                 contract.removeDataCenter(datacenterIds[i])
             ).to.emit(contract, "RemoveDataCenter").withArgs(datacenterIds[i], DATA_CENTERS[i].name);
-        }
-        
-        // Check getDataCentersByCountry
-        let result = await contract.getDataCentersByRegion("north america");
-        expect(result.length).to.equal(1);
-        checkDatacenterResult(result[0], DATA_CENTERS[2]);
+          }
+          
+          // Check getDataCentersByCountry
+          let result = await contract["getDataCentersByCountry(string)"]("us");
+          expect(result.length).to.equal(2);
+          checkDatacenterResult(result[0], DATA_CENTERS[0]);
+          expect(result[0].status).to.be.eq(EnumStatus.removed);
+          checkDatacenterResult(result[1], DATA_CENTERS[2]);
+          expect(result[1].status).to.be.eq(EnumStatus.active);
+  
+          result = await contract["getDataCentersByCountry(string)"]("uk");
+          expect(result.length).to.equal(1);
+          checkDatacenterResult(result[0], DATA_CENTERS[1]);
+          expect(result[0].status).to.be.eq(EnumStatus.removed);
+  
+          await currentSnapshot.restore();
+        })
+      })
 
-        result = await contract.getDataCentersByRegion("europe");
-        expect(result.length).to.equal(0);
+      describe("Get with status filter", () => {
+        it("Failed: Invalid country code", async () => {
+          for (let i = 0; i < INVALID_COUNTRY_CODES.length; i++) {
+              await expect(contract["getDataCentersByCountry(string,uint8)"](INVALID_COUNTRY_CODES[i], EnumStatus.active)).to.be.revertedWithCustomError(contract, "InvalidCountryCode");
+              await expect(contract["getDataCentersByCountry(string,uint8)"](INVALID_COUNTRY_CODES[i], EnumStatus.removed)).to.be.revertedWithCustomError(contract, "InvalidCountryCode");
+          }
+        })
+  
+        it("Return empty array for unregistered counry codes", async () => {
+          const unregisteredCountryCodes = ["at", "by", "sg"];
+          for (let i = 0; i < unregisteredCountryCodes.length; i++) {
+              expect(
+                  await contract["getDataCentersByCountry(string,uint8)"](unregisteredCountryCodes[i], EnumStatus.active)
+              ).to.deep.equal([]);
 
-        await currentSnapshot.restore();
+              expect(
+                await contract["getDataCentersByCountry(string,uint8)"](unregisteredCountryCodes[i], EnumStatus.removed)
+            ).to.deep.equal([]);
+          }
+        })
+  
+        it("Success", async () => {
+          // 2 active data centers for "us"
+          let result = await contract["getDataCentersByCountry(string,uint8)"]("us", EnumStatus.active);
+          expect(result.length).to.equal(2);
+          checkDatacenterResult(result[0], DATA_CENTERS[0]);
+          checkDatacenterResult(result[1], DATA_CENTERS[2]);
+          // No removed data centers for "us"
+          result = await contract["getDataCentersByCountry(string,uint8)"]("us", EnumStatus.removed);
+          expect(result.length).to.equal(0);
+  
+          // 1 active data cetner for "uk"
+          result = await contract["getDataCentersByCountry(string,uint8)"]("uk", EnumStatus.active);
+          expect(result.length).to.equal(1);
+          checkDatacenterResult(result[0], DATA_CENTERS[1]);
+          // No removed data centers for "uk"
+          result = await contract["getDataCentersByCountry(string,uint8)"]("uk", EnumStatus.removed);
+          expect(result.length).to.equal(0);
+        })
+  
+        it("Success with removed data centers", async () => {
+          const currentSnapshot = await takeSnapshot();
+  
+          // Remove datacenters, Remove one data center from "us" and "uk"
+          for (let i = 0; i < 2; i++) {
+            await expect(
+                contract.removeDataCenter(datacenterIds[i])
+            ).to.emit(contract, "RemoveDataCenter").withArgs(datacenterIds[i], DATA_CENTERS[i].name);
+          }
+          
+          // Check getDataCentersByCountry
+          // 1 active and 1 removed for "us"
+          expect((await contract["getDataCentersByCountry(string,uint8)"]("us", EnumStatus.active)).length).to.equal(1);
+          expect((await contract["getDataCentersByCountry(string,uint8)"]("us", EnumStatus.removed)).length).to.equal(1);
+          
+          // 0 active and 1 removed for "uk"
+          expect((await contract["getDataCentersByCountry(string,uint8)"]("uk", EnumStatus.active)).length).to.equal(0);
+          expect((await contract["getDataCentersByCountry(string,uint8)"]("uk", EnumStatus.removed)).length).to.equal(1);
+
+          await currentSnapshot.restore();
+        })
+      })
+    })
+    
+    describe("Get datacenters by region code", () => {
+      describe("Get without status filter", () => {
+        it("Failed: Invalid region code", async () => {
+            await expect(contract["getDataCentersByRegion(string)"]("")).to.be.revertedWithCustomError(contract, "InvalidRegionCode");
+        })
+  
+        it("Return empty arry for unregistered region codes", async () => {
+          const unregisteredRegionCodes = ["asia", "africa"];
+          for (let i = 0; i < unregisteredRegionCodes.length; i++) {
+              expect(await contract["getDataCentersByRegion(string)"](unregisteredRegionCodes[i])).to.deep.equal([]);
+          }
+        })
+  
+        it("Success", async () => {
+          let result = await contract["getDataCentersByRegion(string)"]("north america");
+          expect(result.length).to.equal(2);
+          checkDatacenterResult(result[0], DATA_CENTERS[0]);
+          checkDatacenterResult(result[1], DATA_CENTERS[2]);
+  
+          result = await contract["getDataCentersByRegion(string)"]("europe");
+          expect(result.length).to.equal(1);
+          checkDatacenterResult(result[0], DATA_CENTERS[1]);
+        })
+  
+        it("Should contain removed data centers", async () => {
+          const currentSnapshot = await takeSnapshot();
+  
+          // Remove datacenter IDs
+          for (let i = 0; i < 2; i++) {
+              await expect(
+                  contract.removeDataCenter(datacenterIds[i])
+              ).to.emit(contract, "RemoveDataCenter").withArgs(datacenterIds[i], DATA_CENTERS[i].name);
+          }
+          
+          // Check getDataCentersByCountry
+          let result = await contract["getDataCentersByRegion(string)"]("north america");
+          expect(result.length).to.equal(2);
+          checkDatacenterResult(result[0], DATA_CENTERS[0]);
+          expect(result[0].status).to.be.eq(EnumStatus.removed);
+          checkDatacenterResult(result[1], DATA_CENTERS[2]);
+          expect(result[1].status).to.be.eq(EnumStatus.active);
+  
+          result = await contract["getDataCentersByRegion(string)"]("europe");
+          expect(result.length).to.equal(1);
+          checkDatacenterResult(result[0], DATA_CENTERS[1]);
+          expect(result[0].status).to.be.eq(EnumStatus.removed);
+  
+          await currentSnapshot.restore();
+        })
+      })
+
+      describe("Get with status filter", () => {
+        it("Failed: Invalid region code", async () => {
+            await expect(contract["getDataCentersByRegion(string,uint8)"]("", EnumStatus.active)).to.be.revertedWithCustomError(contract, "InvalidRegionCode");
+            await expect(contract["getDataCentersByRegion(string,uint8)"]("", EnumStatus.removed)).to.be.revertedWithCustomError(contract, "InvalidRegionCode");
+        })
+  
+        it("Return empty arry for unregistered region codes", async () => {
+          const unregisteredRegionCodes = ["asia", "africa"];
+          for (let i = 0; i < unregisteredRegionCodes.length; i++) {
+              expect(await contract["getDataCentersByRegion(string,uint8)"](unregisteredRegionCodes[i], EnumStatus.active)).to.deep.equal([]);
+              expect(await contract["getDataCentersByRegion(string,uint8)"](unregisteredRegionCodes[i], EnumStatus.removed)).to.deep.equal([]);
+          }
+        })
+  
+        it("Success", async () => {
+          // 2 active data centers for "north america"
+          let result = await contract["getDataCentersByRegion(string,uint8)"]("north america", EnumStatus.active);
+          expect(result.length).to.equal(2);
+          checkDatacenterResult(result[0], DATA_CENTERS[0]);
+          checkDatacenterResult(result[1], DATA_CENTERS[2]);
+          // no removed data center for "north america"
+          result = await contract["getDataCentersByRegion(string,uint8)"]("north america", EnumStatus.removed);
+          expect(result.length).to.equal(0);
+          
+          // 1 active data center for "europe"
+          result = await contract["getDataCentersByRegion(string,uint8)"]("europe", EnumStatus.active);
+          expect(result.length).to.equal(1);
+          checkDatacenterResult(result[0], DATA_CENTERS[1]);
+          // no removed data center for "europe"
+          result = await contract["getDataCentersByRegion(string,uint8)"]("europe", EnumStatus.removed);
+          expect(result.length).to.equal(0);
+        })
+  
+        it("Success with removed data centers", async () => {
+          const currentSnapshot = await takeSnapshot();
+  
+          // Remove datacenter IDs, remove one data center from "north america" and "europe"
+          for (let i = 0; i < 2; i++) {
+              await expect(
+                  contract.removeDataCenter(datacenterIds[i])
+              ).to.emit(contract, "RemoveDataCenter").withArgs(datacenterIds[i], DATA_CENTERS[i].name);
+          }
+          
+          // 1 active data center and 1 removed data center for "north america"
+          expect((await contract["getDataCentersByRegion(string,uint8)"]("north america", EnumStatus.active)).length).to.equal(1);
+          expect((await contract["getDataCentersByRegion(string,uint8)"]("north america", EnumStatus.removed)).length).to.equal(1);
+          
+          // no active data center and 1 removed data center for "europe"
+          expect((await contract["getDataCentersByRegion(string,uint8)"]("europe", EnumStatus.active)).length).to.equal(0);
+          expect((await contract["getDataCentersByRegion(string,uint8)"]("europe", EnumStatus.removed)).length).to.equal(1);
+
+          await currentSnapshot.restore();
+        })
       })
     })
   })
 
   describe("Remove datacenter", () => {
-      let maxDataCenterID : bigint;
-      let currentSnapShot : SnapshotRestorer;
+    let maxDataCenterID : bigint;
+    let currentSnapShot : SnapshotRestorer;
 
-      const user = Wallet.createRandom();
-      const trustedSigner = Wallet.createRandom();
-      const storageNode = createStorageNodeInputStruct(
-          user.address, 
-          "https://1",
-          "us",
-          "north america",
-          1,
-          -90,
-          -180,
-          VALID_NUMBER_SLOTS,
-          true
+    const trustedSigner = Wallet.createRandom();
+    const user = Wallet.createRandom();
+    const fallbackUser = Wallet.createRandom();
+    const storageNode = createStorageNodeInputStruct(
+      "node-1",
+      user.address, 
+      "https://1",
+      "us",
+      "north america",
+      1,
+      -90,
+      -180,
+      VALID_NUMBER_SLOTS,
+      true
+    );
+    const fallbackNode = createStorageNodeInputStruct(
+      "node-fallback",
+      fallbackUser.address,
+      "https://endpoint-fallback",
+      "jp",
+      "asia",
+      3, // Must be different from the datacenterID of storage Node to test removeDataCenter
+      -90,
+      -180,
+      VALID_NUMBER_SLOTS,
+      true
+    );
+    const fallbackInfo = getFallbackNodeInfo(fallbackUser, fallbackNode.slotCount);
+
+    let tokenContract: MockToken;
+    let nodeContract: VDAStorageNodeFacet;
+    let nodeManageContract: VDAStorageNodeManagementFacet;
+
+    const approveToken =async (numberSlot: bigint, from: SignerWithAddress, to: string, isMinting = false) => {
+      const stakePerSlot = await nodeContract.getStakePerSlot();
+      const tokenAmount = stakePerSlot * numberSlot;
+      if (isMinting) {
+          await tokenContract.mint(from.address, tokenAmount);
+      }
+      await tokenContract.connect(from).approve(to, tokenAmount);
+    }
+
+    const completeRemove=async () => {
+      // Add fallback node
+      await checkAddNode(nodeManageContract, fallbackNode, fallbackUser, trustedSigner)
+      
+      const blockTime = await time.latest();
+      const unregisterTime = blockTime + days(30);
+      // Remove Start
+      await checkRemoveNodeStart(nodeManageContract, user, unregisterTime, fallbackInfo); 
+      // Remove complete
+      await time.increaseTo(unregisterTime);
+      await checkRemoveNodeComplete(nodeManageContract, user, fallbackUser, owner);
+    }
+
+    before(async () => {
+      // Add VerificationContractFacet to add a storage node
+      const contract = await ethers.deployContract("VDAVerificationFacet");
+      await contract.waitForDeployment();
+      const address = await contract.getAddress();
+      const selectors = getSelectors(contract).get(['addTrustedSigner']);
+      
+      const diamondCutFacet = await ethers.getContractAt("DiamondCutFacet", diamondAddress);
+      const tx = await diamondCutFacet.diamondCut(
+        [{
+          facetAddress: address,
+          action: FacetCutAction.Add,
+          functionSelectors: selectors
+        }],
+        ethers.ZeroAddress, '0x'
       );
+      const receipt = await tx.wait()
+      if (!receipt.status) {
+        throw Error(`Diamond upgrade failed: ${tx.hash}`)
+      }
 
-      let storageNodeContract: VDAStorageNodeFacet;
+      const verifyContract = await ethers.getContractAt("VDAVerificationFacet", diamondAddress);
+      await verifyContract.addTrustedSigner(trustedSigner.address);
 
+      nodeContract = await ethers.getContractAt("VDAStorageNodeFacet", diamondAddress);
+      nodeManageContract = await ethers.getContractAt("VDAStorageNodeManagementFacet", diamondAddress);
+      tokenContract = await ethers.getContractAt("MockToken", tokenAddress);
 
+      maxDataCenterID = datacenterIds[datacenterIds.length -1];
+
+      
+      currentSnapShot = await takeSnapshot();
+    })
+
+    describe("Remove by IDs", () => {
+      it("Failed: Not created datacenterId", async () => {
+          const invalidIds = [0n, maxDataCenterID + 1n, maxDataCenterID + 100n]
+
+          for (let i = 0; i < invalidIds.length; i++) {
+              await expect(
+                  contract.removeDataCenter(invalidIds[i])
+              ).to.be.revertedWithCustomError(contract, "InvalidDataCenterId").withArgs(invalidIds[i]);
+          }
+      })
+
+      it("Success: Fresh datacenters that has no storage nodes added", async () => {
+          const tx = await contract.removeDataCenter(datacenterIds[1]);
+
+          await expect(tx).to.emit(contract, "RemoveDataCenter").withArgs(datacenterIds[1], anyValue);
+      })
+
+      it("Failed: Removed datacenterId", async () => {
+          await expect(
+              contract.removeDataCenter(datacenterIds[1])
+          ).to.be.revertedWithCustomError(contract, "InvalidDataCenterId");
+      })
+
+      it("Failed: Has depending nodes", async () => {
+        // Add storage node 
+        await approveToken(BigInt(storageNode.slotCount), owner, diamondAddress);
+        await checkAddNode(nodeManageContract, storageNode, user, trustedSigner, true);
+
+        // Failed to remove datacenter
+        await expect(contract.removeDataCenter(datacenterIds[0])).to.be.revertedWithCustomError(contract, "HasDependingNodes");
+      })
+
+      it("Success: After depending nodes are removed",async () => {
+        await completeRemove();
+
+        // Success to remove datacenter
+        await expect(
+            contract.removeDataCenter(datacenterIds[0])
+        ).to.emit(contract, "RemoveDataCenter").withArgs(datacenterIds[0], anyValue);
+      })
+    })
+
+    describe("Remove by name", () => {
       before(async () => {
-        // Add VerificationContractFacet to add a storage node
-        const contract = await ethers.deployContract("VDAVerificationFacet");
-        await contract.waitForDeployment();
-        const address = await contract.getAddress();
-        const selectors = getSelectors(contract).get(['addTrustedSigner']);
-        
-        const diamondCutFacet = await ethers.getContractAt("DiamondCutFacet", diamondAddress);
-        const tx = await diamondCutFacet.diamondCut(
-          [{
-            facetAddress: address,
-            action: FacetCutAction.Add,
-            functionSelectors: selectors
-          }],
-          ethers.ZeroAddress, '0x'
-        );
-        const receipt = await tx.wait()
-        if (!receipt.status) {
-          throw Error(`Diamond upgrade failed: ${tx.hash}`)
-        }
-
-        const verifyContract = await ethers.getContractAt("VDAVerificationFacet", diamondAddress);
-        await verifyContract.addTrustedSigner(trustedSigner.address);
-
-        storageNodeContract = await ethers.getContractAt("VDAStorageNodeFacet", diamondAddress);
-
-        maxDataCenterID = datacenterIds[datacenterIds.length -1];
-        currentSnapShot = await takeSnapshot();
+          await currentSnapShot.restore();
       })
 
-      describe("Remove by IDs", () => {
-          it("Failed: Not created datacenterId", async () => {
-              const invalidIds = [0n, maxDataCenterID + 1n, maxDataCenterID + 100n]
+      it("Failed: Invalid name", async () => {
+          const invalidNames = ["Invalid1", "Unregistered"];
 
-              for (let i = 0; i < invalidIds.length; i++) {
-                  await expect(
-                      contract.removeDataCenter(invalidIds[i])
-                  ).to.be.revertedWithCustomError(contract, "InvalidDataCenterId").withArgs(invalidIds[i]);
-              }
-          })
-
-          it("Success: Fresh datacenters that has no storage nodes added", async () => {
-              const tx = await contract.removeDataCenter(datacenterIds[0]);
-
-              await expect(tx).to.emit(contract, "RemoveDataCenter").withArgs(datacenterIds[0], anyValue);
-          })
-
-          it("Failed: Removed datacenterId", async () => {
+          for (let i = 0; i < invalidNames.length; i++) {
               await expect(
-                  contract.removeDataCenter(datacenterIds[0])
-              ).to.be.revertedWithCustomError(contract, "InvalidDataCenterId");
-          })
-
-          it("Failed: Has depending nodes", async () => {
-              storageNode.datacenterId = datacenterIds[1];
-
-              const tokenContract = await ethers.getContractAt("MockToken", tokenAddress);
-              const decimal = await tokenContract.decimals()
-              const stakePerSlot = await storageNodeContract.getStakePerSlot();
-              let tokenAmount = (10n^decimal) * BigInt(storageNode.slotCount) * stakePerSlot;
-              await tokenContract.approve(await contract.getAddress(), tokenAmount.toString());
-
-              // Add storage node 
-              await checkAddNode(storageNodeContract, storageNode, user, trustedSigner, true);
-
-              // Failed to remove datacenter
-              await expect(contract.removeDataCenter(datacenterIds[1])).to.be.revertedWithCustomError(contract, "HasDependingNodes");
-          })
-
-          it("Success: After depending nodes are removed",async () => {
-              // Remove start
-              const blockTime = await time.latest();
-              const unregisterTime = blockTime + days(30);
-              await checkRemoveNodeStart(storageNodeContract, user, unregisterTime);
-              
-              // Remove complete
-              await time.increaseTo(unregisterTime);
-              await checkRemoveNodeComplete(storageNodeContract, user, owner);
-
-              // Success to remove datacenter
-              await expect(
-                  contract.removeDataCenter(datacenterIds[1])
-              ).to.emit(contract, "RemoveDataCenter").withArgs(datacenterIds[1], anyValue);
-          })
+                  contract.removeDataCenterByName(invalidNames[i])
+              ).to.be.revertedWithCustomError(contract, "InvalidDataCenterName").withArgs(invalidNames[i]);
+          }
       })
 
-      describe("Remove by name", () => {
-          before(async () => {
-              await currentSnapShot.restore();
-          })
+      it("Success: Fresh datacenters that has no storage nodes added", async () => {
+          const tx = await contract.removeDataCenterByName(DATA_CENTERS[1].name);
 
-          it("Failed: Invalid name", async () => {
-              const invalidNames = ["Invalid1", "Unregistered"];
-
-              for (let i = 0; i < invalidNames.length; i++) {
-                  await expect(
-                      contract.removeDataCenterByName(invalidNames[i])
-                  ).to.be.revertedWithCustomError(contract, "InvalidDataCenterName").withArgs(invalidNames[i]);
-              }
-          })
-
-          it("Success: Fresh datacenters that has no storage nodes added", async () => {
-              const tx = await contract.removeDataCenterByName(DATA_CENTERS[0].name);
-
-              await expect(tx).to.emit(contract, "RemoveDataCenter").withArgs(datacenterIds[0], DATA_CENTERS[0].name);
-          })
-
-          it("Failed: Removed datacenter", async () => {
-              await expect(
-                  contract.removeDataCenterByName(DATA_CENTERS[0].name)
-              ).to.be.revertedWithCustomError(contract, "InvalidDataCenterName").withArgs(DATA_CENTERS[0].name);
-          })
-
-          it("Failed: Has depending nodes", async () => {
-              storageNode.datacenterId = datacenterIds[1];
-
-              const tokenContract = await ethers.getContractAt("MockToken", tokenAddress);
-              const decimal = await tokenContract.decimals()
-              const stakePerSlot = await storageNodeContract.getStakePerSlot();
-              let tokenAmount = (10n^decimal) * BigInt(storageNode.slotCount) * stakePerSlot;
-              await tokenContract.approve(await contract.getAddress(), tokenAmount.toString());
-
-              // Add storage node 
-              await checkAddNode(storageNodeContract, storageNode, user, trustedSigner, true);
-
-              // Failed to remove datacenter
-              await expect(contract.removeDataCenterByName(DATA_CENTERS[1].name)).to.be.revertedWithCustomError(contract, "HasDependingNodes");
-          })
-
-          it("Success: After depending nodes are removed",async () => {
-              // Remove start
-              const blockTime = await time.latest();
-              const unregisterTime = blockTime + days(30);
-              await checkRemoveNodeStart(storageNodeContract, user, unregisterTime);
-              
-              // Remove complete
-              await time.increaseTo(unregisterTime);
-              await checkRemoveNodeComplete(storageNodeContract, user, owner);
-
-              // Success to remove datacenter
-              await expect(
-                  contract.removeDataCenterByName(DATA_CENTERS[1].name)
-              ).to.emit(contract, "RemoveDataCenter").withArgs(datacenterIds[1], DATA_CENTERS[1].name);
-          })
+          await expect(tx).to.emit(contract, "RemoveDataCenter").withArgs(datacenterIds[1], DATA_CENTERS[1].name);
       })
+
+      it("Failed: Removed datacenter", async () => {
+          await expect(
+              contract.removeDataCenterByName(DATA_CENTERS[1].name)
+          ).to.be.revertedWithCustomError(contract, "InvalidDataCenterName").withArgs(DATA_CENTERS[1].name);
+      })
+
+      it("Failed: Has depending nodes", async () => {
+          // Add node
+          await approveToken(BigInt(storageNode.slotCount), owner, diamondAddress);
+          await checkAddNode(nodeManageContract, storageNode, user, trustedSigner, true);
+          
+          // Failed to remove datacenter
+          await expect(contract.removeDataCenterByName(DATA_CENTERS[0].name)).to.be.revertedWithCustomError(contract, "HasDependingNodes");
+      })
+
+      it("Success: After depending nodes are removed",async () => {
+          // Remove complete
+          await completeRemove();
+
+          // Success to remove datacenter
+          await expect(
+              contract.removeDataCenterByName(DATA_CENTERS[0].name)
+          ).to.emit(contract, "RemoveDataCenter").withArgs(datacenterIds[0], DATA_CENTERS[0].name);
+      })
+    })
   })
 })

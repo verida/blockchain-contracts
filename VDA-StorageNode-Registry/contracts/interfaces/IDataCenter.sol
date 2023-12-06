@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.18;
 
+import { LibCommon } from "../libraries/LibCommon.sol";
 import { LibDataCenter } from "../libraries/LibDataCenter.sol";
 
 interface IDataCenter {
@@ -81,7 +82,7 @@ interface IDataCenter {
     * @param ids Array of datacenterIds
     * @return Datacenter[] Array of `Datacenter` structs 
     */
-  function getDataCenters(uint[] calldata ids) external view returns(LibDataCenter.Datacenter[] memory);
+  function getDataCenters(uint[] calldata ids) external view returns(LibDataCenter.DataCenter[] memory);
 
   /**
     * @notice Return a data center with the given name
@@ -89,19 +90,35 @@ interface IDataCenter {
     * @param names Name list of the data centers
     * @return Datacenter[] Array of `Datacenter` structs 
     */
-  function getDataCentersByName(string[] calldata names) external view returns(LibDataCenter.Datacenter[] memory);
+  function getDataCentersByName(string[] calldata names) external view returns(LibDataCenter.DataCenter[] memory);
   
   /**
     * @notice Return an array of `Datacenter` structs for country code
     * @param countryCode Unique two-character string code
     * @return Datacenter[] Array of `Datacenter` structs 
     */
-  function getDataCentersByCountry(string calldata countryCode) external view returns(LibDataCenter.Datacenter[] memory);
+  function getDataCentersByCountry(string calldata countryCode) external view returns(LibDataCenter.DataCenter[] memory);
+
+  /**
+    * @notice Return an array of `Datacenter` structs for country code
+    * @param countryCode Unique two-character string code
+    * @param status Status of data centers to be returned
+    * @return Datacenter[] Array of `Datacenter` structs 
+    */
+  function getDataCentersByCountry(string calldata countryCode, LibCommon.EnumStatus status) external view returns(LibDataCenter.DataCenter[] memory);
 
   /**
     * @notice Return an array of `Datacenter` structs for region
     * @param regionCode Unique region string code
     * @return Datacenter[] Array of `Datacenter` structs 
     */
-  function getDataCentersByRegion(string calldata regionCode) external view returns(LibDataCenter.Datacenter[] memory);
+  function getDataCentersByRegion(string calldata regionCode) external view returns(LibDataCenter.DataCenter[] memory);
+
+  /**
+    * @notice Return an array of `Datacenter` structs for region
+    * @param regionCode Unique region string code
+    * @param status Status of data centers to be returned
+    * @return Datacenter[] Array of `Datacenter` structs 
+    */
+  function getDataCentersByRegion(string calldata regionCode, LibCommon.EnumStatus status) external view returns(LibDataCenter.DataCenter[] memory);
 }

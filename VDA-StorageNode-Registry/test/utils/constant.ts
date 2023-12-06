@@ -1,5 +1,11 @@
 import { createDatacenterStruct } from "./helpers";
 
+export enum EnumStatus {
+    removed = 0,
+    removing,
+    active
+}
+
 export const INVALID_COUNTRY_CODES = [
     "",         // Invalid code length
     " ",        // Invalid code length

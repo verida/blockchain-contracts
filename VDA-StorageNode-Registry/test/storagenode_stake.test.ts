@@ -27,7 +27,7 @@ const storageNode = createStorageNodeInputStruct(
   true
 );
 
-describe('StorageNode Management Test', async function () {
+describe('StorageNode Deposit/Withdraw Test', async function () {
   let diamondAddress: string
   let tokenAddress: string
   

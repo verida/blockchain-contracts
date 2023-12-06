@@ -3,6 +3,7 @@ pragma solidity ^0.8.18;
 
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableMap.sol";
+import { LibCommon } from "./LibCommon.sol";
 
 // import "hardhat/console.sol";
 
@@ -10,12 +11,6 @@ library LibStorageNode {
     bytes32 constant NODE_STORAGE_POSITION = keccak256("vda.storagenode.node.storage");
 
     using EnumerableSet for EnumerableSet.UintSet;
-
-    enum EnumNodeStatus{
-        active,
-        removing,
-        removed
-    }
 
     /**
      * @notice Struct representing a storage node
@@ -46,7 +41,7 @@ library LibStorageNode {
         uint slotCount;
         uint establishmentDate;
         bool acceptFallbackSlots;
-        EnumNodeStatus status;
+        LibCommon.EnumStatus status;
         uint unregisterTime;
         address fallbackNodeAddress;
     }

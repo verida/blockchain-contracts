@@ -10,7 +10,7 @@ import { createDatacenterStruct } from './utils/helpers';
 
 const { assert } = require('chai')
 
-describe('DiamondTest', async function () {
+describe('Diamond Test', async function () {
   let diamondAddress: string
   let diamondCutFacet: DiamondCutFacet
   let diamondLoupeFacet: DiamondLoupeFacet

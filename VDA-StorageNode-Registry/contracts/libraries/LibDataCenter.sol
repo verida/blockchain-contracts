@@ -2,6 +2,7 @@
 pragma solidity ^0.8.18;
 
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
+import { LibCommon } from "./LibCommon.sol";
 
 error InvalidDataCenterId(uint id);
 error InvalidDataCenterName(string name);
@@ -20,41 +21,32 @@ library LibDataCenter {
      * @param regionCode Unique region string code
      * @param lat Latitude
      * @param long Longitude
+     * @param nodeCount Number of nodes that depends on this data center
+     * @param status Status of this data center
      */
-    struct Datacenter {
+    struct DataCenter {
         uint id;
         string name;
         string countryCode;
         string regionCode;
         int lat;
         int long;
-    }
-
-    /**
-     * @notice Additional information for a data center
-     * @dev Used internally inside the contract
-     * @param isActive True when added. False after removed
-     * @param nodeCount Number of connected storage nodes
-     */
-    struct DataCenterInfo {
-        bool isActive;
         uint nodeCount;
+        LibCommon.EnumStatus status;
     }
     
     /**
-     * @param _dataCenterMap Datacenter infos by `datacenterId`
+     * @param _dataCenterMap Data center infos by `datacenterId`
      * @param _dataCenterNameToID Mapping of datacenter name to ID.
      * @param _countryDataCenterIds `datacenterId` list per country code
      * @param _regionDataCenterIds `datacenterId` list per region code
-     * @param _datacenterInfo Additional information for `datacenterId`. Contains removed status & number of connected storage nodes
      * @param _datacenterIdCounter datacenterId counter. Starts from 1
      */
     struct DataCenterStorage {
-        mapping (uint => Datacenter) _dataCenterMap;
+        mapping (uint => DataCenter) _dataCenterMap;
         mapping (string => uint) _dataCenterNameToID;
         mapping (string => EnumerableSet.UintSet) _countryDataCenterIds;
         mapping (string => EnumerableSet.UintSet) _regionDataCenterIds;
-        mapping (uint => DataCenterInfo) _datacenterInfo;
         uint _datacenterIdCounter;
     }
 
@@ -70,114 +62,32 @@ library LibDataCenter {
      * @dev `datacenterId` should be the one that was added by contract owner
      * @param id datacenterId
      */
-    function checkDataCenterIdExistance(uint id) internal view {
-        if (!dataCenterStorage()._datacenterInfo[id].isActive) {
+    function checkDataCenterIdActive(uint id) internal view {
+        if (dataCenterStorage()._dataCenterMap[id].status != LibCommon.EnumStatus.active) {
             revert InvalidDataCenterId(id);
         }
     }
 
     /**
-    * @dev see { IDataCenter }
-    */
-    function isDataCenterNameRegistered(string calldata name) internal view returns(bool) {
-        return dataCenterStorage()._dataCenterNameToID[name] != 0;
-    }
-
-    /**
-     * @dev see { IDataCenter }
-     */
-    function getDataCenters(uint[] calldata ids) internal view returns(Datacenter[] memory) {
-        DataCenterStorage storage ds = dataCenterStorage();
-
-        uint count = ids.length;
-        Datacenter[] memory list = new Datacenter[](count);
-        for (uint i; i < count;) {
-            if (!ds._datacenterInfo[ids[i]].isActive) {
-                revert InvalidDataCenterId(ids[i]);
-            }
-            list[i] = ds._dataCenterMap[ids[i]];
-            unchecked { ++i; }            
-        }
-        return list;
-    }
-
-    /**
-     * @dev see { IDataCenter }
-     */
-    function getDataCentersByName(string[] calldata names) internal view returns(Datacenter[] memory) {
-        DataCenterStorage storage ds = dataCenterStorage();
-        uint count = names.length;
-        uint id;
-        Datacenter[] memory list = new Datacenter[](count);
-        for (uint i; i < count;) {
-            id = ds._dataCenterNameToID[names[i]];
-            if (id == 0) {
-                revert InvalidDataCenterName(names[i]);
-            }
-            list[i] = ds._dataCenterMap[id];
-            unchecked { ++i; }
-        }
-        return list;
-    }
-
-    /**
-     * @dev see { IDataCenter }
-     */
-    function getDataCentersByCountry(string calldata countryCode) internal view returns(Datacenter[] memory) {
-        DataCenterStorage storage ds = dataCenterStorage();
-        
-        uint count = ds._countryDataCenterIds[countryCode].length();
-        Datacenter[] memory list = new Datacenter[](count);
-
-        EnumerableSet.UintSet storage countryIds = ds._countryDataCenterIds[countryCode];
-
-        for (uint i; i < count;) {
-            list[i] = ds._dataCenterMap[countryIds.at(i)];
-            unchecked { ++i; }
-        }
-
-        return list;
-    }
-
-    /**
-     * @dev see { IDataCenter }
-     */
-    function getDataCentersByRegion(string calldata regionCode) internal view returns(Datacenter[] memory) {
-        DataCenterStorage storage ds = dataCenterStorage();
-
-        uint count = ds._regionDataCenterIds[regionCode].length();
-        Datacenter[] memory list = new Datacenter[](count);
-
-        EnumerableSet.UintSet storage regionIds = ds._regionDataCenterIds[regionCode];
-
-        for (uint i; i < count;) {
-            list[i] = ds._dataCenterMap[regionIds.at(i)];
-            unchecked { ++i; }
-        }
-
-        return list;
-    }
-
-    /**
      * @notice Increase the node counts of data center
-     * @param dataCenterId Datacenter ID
+     * @param dataCenterId Data center ID
      */
     function increaseDataCenterNodeCount(uint dataCenterId) internal {
         DataCenterStorage storage ds = dataCenterStorage();
         unchecked {
-            ++ds._datacenterInfo[dataCenterId].nodeCount;    
+            ++ds._dataCenterMap[dataCenterId].nodeCount;    
         }
         
     }
 
     /**
      * @notice Increase the node counts of data center
-     * @param dataCenterId Datacenter ID
+     * @param dataCenterId Data center ID
      */
     function decreaseDataCenterNodeCount(uint dataCenterId) internal {
         DataCenterStorage storage ds = dataCenterStorage();
         unchecked {
-            --ds._datacenterInfo[dataCenterId].nodeCount;
+            --ds._dataCenterMap[dataCenterId].nodeCount;
         }
     }
 

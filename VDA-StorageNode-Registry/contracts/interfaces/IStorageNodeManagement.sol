@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.18;
 
+import { LibCommon } from "../libraries/LibCommon.sol";
 import { LibStorageNode } from "../libraries/LibStorageNode.sol";
 
 /**
@@ -179,7 +180,7 @@ interface IStorageNodeManagement {
     * @param status Target status to be returned
     * @return StorageNode[] An array of `Storagenode` structs with inputed status
     */
-  function getNodesByCountry(string calldata countryCode, LibStorageNode.EnumNodeStatus status) external view returns(LibStorageNode.StorageNode[] memory);
+  function getNodesByCountry(string calldata countryCode, LibCommon.EnumStatus status) external view returns(LibStorageNode.StorageNode[] memory);
 
   /**
     * @notice Return an array of `Storagenode` structs for regionCode
@@ -194,5 +195,5 @@ interface IStorageNodeManagement {
     * @param status Target status to be returned
     * @return StorageNode[] An array of `Storagenode` structs with inputed status
     */
-  function getNodesByRegion(string calldata regionCode, LibStorageNode.EnumNodeStatus status) external view returns(LibStorageNode.StorageNode[] memory);
+  function getNodesByRegion(string calldata regionCode, LibCommon.EnumStatus status) external view returns(LibStorageNode.StorageNode[] memory);
 }

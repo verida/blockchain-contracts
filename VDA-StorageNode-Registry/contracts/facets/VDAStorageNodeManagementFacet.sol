@@ -6,6 +6,7 @@ import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableMap.sol";
 
 import { LibDiamond } from "../libraries/LibDiamond.sol";
+import { LibCommon } from "../libraries/LibCommon.sol";
 import { LibDataCenter } from "../libraries/LibDataCenter.sol";
 import { LibStorageNode } from "../libraries/LibStorageNode.sol";
 import { LibVerification } from "../libraries/LibVerification.sol";
@@ -58,7 +59,7 @@ contract VDAStorageNodeManagementFacet is IStorageNodeManagement {
       node.slotCount = nodeInfo.slotCount;
       node.establishmentDate = block.timestamp;
       node.acceptFallbackSlots = nodeInfo.acceptFallbackSlots;
-      node.status = LibStorageNode.EnumNodeStatus.active;
+      node.status = LibCommon.EnumStatus.active;
 
       ds._nameNodeId[nodeInfo.name] = nodeId;
       ds._didNodeId[nodeInfo.didAddress] = nodeId;
@@ -106,7 +107,7 @@ contract VDAStorageNodeManagementFacet is IStorageNodeManagement {
 
       LibUtils.validateCountryCode(nodeInfo.countryCode);
       LibUtils.validateRegionCode(nodeInfo.regionCode);
-      LibDataCenter.checkDataCenterIdExistance(nodeInfo.datacenterId);
+      LibDataCenter.checkDataCenterIdActive(nodeInfo.datacenterId);
       LibUtils.validateGeoPosition(nodeInfo.lat, nodeInfo.long);
 
       // Check whether name was registered before
@@ -182,7 +183,7 @@ contract VDAStorageNodeManagementFacet is IStorageNodeManagement {
     {
       // Check whether didAddress was registered before
       if (nodeId == 0 || 
-        nodeInfo.status != LibStorageNode.EnumNodeStatus.active ||
+        nodeInfo.status != LibCommon.EnumStatus.active ||
         ds._isFallbackSet[didAddress]
       ) {
         revert InvalidDIDAddress();
@@ -196,7 +197,7 @@ contract VDAStorageNodeManagementFacet is IStorageNodeManagement {
       LibStorageNode.StorageNode storage fallbackNode = ds._nodeMap[fallbackNodeId];
       // Check whether fallback node registered and its' status is active
       if (fallbackNodeId == 0 || 
-          fallbackNode.status != LibStorageNode.EnumNodeStatus.active ||
+          fallbackNode.status != LibCommon.EnumStatus.active ||
           !fallbackNode.acceptFallbackSlots  ||
           ds._isFallbackSet[fallbackInfo.fallbackNodeAddress]
       ) {
@@ -238,7 +239,7 @@ contract VDAStorageNodeManagementFacet is IStorageNodeManagement {
     }
 
     // Change status to `removing`
-    nodeInfo.status = LibStorageNode.EnumNodeStatus.removing;
+    nodeInfo.status = LibCommon.EnumStatus.removing;
     nodeInfo.fallbackNodeAddress = fallbackInfo.fallbackNodeAddress;
     nodeInfo.unregisterTime = unregisterDateTime;
 
@@ -262,7 +263,7 @@ contract VDAStorageNodeManagementFacet is IStorageNodeManagement {
     LibStorageNode.StorageNode storage nodeInfo = ds._nodeMap[nodeId];
 
     {
-      if (nodeId == 0 || nodeInfo.status != LibStorageNode.EnumNodeStatus.removing) {
+      if (nodeId == 0 || nodeInfo.status != LibCommon.EnumStatus.removing) {
           revert InvalidDIDAddress();
       }
 
@@ -291,8 +292,8 @@ contract VDAStorageNodeManagementFacet is IStorageNodeManagement {
         ds._stakedTokenAmount[didAddress] = 0;
     }        
 
-    // Clear registered information
-    nodeInfo.status = LibStorageNode.EnumNodeStatus.removed;
+    // Update the status
+    nodeInfo.status = LibCommon.EnumStatus.removed;
 
     // Decrease active node count for data center
     LibDataCenter.decreaseDataCenterNodeCount(nodeInfo.datacenterId);
@@ -351,7 +352,7 @@ contract VDAStorageNodeManagementFacet is IStorageNodeManagement {
     * @param status Target status of storage nodes
     * @return StorageNode[] Array of active storage nodes
     */
-  function filterActiveStorageNodes(EnumerableSet.UintSet storage ids, LibStorageNode.EnumNodeStatus status) internal view virtual returns(LibStorageNode.StorageNode[] memory) {
+  function filterStorageNodes(EnumerableSet.UintSet storage ids, LibCommon.EnumStatus status) internal view virtual returns(LibStorageNode.StorageNode[] memory) {
     LibStorageNode.NodeStorage storage ds = LibStorageNode.nodeStorage();
 
     uint count = ids.length();
@@ -414,8 +415,8 @@ contract VDAStorageNodeManagementFacet is IStorageNodeManagement {
   /**
     * @dev see { IStorageNodeManagement }
     */
-  function getNodesByCountry(string calldata countryCode, LibStorageNode.EnumNodeStatus status) external view returns(LibStorageNode.StorageNode[] memory) {
-    return filterActiveStorageNodes(LibStorageNode.nodeStorage()._countryNodeIds[countryCode], status);
+  function getNodesByCountry(string calldata countryCode, LibCommon.EnumStatus status) external view returns(LibStorageNode.StorageNode[] memory) {
+    return filterStorageNodes(LibStorageNode.nodeStorage()._countryNodeIds[countryCode], status);
   }
 
   /**
@@ -428,7 +429,7 @@ contract VDAStorageNodeManagementFacet is IStorageNodeManagement {
   /**
     * @dev see { IStorageNodeManagement }
     */
-  function getNodesByRegion(string calldata regionCode, LibStorageNode.EnumNodeStatus status) external view returns(LibStorageNode.StorageNode[] memory) {
-    return filterActiveStorageNodes(LibStorageNode.nodeStorage()._regionNodeIds[regionCode], status);
+  function getNodesByRegion(string calldata regionCode, LibCommon.EnumStatus status) external view returns(LibStorageNode.StorageNode[] memory) {
+    return filterStorageNodes(LibStorageNode.nodeStorage()._regionNodeIds[regionCode], status);
   }
 }

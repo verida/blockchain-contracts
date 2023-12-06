@@ -1,3 +1,9 @@
+2023-12-06 (V1.0.1)
+-------------------
+- Data centers are remained after removed. The status changed from "active" to "removed"
+- Storage nodes are remained after removed. The status changed as following : "active" -> "removing" -> "removed"
+- Updated test codes
+
 2023-12-04 (V1.0.0)
 -------------------
 - Updated contract using diamond standard

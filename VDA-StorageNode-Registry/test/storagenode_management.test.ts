@@ -8,7 +8,7 @@ import { SignerWithAddress } from "@nomicfoundation/hardhat-ethers/signers";
 import { HDNodeWallet, Wallet } from 'ethers'
 import { SnapshotRestorer, takeSnapshot, time } from "@nomicfoundation/hardhat-network-helpers";
 import { IStorageNodeManagement, MockToken, VDADataCenterFacet, VDAStorageNodeFacet, VDAStorageNodeManagementFacet, VDAVerificationFacet } from "../typechain-types";
-import { DATA_CENTERS, INVALID_COUNTRY_CODES, INVALID_REGION_CODES, VALID_NUMBER_SLOTS } from "./utils/constant";
+import { DATA_CENTERS, EnumStatus, INVALID_COUNTRY_CODES, INVALID_REGION_CODES, VALID_NUMBER_SLOTS } from "./utils/constant";
 import { days, hours } from "@nomicfoundation/hardhat-network-helpers/dist/src/helpers/time/duration";
 import { LibStorageNode } from "../typechain-types/contracts/facets/VDAStorageNodeManagementFacet";
 
@@ -42,7 +42,7 @@ const fallbackNode = createStorageNodeInputStruct(
   true
 );
 
-describe('StorageNode Management Test', async function () {
+describe('StorageNode Node Management Test', async function () {
   let diamondAddress: string
   let tokenAddress: string
   
@@ -565,7 +565,7 @@ describe('StorageNode Management Test', async function () {
           const result = await nodeManageContract.getNodeByName(storageNodes[i].name);
           checkGetNodeResult(result, storageNodes[i]);
 
-          expect(result.status).to.equal(0);
+          expect(result.status).to.equal(EnumStatus.active);
         }
       })
 
@@ -575,14 +575,14 @@ describe('StorageNode Management Test', async function () {
         
         const result =  await nodeManageContract.getNodeByName(storageNodes[0].name);
         checkGetNodeResult(result, storageNodes[0]);
-        expect(result.status).to.equal(1);        
+        expect(result.status).to.equal(EnumStatus.removing);        
       })
 
       it("Success: remmove completed node",async () => {
         await completeRemove();
         const result =  await nodeManageContract.getNodeByName(storageNodes[0].name);
         checkGetNodeResult(result, storageNodes[0]);
-        expect(result.status).to.equal(2);
+        expect(result.status).to.equal(EnumStatus.removed);
       })
 
     })
@@ -605,7 +605,7 @@ describe('StorageNode Management Test', async function () {
           const result = await nodeManageContract.getNodeByAddress(users[i].address);
           checkGetNodeResult(result, storageNodes[i]);
 
-          expect(result.status).to.equal(0);
+          expect(result.status).to.equal(EnumStatus.active);
         }
       })
 
@@ -614,7 +614,7 @@ describe('StorageNode Management Test', async function () {
 
         const result =  await nodeManageContract.getNodeByAddress(users[0].address);
         checkGetNodeResult(result, storageNodes[0]);
-        expect(result.status).to.equal(1);
+        expect(result.status).to.equal(EnumStatus.removing);
       })
 
       it("Success: remove completed node",async () => {
@@ -622,7 +622,7 @@ describe('StorageNode Management Test', async function () {
 
         const result =  await nodeManageContract.getNodeByAddress(users[0].address);
         checkGetNodeResult(result, storageNodes[0]);
-        expect(result.status).to.equal(2);
+        expect(result.status).to.equal(EnumStatus.removed);
       })
     })
 
@@ -643,7 +643,7 @@ describe('StorageNode Management Test', async function () {
         for (let i = 0; i < users.length; i++) {
           const result = await nodeManageContract.getNodeByEndpoint(storageNodes[i].endpointUri);
           checkGetNodeResult(result, storageNodes[i]);
-          expect(result.status).to.equal(0);
+          expect(result.status).to.equal(EnumStatus.active);
         }
       })
 
@@ -652,7 +652,7 @@ describe('StorageNode Management Test', async function () {
         
         const result = await nodeManageContract.getNodeByEndpoint(storageNodes[0].endpointUri);
         checkGetNodeResult(result, storageNodes[0]);
-        expect(result.status).to.equal(1);
+        expect(result.status).to.equal(EnumStatus.removing);
       })
 
       it("Success : removed state",async () => {
@@ -660,7 +660,7 @@ describe('StorageNode Management Test', async function () {
 
         const result = await nodeManageContract.getNodeByEndpoint(storageNodes[0].endpointUri);
         checkGetNodeResult(result, storageNodes[0]);
-        expect(result.status).to.equal(2);
+        expect(result.status).to.equal(EnumStatus.removed);
       })
     })
 
@@ -695,13 +695,13 @@ describe('StorageNode Management Test', async function () {
         const country = storageNodes[0].countryCode;
 
         expect(
-          (await nodeManageContract["getNodesByCountry(string,uint8)"](country, 1)).length
+          (await nodeManageContract["getNodesByCountry(string,uint8)"](country, EnumStatus.removing)).length
         ).to.eq(0);
 
         await startRemove();
 
         expect(
-          (await nodeManageContract["getNodesByCountry(string,uint8)"](country, 1)).length
+          (await nodeManageContract["getNodesByCountry(string,uint8)"](country, EnumStatus.removing)).length
         ).to.eq(1);
       })
 
@@ -710,22 +710,22 @@ describe('StorageNode Management Test', async function () {
         // Before complete remove
         /// 1 pending removal country
         expect(
-          (await nodeManageContract["getNodesByCountry(string,uint8)"](country, 1)).length
+          (await nodeManageContract["getNodesByCountry(string,uint8)"](country, EnumStatus.removing)).length
         ).to.eq(1);
         /// No remove completed country
         expect(
-          (await nodeManageContract["getNodesByCountry(string,uint8)"](country, 2)).length
+          (await nodeManageContract["getNodesByCountry(string,uint8)"](country, EnumStatus.removed)).length
         ).to.eq(0);
 
         await completeRemove();
         // After complete remove
         /// No pending removal country
         expect(
-          (await nodeManageContract["getNodesByCountry(string,uint8)"](country, 1)).length
+          (await nodeManageContract["getNodesByCountry(string,uint8)"](country, EnumStatus.removing)).length
         ).to.eq(0);
         /// 1 remove completed country
         expect(
-          (await nodeManageContract["getNodesByCountry(string,uint8)"](country, 2)).length
+          (await nodeManageContract["getNodesByCountry(string,uint8)"](country, EnumStatus.removed)).length
         ).to.eq(1);
       })
     })
@@ -763,13 +763,13 @@ describe('StorageNode Management Test', async function () {
         const region = storageNodes[0].regionCode;
 
         expect(
-          (await nodeManageContract["getNodesByRegion(string,uint8)"](region, 1)).length
+          (await nodeManageContract["getNodesByRegion(string,uint8)"](region, EnumStatus.removing)).length
         ).to.eq(0);
 
         await startRemove();
 
         expect(
-          (await nodeManageContract["getNodesByRegion(string,uint8)"](region, 1)).length
+          (await nodeManageContract["getNodesByRegion(string,uint8)"](region, EnumStatus.removing)).length
         ).to.eq(1);
       })
 
@@ -778,22 +778,22 @@ describe('StorageNode Management Test', async function () {
         // Before complete remove
         /// 1 pending removal region
         expect(
-          (await nodeManageContract["getNodesByRegion(string,uint8)"](region, 1)).length
+          (await nodeManageContract["getNodesByRegion(string,uint8)"](region, EnumStatus.removing)).length
         ).to.eq(1);
         /// No remove completed region
         expect(
-          (await nodeManageContract["getNodesByRegion(string,uint8)"](region, 2)).length
+          (await nodeManageContract["getNodesByRegion(string,uint8)"](region, EnumStatus.removed)).length
         ).to.eq(0);
 
         await completeRemove();
         // After complete remove
         /// No pending removal region
         expect(
-          (await nodeManageContract["getNodesByRegion(string,uint8)"](region, 1)).length
+          (await nodeManageContract["getNodesByRegion(string,uint8)"](region, EnumStatus.removing)).length
         ).to.eq(0);
         /// 1 remove completed region
         expect(
-          (await nodeManageContract["getNodesByRegion(string,uint8)"](region, 2)).length
+          (await nodeManageContract["getNodesByRegion(string,uint8)"](region, EnumStatus.removed)).length
         ).to.eq(1);
       })
     })
