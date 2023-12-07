@@ -124,6 +124,12 @@ interface IStorageNode {
   event WithdrawIssueFee(address indexed to, uint amount);
 
   /**
+   * @notice Return `DECIMAL` - Denominator for latitude and logitude values
+   * @return uint8 Decimal value
+   */
+  function DECIMAL() external pure returns(uint8);
+
+  /**
     * @notice Returns whether staking is required to call `addNode()` function
     * @return bool The value of required status
     */

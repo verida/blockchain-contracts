@@ -308,6 +308,27 @@ contract VDAStorageNodeManagementFacet is IStorageNodeManagement {
   /**
     * @dev see { IStorageNodeManagement }
     */
+  function isRegisteredName(string calldata name) external view returns(bool) {
+    return LibStorageNode.nodeStorage()._nameNodeId[name] != 0;
+  }
+
+  /**
+    * @dev see { IStorageNodeManagement }
+    */
+  function isRegisteredAddress(address didAddress) external view returns(bool) {
+    return LibStorageNode.nodeStorage()._didNodeId[didAddress] != 0;
+  }
+
+  /**
+    * @dev see { IStorageNodeManagement }
+    */
+  function isRegisteredEndpoint(string calldata endpointUri) external view returns(bool) {
+    return LibStorageNode.nodeStorage()._endpointNodeId[endpointUri] != 0;
+  }
+
+  /**
+    * @dev see { IStorageNodeManagement }
+    */
   function getNodeByName(string calldata name) external view returns(LibStorageNode.StorageNode memory) {
     LibStorageNode.NodeStorage storage ds = LibStorageNode.nodeStorage();
     uint nodeId = ds._nameNodeId[name];

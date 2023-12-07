@@ -1,3 +1,17 @@
+2023-12-07 (V1.0.2)
+-------------------
+- Added `Decimal()` function to the `StorageNodeFacet` contract
+```ts
+function DECIMAL() external pure returns(uint8);
+```
+- Added checking function to `StorageNodeManagementFacet` contract
+```ts
+function isRegisteredName(string calldata name) external view returns(bool);
+function isRegisteredAddress(address didAddress) external view returns(bool);
+function isRegisteredEndpoint(string calldata endpointUri) external view returns(bool);
+```
+> As contract following the diamond standard, function are called by delegate call. In the `verida-js` packages, it can't know the rejected reason for `getNodeByName()`, `getNodeByAddress()`, and `getNodeByEndpoint()`. It makes the `verida-js` packages difficult to know whether the transaction rejected by invalid argument or web3 configuration.
+
 2023-12-06 (V1.0.1)
 -------------------
 - Data centers are remained after removed. The status changed from "active" to "removed"

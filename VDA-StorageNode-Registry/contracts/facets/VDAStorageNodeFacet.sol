@@ -30,6 +30,13 @@ contract VDAStorageNodeFacet is IStorageNode {
   /**
     * @dev see { IStorageNode }
     */
+  function DECIMAL() external pure virtual returns(uint8) {
+      return LibDiamond.DECIMAL;
+  }
+
+  /**
+    * @dev see { IStorageNode }
+    */
   function isStakingRequired() external view virtual override returns(bool) {
     return LibStorageNode.nodeStorage().isStakingRequired;
   }

@@ -472,6 +472,53 @@ describe('StorageNode Node Management Test', async function () {
     })
   })
 
+  describe("Is registered data",async () => {
+    before(async () => {
+      await snapShotWithDatacenters.restore();
+      await verificationContract.addTrustedSigner(trustedSigner.address);
+      
+      // Add node
+      await checkAddNode(nodeManageContract, storageNode, user, trustedSigner, true);
+      // Add fallback node
+      await checkAddNode(nodeManageContract, fallbackNode, fallbackUser, trustedSigner, true);
+    })
+
+    it("Return false for unregistered data",async () => {
+      expect(await nodeManageContract.isRegisteredName("unregistered name")).to.be.equal(false);
+      expect(await nodeManageContract.isRegisteredAddress(Wallet.createRandom().address)).to.be.equal(false);
+      expect(await nodeManageContract.isRegisteredEndpoint("https://unregistered-endpoint")).to.be.equal(false);
+    })
+
+    it("Return true for registered data",async () => {
+      expect(await nodeManageContract.isRegisteredName(storageNode.name)).to.be.equal(true);
+      expect(await nodeManageContract.isRegisteredAddress(storageNode.didAddress)).to.be.equal(true);
+      expect(await nodeManageContract.isRegisteredEndpoint(storageNode.endpointUri)).to.be.equal(true);
+    })
+
+    it("Return true for pending removal state",async () => {
+      const blockTime = await time.latest();
+      const unregisterTime = blockTime + days(30);
+      const fallbackInfo = getFallbackNodeInfo(fallbackUser, fallbackNode.slotCount);
+      await checkRemoveNodeStart(nodeManageContract, user, unregisterTime, fallbackInfo);
+
+      expect(await nodeManageContract.isRegisteredName(storageNode.name)).to.be.equal(true);
+      expect(await nodeManageContract.isRegisteredAddress(storageNode.didAddress)).to.be.equal(true);
+      expect(await nodeManageContract.isRegisteredEndpoint(storageNode.endpointUri)).to.be.equal(true);
+    })
+
+    it("Return true for remove completed",async () => {
+      const blockTime = await time.latest();
+      const unregisterTime = blockTime + days(30);
+      // Remove complete
+      await time.increaseTo(unregisterTime);
+      await checkRemoveNodeComplete(nodeManageContract, user, fallbackUser, owner);
+
+      expect(await nodeManageContract.isRegisteredName(storageNode.name)).to.be.equal(true);
+      expect(await nodeManageContract.isRegisteredAddress(storageNode.didAddress)).to.be.equal(true);
+      expect(await nodeManageContract.isRegisteredEndpoint(storageNode.endpointUri)).to.be.equal(true);
+    })
+  })
+
   describe("Get storage node", () => {
     const users = [
         Wallet.createRandom(),

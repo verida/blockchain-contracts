@@ -147,6 +147,28 @@ interface IStorageNodeManagement {
   ) external;
 
   /**
+   * @notice Check whether name is registered
+   * @param name Name to be checked
+   * @return bool `true` if registered, otherwise `false`
+   */
+  function isRegisteredName(string calldata name) external view returns(bool);
+
+  /**
+   * @notice Check whether address is registered
+   * @param didAddress DID address to be checked
+   * @return bool `true` if registered, otherwise `false`
+   */
+  function isRegisteredAddress(address didAddress) external view returns(bool);
+
+  /**
+   * @notice Check whether endpointUri is registered
+   * @param endpointUri uri to be checked
+   * @return bool `true` if registered, otherwise `false`
+   */
+  function isRegisteredEndpoint(string calldata endpointUri) external view returns(bool);
+
+
+  /**
     * @notice Returns a storage node for name
     * @param name The name of the storage node
     * @return StorageNode Returns storage node
