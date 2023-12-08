@@ -69,3 +69,16 @@ export async function saveABI(
   
   fs.writeFileSync(filePath, JSON.stringify(orgData, undefined, 2));
 }
+
+export async function saveDeployArgument(args: any[]) {
+  const dir = require('path').resolve(__dirname, '..');
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir);
+  }
+
+  const filePath = dir + "/argument.js";
+
+  const content = `module.exports = ${JSON.stringify(args)}`
+  
+  fs.writeFileSync(filePath, content);
+}

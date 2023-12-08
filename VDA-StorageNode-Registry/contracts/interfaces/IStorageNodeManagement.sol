@@ -202,7 +202,7 @@ interface IStorageNodeManagement {
     * @param status Target status to be returned
     * @return StorageNode[] An array of `Storagenode` structs with inputed status
     */
-  function getNodesByCountry(string calldata countryCode, LibCommon.EnumStatus status) external view returns(LibStorageNode.StorageNode[] memory);
+  function getNodesByCountryAndStatus(string calldata countryCode, LibCommon.EnumStatus status) external view returns(LibStorageNode.StorageNode[] memory);
 
   /**
     * @notice Return an array of `Storagenode` structs for regionCode
@@ -217,5 +217,5 @@ interface IStorageNodeManagement {
     * @param status Target status to be returned
     * @return StorageNode[] An array of `Storagenode` structs with inputed status
     */
-  function getNodesByRegion(string calldata regionCode, LibCommon.EnumStatus status) external view returns(LibStorageNode.StorageNode[] memory);
+  function getNodesByRegionAndStatus(string calldata regionCode, LibCommon.EnumStatus status) external view returns(LibStorageNode.StorageNode[] memory);
 }

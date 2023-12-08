@@ -1,3 +1,19 @@
+2023-12-08 (V1.1.0)
+-------------------
+- **Update deployment script:**
+    Deploy primite facets first, and then diamond contract with less deployment arguments. After diamond deployed, add another facets using the `DiamondCutFacet`. Thus, we can verify the diamond cotract with less arguments.
+
+- Renamed duplicated function names in `VDADataCenterFacet` contract:
+```ts
+function getDataCentersByCountryAndStatus(countryCode, status)...;
+function getDataCentersByRegionAndStatus(regionCode, status) ...;
+```
+- Renamed duplicated function names in `VDAStorageNodeManagementFacet` contract:
+```ts
+function getNodesByCountryAndStatus(countryCode, status)...;
+function getNodesByRegionAndStatus(regionCode, status)...;
+```
+
 2023-12-07 (V1.0.2)
 -------------------
 - Added `Decimal()` function to the `StorageNodeFacet` contract

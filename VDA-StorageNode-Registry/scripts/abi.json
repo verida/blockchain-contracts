@@ -306,10 +306,6 @@
         {
           "type": "string",
           "name": "countryCode"
-        },
-        {
-          "type": "uint8",
-          "name": "status"
         }
       ],
       "outputs": [
@@ -355,7 +351,7 @@
     },
     {
       "type": "function",
-      "name": "getDataCentersByCountry",
+      "name": "getDataCentersByCountryAndStatus",
       "constant": true,
       "stateMutability": "view",
       "payable": false,
@@ -363,6 +359,10 @@
         {
           "type": "string",
           "name": "countryCode"
+        },
+        {
+          "type": "uint8",
+          "name": "status"
         }
       ],
       "outputs": [
@@ -469,10 +469,6 @@
         {
           "type": "string",
           "name": "regionCode"
-        },
-        {
-          "type": "uint8",
-          "name": "status"
         }
       ],
       "outputs": [
@@ -518,7 +514,7 @@
     },
     {
       "type": "function",
-      "name": "getDataCentersByRegion",
+      "name": "getDataCentersByRegionAndStatus",
       "constant": true,
       "stateMutability": "view",
       "payable": false,
@@ -526,6 +522,10 @@
         {
           "type": "string",
           "name": "regionCode"
+        },
+        {
+          "type": "uint8",
+          "name": "status"
         }
       ],
       "outputs": [
@@ -1370,10 +1370,6 @@
         {
           "type": "string",
           "name": "countryCode"
-        },
-        {
-          "type": "uint8",
-          "name": "status"
         }
       ],
       "outputs": [
@@ -1443,7 +1439,7 @@
     },
     {
       "type": "function",
-      "name": "getNodesByCountry",
+      "name": "getNodesByCountryAndStatus",
       "constant": true,
       "stateMutability": "view",
       "payable": false,
@@ -1451,6 +1447,10 @@
         {
           "type": "string",
           "name": "countryCode"
+        },
+        {
+          "type": "uint8",
+          "name": "status"
         }
       ],
       "outputs": [
@@ -1597,7 +1597,7 @@
     },
     {
       "type": "function",
-      "name": "getNodesByRegion",
+      "name": "getNodesByRegionAndStatus",
       "constant": true,
       "stateMutability": "view",
       "payable": false,

@@ -100,12 +100,12 @@ interface IDataCenter {
   function getDataCentersByCountry(string calldata countryCode) external view returns(LibDataCenter.DataCenter[] memory);
 
   /**
-    * @notice Return an array of `Datacenter` structs for country code
+    * @notice Return an array of `Datacenter` structs for country code 
     * @param countryCode Unique two-character string code
     * @param status Status of data centers to be returned
     * @return Datacenter[] Array of `Datacenter` structs 
     */
-  function getDataCentersByCountry(string calldata countryCode, LibCommon.EnumStatus status) external view returns(LibDataCenter.DataCenter[] memory);
+  function getDataCentersByCountryAndStatus(string calldata countryCode, LibCommon.EnumStatus status) external view returns(LibDataCenter.DataCenter[] memory);
 
   /**
     * @notice Return an array of `Datacenter` structs for region
@@ -120,5 +120,5 @@ interface IDataCenter {
     * @param status Status of data centers to be returned
     * @return Datacenter[] Array of `Datacenter` structs 
     */
-  function getDataCentersByRegion(string calldata regionCode, LibCommon.EnumStatus status) external view returns(LibDataCenter.DataCenter[] memory);
+  function getDataCentersByRegionAndStatus(string calldata regionCode, LibCommon.EnumStatus status) external view returns(LibDataCenter.DataCenter[] memory);
 }

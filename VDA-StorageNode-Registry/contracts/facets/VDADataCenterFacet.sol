@@ -212,7 +212,7 @@ contract VDADataCenterFacet is IDataCenter {
   /**
     * @dev see { IDataCenter }
     */
-  function getDataCentersByCountry(string calldata countryCode, LibCommon.EnumStatus status) external view virtual override returns(LibDataCenter.DataCenter[] memory) {
+  function getDataCentersByCountryAndStatus(string calldata countryCode, LibCommon.EnumStatus status) external view virtual override returns(LibDataCenter.DataCenter[] memory) {
     LibUtils.validateCountryCode(countryCode);
     
     LibDataCenter.DataCenterStorage storage ds = LibDataCenter.dataCenterStorage();
@@ -232,7 +232,7 @@ contract VDADataCenterFacet is IDataCenter {
   /**
     * @dev see { IDataCenter }
     */
-  function getDataCentersByRegion(string calldata regionCode, LibCommon.EnumStatus status) external view virtual override returns(LibDataCenter.DataCenter[] memory) {
+  function getDataCentersByRegionAndStatus(string calldata regionCode, LibCommon.EnumStatus status) external view virtual override returns(LibDataCenter.DataCenter[] memory) {
     LibUtils.validateRegionCode(regionCode);
     LibDataCenter.DataCenterStorage storage ds = LibDataCenter.dataCenterStorage();
 

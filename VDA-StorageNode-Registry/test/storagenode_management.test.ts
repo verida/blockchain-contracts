@@ -720,7 +720,7 @@ describe('StorageNode Node Management Test', async function () {
         const unregistedCode = "sg";
         assert(storageNodes.findIndex(item => item.countryCode === unregistedCode) === -1);
 
-        expect(await nodeManageContract["getNodesByCountry(string)"](unregistedCode)).to.deep.equal([]);
+        expect(await nodeManageContract.getNodesByCountry(unregistedCode)).to.deep.equal([]);
       })
 
       it("Success: without status option", async () => {
@@ -729,7 +729,7 @@ describe('StorageNode Node Management Test', async function () {
 
         for (let i = 0; i < countryCodes.length; i++ ){
           const orgCountryNodes = storageNodes.filter(item => item.countryCode === countryCodes[i])
-          const nodesReturned = await nodeManageContract["getNodesByCountry(string)"](countryCodes[i]);
+          const nodesReturned = await nodeManageContract.getNodesByCountry(countryCodes[i]);
           expect(orgCountryNodes.length).to.equal(nodesReturned.length);
   
           for (let j = 0; j < orgCountryNodes.length; j++) {
@@ -742,13 +742,13 @@ describe('StorageNode Node Management Test', async function () {
         const country = storageNodes[0].countryCode;
 
         expect(
-          (await nodeManageContract["getNodesByCountry(string,uint8)"](country, EnumStatus.removing)).length
+          (await nodeManageContract.getNodesByCountryAndStatus(country, EnumStatus.removing)).length
         ).to.eq(0);
 
         await startRemove();
 
         expect(
-          (await nodeManageContract["getNodesByCountry(string,uint8)"](country, EnumStatus.removing)).length
+          (await nodeManageContract.getNodesByCountryAndStatus(country, EnumStatus.removing)).length
         ).to.eq(1);
       })
 
@@ -757,22 +757,22 @@ describe('StorageNode Node Management Test', async function () {
         // Before complete remove
         /// 1 pending removal country
         expect(
-          (await nodeManageContract["getNodesByCountry(string,uint8)"](country, EnumStatus.removing)).length
+          (await nodeManageContract.getNodesByCountryAndStatus(country, EnumStatus.removing)).length
         ).to.eq(1);
         /// No remove completed country
         expect(
-          (await nodeManageContract["getNodesByCountry(string,uint8)"](country, EnumStatus.removed)).length
+          (await nodeManageContract.getNodesByCountryAndStatus(country, EnumStatus.removed)).length
         ).to.eq(0);
 
         await completeRemove();
         // After complete remove
         /// No pending removal country
         expect(
-          (await nodeManageContract["getNodesByCountry(string,uint8)"](country, EnumStatus.removing)).length
+          (await nodeManageContract.getNodesByCountryAndStatus(country, EnumStatus.removing)).length
         ).to.eq(0);
         /// 1 remove completed country
         expect(
-          (await nodeManageContract["getNodesByCountry(string,uint8)"](country, EnumStatus.removed)).length
+          (await nodeManageContract.getNodesByCountryAndStatus(country, EnumStatus.removed)).length
         ).to.eq(1);
       })
     })
@@ -786,7 +786,7 @@ describe('StorageNode Node Management Test', async function () {
         const unregistedCode = "africa";
         assert(storageNodes.findIndex(item => item.regionCode === unregistedCode) === -1);
 
-        expect(await nodeManageContract["getNodesByRegion(string)"](unregistedCode)).to.deep.equal([]);
+        expect(await nodeManageContract.getNodesByRegion(unregistedCode)).to.deep.equal([]);
       })
 
       it("Success: without status option", async () => {
@@ -796,7 +796,7 @@ describe('StorageNode Node Management Test', async function () {
         for (let i = 0; i < regionCodes.length; i++ ){
           const orgRegionNodes = storageNodes.filter(item => item.regionCode === regionCodes[i]);
 
-          const nodesReturned = await nodeManageContract["getNodesByRegion(string)"](regionCodes[i]);
+          const nodesReturned = await nodeManageContract.getNodesByRegion(regionCodes[i]);
 
           expect(orgRegionNodes.length).to.equal(nodesReturned.length);
 
@@ -810,13 +810,13 @@ describe('StorageNode Node Management Test', async function () {
         const region = storageNodes[0].regionCode;
 
         expect(
-          (await nodeManageContract["getNodesByRegion(string,uint8)"](region, EnumStatus.removing)).length
+          (await nodeManageContract.getNodesByRegionAndStatus(region, EnumStatus.removing)).length
         ).to.eq(0);
 
         await startRemove();
 
         expect(
-          (await nodeManageContract["getNodesByRegion(string,uint8)"](region, EnumStatus.removing)).length
+          (await nodeManageContract.getNodesByRegionAndStatus(region, EnumStatus.removing)).length
         ).to.eq(1);
       })
 
@@ -825,22 +825,22 @@ describe('StorageNode Node Management Test', async function () {
         // Before complete remove
         /// 1 pending removal region
         expect(
-          (await nodeManageContract["getNodesByRegion(string,uint8)"](region, EnumStatus.removing)).length
+          (await nodeManageContract.getNodesByRegionAndStatus(region, EnumStatus.removing)).length
         ).to.eq(1);
         /// No remove completed region
         expect(
-          (await nodeManageContract["getNodesByRegion(string,uint8)"](region, EnumStatus.removed)).length
+          (await nodeManageContract.getNodesByRegionAndStatus(region, EnumStatus.removed)).length
         ).to.eq(0);
 
         await completeRemove();
         // After complete remove
         /// No pending removal region
         expect(
-          (await nodeManageContract["getNodesByRegion(string,uint8)"](region, EnumStatus.removing)).length
+          (await nodeManageContract.getNodesByRegionAndStatus(region, EnumStatus.removing)).length
         ).to.eq(0);
         /// 1 remove completed region
         expect(
-          (await nodeManageContract["getNodesByRegion(string,uint8)"](region, EnumStatus.removed)).length
+          (await nodeManageContract.getNodesByRegionAndStatus(region, EnumStatus.removed)).length
         ).to.eq(1);
       })
     })

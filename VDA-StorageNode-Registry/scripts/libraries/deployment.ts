@@ -5,36 +5,21 @@ export interface IDeploymentAddress {
   diamondAddress: string,
   tokenAddress: string,
   facetsAddress: Record<string, string>,
-  abi: string
+  abi: string,
+  deployArgument: any[],
 }
 
-export async function deploy(tokenAddress?: string , additionalFacets?: string[]) : Promise<IDeploymentAddress> {
-  const accounts = await ethers.getSigners();
-  const contractOwner = accounts[0];
+interface FacetsDeploymentResult {
+  abi: any[],
+  facetCuts: any[],
+  retAddress: Record<string, string>
+}
 
-  // Deploy DaimondInit
-  // DiamondInit provides a function that is called when the diamond is upgraded or deployed to initialize state variables
-  // Read about how the diamondCut function works in the EIP2535 Diamonds standard
-  const diamondInit = await ethers.deployContract("DiamondInit");
-  await diamondInit.waitForDeployment()
-  console.log("DiamondInit deployed: ", await diamondInit.getAddress());
-
-  // Deploy facets and set the `facetCuts` variable
-  let FacetNames = [
-    'DiamondCutFacet',
-    'DiamondLoupeFacet',
-    'OwnershipFacet'
-  ];
-  if (additionalFacets !== undefined) {
-    FacetNames.push(...additionalFacets);
-  }
-
-  // The `facetCuts` variable is the FacetCut[] that contains the functions to add during diamond deployment
-  const facetCuts = [];
-  const retAddress: Record<string, string> = {};
-
+async function deploySubFacets(FacetNames: string[]) : Promise<FacetsDeploymentResult> {
   let abi: any[] = [];
   let selectors: string[] = [];
+  const facetCuts = [];
+  const retAddress: Record<string, string> = {};
 
   for (let i = 0; i < FacetNames.length; i++)
   {
@@ -62,10 +47,44 @@ export async function deploy(tokenAddress?: string , additionalFacets?: string[]
     retAddress[FacetName] = addr;
   }
 
-  // remove duplicates from abi
-  // abi = [...new Set(abi)]; //Array.concat() remove duplicates
-  const abiString = JSON.stringify(abi.map((j) => JSON.parse(j)));
+  return {
+    abi,
+    facetCuts,
+    retAddress
+  }
+}
 
+export async function deploy(tokenAddress?: string , additionalFacets?: string[]) : Promise<IDeploymentAddress> {
+  const accounts = await ethers.getSigners();
+  const contractOwner = accounts[0];
+
+  // Deploy DaimondInit
+  // DiamondInit provides a function that is called when the diamond is upgraded or deployed to initialize state variables
+  // Read about how the diamondCut function works in the EIP2535 Diamonds standard
+  const diamondInit = await ethers.deployContract("DiamondInit");
+  await diamondInit.waitForDeployment()
+  console.log("DiamondInit deployed: ", await diamondInit.getAddress());
+
+  // Deploy facets and set the `facetCuts` variable
+  let FacetNames = [
+    'DiamondCutFacet',
+    'DiamondLoupeFacet',
+    'OwnershipFacet'
+  ];
+  
+  // The `facetCuts` variable is the FacetCut[] that contains the functions to add during diamond deployment
+  const facetCuts = [];
+  let retAddress: Record<string, string> = {};
+
+  let abi: any[] = [];
+
+  {
+    const { abi: subAbi, facetCuts: subFacetCuts, retAddress: subRetAddress } = await deploySubFacets(FacetNames);
+    abi = abi.concat(subAbi);
+    facetCuts.push(...subFacetCuts);
+    retAddress = Object.assign(retAddress, subRetAddress);
+  }
+  
   if (tokenAddress === undefined) {
     const token = await ethers.deployContract("MockToken", ["VDAMock", "VMT"]);
     await token.waitForDeployment();
@@ -86,14 +105,32 @@ export async function deploy(tokenAddress?: string , additionalFacets?: string[]
   }
 
   // deploy Diamond
-  const diamond = await ethers.deployContract("Diamond", [facetCuts, diamondArgs]);
+  const deployArgument = [facetCuts, diamondArgs];
+  const diamond = await ethers.deployContract("Diamond", deployArgument);
   await diamond.waitForDeployment();
-  
-  console.log("Diamond deployed: ", await diamond.getAddress());
+  const diamondAddress = await diamond.getAddress();
+
+  console.log("Diamond deployed: ", diamondAddress);
+
+  // Add facets
+  if (additionalFacets !== undefined) {
+    const { abi: subAbi, facetCuts, retAddress: subRetAddress } = await deploySubFacets(additionalFacets);
+    abi = abi.concat(subAbi);
+    retAddress = Object.assign(retAddress, subRetAddress);
+    const diamondCutFacet = await ethers.getContractAt("DiamondCutFacet", diamondAddress);
+    const tx = await diamondCutFacet.diamondCut(facetCuts, ethers.ZeroAddress, '0x');
+    const receipt = await tx.wait();
+    if (!receipt.status) {
+      throw new Error(`Add sub facets failed: ${tx.hash}`);
+    }
+  }
+
+  const abiString = JSON.stringify(abi.map((j) => JSON.parse(j)));
   return {
-    diamondAddress: await diamond.getAddress(),
+    diamondAddress: diamondAddress,
     tokenAddress,
     facetsAddress: retAddress,
-    abi: abiString
+    abi: abiString,
+    deployArgument
   };
 }

@@ -436,7 +436,7 @@ contract VDAStorageNodeManagementFacet is IStorageNodeManagement {
   /**
     * @dev see { IStorageNodeManagement }
     */
-  function getNodesByCountry(string calldata countryCode, LibCommon.EnumStatus status) external view returns(LibStorageNode.StorageNode[] memory) {
+  function getNodesByCountryAndStatus(string calldata countryCode, LibCommon.EnumStatus status) external view returns(LibStorageNode.StorageNode[] memory) {
     return filterStorageNodes(LibStorageNode.nodeStorage()._countryNodeIds[countryCode], status);
   }
 
@@ -450,7 +450,7 @@ contract VDAStorageNodeManagementFacet is IStorageNodeManagement {
   /**
     * @dev see { IStorageNodeManagement }
     */
-  function getNodesByRegion(string calldata regionCode, LibCommon.EnumStatus status) external view returns(LibStorageNode.StorageNode[] memory) {
+  function getNodesByRegionAndStatus(string calldata regionCode, LibCommon.EnumStatus status) external view returns(LibStorageNode.StorageNode[] memory) {
     return filterStorageNodes(LibStorageNode.nodeStorage()._regionNodeIds[regionCode], status);
   }
 }
