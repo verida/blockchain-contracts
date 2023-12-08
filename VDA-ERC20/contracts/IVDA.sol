@@ -40,6 +40,18 @@ interface IVeridaToken {
     function enableTransfer() external payable;
 
     /**
+     * @notice Pause contract. All transfers become disabled
+     * @dev Only the contract owner is allowed to do this
+     */
+    function pause() external payable;
+
+    /**
+     * @notice Unpause contract. Transfers become allowed
+     * @dev Only the contract owner is allowed to do this
+     */
+    function unpause() external payable;
+
+    /**
      * @dev Emitted when MINT_ROLE is added to 'to' address
      */
     event AddMinter(address indexed to);

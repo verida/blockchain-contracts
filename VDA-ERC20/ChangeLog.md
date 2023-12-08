@@ -1,3 +1,7 @@
+2023-04-06 (v0.3.0)
+-------------------
+- Added `pause/unpause` feature
+
 2023-04-06 (v0.2.0)
 -------------------
 - Added scripts for multi-sign support

@@ -8,6 +8,7 @@ import hre, { ethers, upgrades } from "hardhat";
 import { VeridaToken } from "../typechain-types";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { BigNumber } from "@ethersproject/bignumber";
+import { Wallet } from "ethers";
 
 let accountList: SignerWithAddress[];
 let owner: SignerWithAddress;
@@ -27,6 +28,8 @@ describe("MVP-Verida Test", () => {
     let MAX_SUPPLY : BigNumber;
     let RATE_DENOMINATOR : number;
 
+    let users: SignerWithAddress[] = [];
+
     const deployContract = async () => {
         const vdaFactory = await ethers.getContractFactory("VeridaToken");
         vda = (await upgrades.deployProxy(vdaFactory, {
@@ -43,8 +46,9 @@ describe("MVP-Verida Test", () => {
         accountList = await ethers.getSigners();
         owner = accountList[0];
         receiver = accountList[1];
-        // for (let i = 0; i < accountList.length; i++)
-        //     console.log("## ", accountList[i].address);
+        for (let i = 2; i < accountList.length; i++) {
+            users.push(accountList[i]);
+        }
 
         await deployContract()
         MAX_SUPPLY = await vda.MAX_SUPPLY();
@@ -614,6 +618,85 @@ describe("MVP-Verida Test", () => {
     
                 // check mockPoolAccount balance after transaction
                 expect(await vda.balanceOf(mockPoolAccount.address)).to.be.eq(amount_20);
+            })
+        })
+    })
+
+    describe("Pause and Unpause", () => {
+        before(async () => {
+            await deployContract()
+            await vda.enableTransfer()
+
+            await vda.mint(users[2].address, 100);
+        })
+
+        describe("Pause", () => {
+            it("Failed: Not a contract owner",async () => {
+                await expect(
+                    vda.connect(users[1]).pause()
+                ).to.be.rejectedWith("Ownable: caller is not the owner");
+            })
+
+            it("Paused: Mint and Burn are not allowed",async () => {
+                await expect(
+                    vda.pause()
+                ).to.be.emit(vda, "Paused").withArgs(owner.address);
+
+                // Mint test
+                await expect(
+                    vda.mint(users[1].address, 100)
+                ).to.be.rejectedWith("ERC20Pausable: token transfer while paused");
+
+                // Burn test
+                expect(await vda.balanceOf(users[2].address)).to.not.equal(0);
+                await expect(
+                    vda.connect(users[2]).burn(100)
+                ).to.be.rejectedWith("ERC20Pausable: token transfer while paused");
+            })
+
+            it("Paused: Token transfer is not allowed",async () => {
+                expect(await vda.balanceOf(users[2].address)).to.not.equal(0);
+                await expect(
+                    vda.connect(users[2]).transfer(Wallet.createRandom().address, 10)
+                ).to.be.rejectedWith("ERC20Pausable: token transfer while paused");
+            })
+        })
+
+        describe("Unpause", () => {
+            it("Failed: Not a contract owner",async () => {
+                expect(await vda.paused()).to.be.equal(true);
+
+                await expect(
+                    vda.connect(users[1]).unpause()
+                ).to.be.rejectedWith("Ownable: caller is not the owner");
+            })
+
+            it("Unpaused: Mint and Burn are allowed",async () => {
+                await expect(
+                    vda.unpause()
+                ).to.be.emit(vda, "Unpaused").withArgs(owner.address);
+
+                // Mint test
+                const mintAmount = 100;
+                expect(await vda.balanceOf(users[1].address)).to.be.eq(0);
+                await vda.mint(users[1].address, mintAmount);
+                expect(await vda.balanceOf(users[1].address)).to.be.eq(mintAmount);
+                
+                // Burn test
+                await vda.connect(users[1]).burn(mintAmount);
+                expect(await vda.balanceOf(users[1].address)).to.be.eq(0);
+            })
+
+            it("Unpaused: Token transfer is allowed",async () => {
+                const receiver = Wallet.createRandom();
+                const sendAmount = 10;
+                // Check receiver amount before transfer
+                expect(await vda.balanceOf(receiver.address)).to.equal(0);
+                // Check sender amount
+                expect(await vda.balanceOf(users[2].address)).to.not.equal(0);
+                await vda.connect(users[2]).transfer(receiver.address, sendAmount)
+                // Check receiver amount after transfer
+                expect(await vda.balanceOf(receiver.address)).to.equal(sendAmount);
             })
         })
     })

@@ -354,4 +354,18 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
 
         super._transferOwnership(newOwner);
     }
+
+    /**
+     * See {IVDA.sol}
+     */
+    function pause() external virtual override payable onlyOwner {
+        _pause();
+    }
+
+    /**
+     * See {IVDA.sol}
+     */
+    function unpause() external virtual override payable onlyOwner {
+        _unpause();
+    }
 }
