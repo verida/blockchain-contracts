@@ -101,7 +101,7 @@ contract NameRegistry is  OwnableUpgradeable {
         }
 
         {
-            uint didNonce = nonce(did);
+            uint didNonce = _nonce[did];
             bytes memory paramData = abi.encodePacked(
                 name,
                 did,
@@ -111,6 +111,7 @@ contract NameRegistry is  OwnableUpgradeable {
             if (!VeridaDataVerificationLib.validateSignature(paramData, signature, did)) {
                 revert InvalidSignature();
             }
+            ++_nonce[did];
         }
 
         string memory _name = name.lower();
@@ -154,7 +155,7 @@ contract NameRegistry is  OwnableUpgradeable {
         }
         
         {
-            uint didNonce = nonce(did);
+            uint didNonce = _nonce[did];
             bytes memory paramData = abi.encodePacked(
                 name,
                 did,
@@ -164,6 +165,7 @@ contract NameRegistry is  OwnableUpgradeable {
             if (!VeridaDataVerificationLib.validateSignature(paramData, signature, did)) {
                 revert InvalidSignature();
             }
+            ++_nonce[did];
         }
         
         string memory _name = name.lower();
