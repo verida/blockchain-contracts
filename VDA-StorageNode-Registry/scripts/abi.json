@@ -571,7 +571,7 @@
     },
     {
       "type": "function",
-      "name": "isDataCenterNameRegistered",
+      "name": "isRegisteredDataCenterName",
       "constant": true,
       "stateMutability": "view",
       "payable": false,
@@ -1678,7 +1678,7 @@
     },
     {
       "type": "function",
-      "name": "isRegisteredAddress",
+      "name": "isRegisteredNodeAddress",
       "constant": true,
       "stateMutability": "view",
       "payable": false,
@@ -1697,7 +1697,7 @@
     },
     {
       "type": "function",
-      "name": "isRegisteredEndpoint",
+      "name": "isRegisteredNodeEndpoint",
       "constant": true,
       "stateMutability": "view",
       "payable": false,
@@ -1716,7 +1716,7 @@
     },
     {
       "type": "function",
-      "name": "isRegisteredName",
+      "name": "isRegisteredNodeName",
       "constant": true,
       "stateMutability": "view",
       "payable": false,

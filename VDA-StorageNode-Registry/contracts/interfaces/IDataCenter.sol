@@ -75,7 +75,7 @@ interface IDataCenter {
     * @param name datacenter name to be checked
     * @return bool `true` if data center name is existing, otherwise `false`
     */
-  function isDataCenterNameRegistered(string calldata name) external view returns(bool);
+  function isRegisteredDataCenterName(string calldata name) external view returns(bool);
 
   /**
     * @notice Return an array of `Datacenter` structs for given array of datacenterIds

@@ -1,3 +1,13 @@
+2023-12-12 (V1.1.1)
+-------------------
+- Update function names in `VDADataCenterFacet` contract
+    `isDataCenterNameRegistered()` -> `isRegisteredDataCenterName`
+- Update function names in `VDAStorageNodeManagementFacet` contract
+    `isRegisteredName()` -> `isRegisteredNodeName()`
+    `isRegisteredAddress()` -> `isRegisteredNodeAddress()`
+    `isRegisteredEndpoint()` -> `isRegisteredNodeEndpoint()`
+- Update deployment script : Added `diamondInit` contract address to the `script\contract-address.json`
+
 2023-12-08 (V1.1.0)
 -------------------
 - **Update deployment script:**

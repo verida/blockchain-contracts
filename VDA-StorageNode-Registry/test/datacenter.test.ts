@@ -149,7 +149,6 @@ describe('DataCenter Test', async function () {
     })
   })
 
-  /*
   describe("Is datacenter name registered", () => {
     let currentSnapShot: SnapshotRestorer;
     const dataCenter = createDatacenterStruct("center-x", "us", "north america", -90, -150);
@@ -162,7 +161,7 @@ describe('DataCenter Test', async function () {
     })
 
     it("Return `False` for unregistered name",async () => {
-        expect(await contract.isDataCenterNameRegistered(dataCenter.name)).to.be.eq(false);
+        expect(await contract.isRegisteredDataCenterName(dataCenter.name)).to.be.eq(false);
     })
 
     it("Return `True` for registered name",async () => {
@@ -171,7 +170,7 @@ describe('DataCenter Test', async function () {
             contract.addDataCenter(dataCenter)
         ).to.emit(contract, "AddDataCenter");
 
-        expect(await contract.isDataCenterNameRegistered(dataCenter.name)).to.be.eq(true);
+        expect(await contract.isRegisteredDataCenterName(dataCenter.name)).to.be.eq(true);
     })
 
     it("Return `True` for removed name",async () => {
@@ -181,10 +180,9 @@ describe('DataCenter Test', async function () {
             contract.removeDataCenterByName(dataCenter.name)
         ).to.emit(contract, "RemoveDataCenter");
 
-        expect(await contract.isDataCenterNameRegistered(dataCenter.name)).to.be.eq(true);
+        expect(await contract.isRegisteredDataCenterName(dataCenter.name)).to.be.eq(true);
     })
   })
-  */
 
   describe("Get datacenters", () => {
     const checkDatacenterResult = (result: LibDataCenter.DataCenterStructOutput, org: IDataCenter.DatacenterInputStruct) => {

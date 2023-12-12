@@ -151,21 +151,21 @@ interface IStorageNodeManagement {
    * @param name Name to be checked
    * @return bool `true` if registered, otherwise `false`
    */
-  function isRegisteredName(string calldata name) external view returns(bool);
+  function isRegisteredNodeName(string calldata name) external view returns(bool);
 
   /**
    * @notice Check whether address is registered
    * @param didAddress DID address to be checked
    * @return bool `true` if registered, otherwise `false`
    */
-  function isRegisteredAddress(address didAddress) external view returns(bool);
+  function isRegisteredNodeAddress(address didAddress) external view returns(bool);
 
   /**
    * @notice Check whether endpointUri is registered
    * @param endpointUri uri to be checked
    * @return bool `true` if registered, otherwise `false`
    */
-  function isRegisteredEndpoint(string calldata endpointUri) external view returns(bool);
+  function isRegisteredNodeEndpoint(string calldata endpointUri) external view returns(bool);
 
 
   /**

@@ -107,7 +107,7 @@ contract VDADataCenterFacet is IDataCenter {
   /**
     * @dev see { IDataCenter }
     */
-  function isDataCenterNameRegistered(string calldata name) external view virtual override returns(bool) {
+  function isRegisteredDataCenterName(string calldata name) external view virtual override returns(bool) {
     return LibDataCenter.dataCenterStorage()._dataCenterNameToID[name] != 0;
   }
 

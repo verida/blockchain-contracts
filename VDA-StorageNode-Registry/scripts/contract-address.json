@@ -1,8 +1,9 @@
 {
   "hardhat": {
-    "date": "2023/12/08",
+    "date": "2023/12/12",
     "diamond": "0x5FC8d32690cc91D4c39d9d3abcBD16989F875707",
     "tokenAddr": "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9",
+    "diamondInit": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
     "DiamondCutFacet": "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
     "DiamondLoupeFacet": "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0",
     "OwnershipFacet": "0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9",
@@ -12,15 +13,16 @@
     "VDAStorageNodeManagementFacet": "0x8A791620dd6260079BF849Dc5567aDC3F2FdC318"
   },
   "polygontestnet": {
-    "date": "2023/12/08",
-    "diamond": "0x82c6409658f28A299D3844FDC0E16B5dDc59eC85",
-    "tokenAddr": "0x7797ef9481C98E01CdAfF161939fD7ebc34C7308",
-    "DiamondCutFacet": "0x74ee2B3Fb2FC6D0725996875E8e80A79A06d5a0D",
-    "DiamondLoupeFacet": "0xF9c14E5322d4c9A86d2De41C39438509bE1D1924",
-    "OwnershipFacet": "0x369Ad0e33cd6b26716D6CfF2F472497681aF9a8C",
-    "VDAVerificationFacet": "0x97932e8E90B74E93162352B1EeA9d7BF01C2a889",
-    "VDADataCenterFacet": "0x763824eceeE1d22A8369c5A5Dd3a1bF920CaD582",
-    "VDAStorageNodeFacet": "0xF96FC4634755A2080c467Cc06CAc84a89993aDD3",
-    "VDAStorageNodeManagementFacet": "0x727A214F1Ec866d2CE6dDCe7401C3Bd28954e10C"
+    "date": "2023/12/12",
+    "diamond": "0x2fE7C447c57017d29C5d0A741CaC3D949093313A",
+    "tokenAddr": "0x1EF6a0C2414fDE93fd3418c34ae111551d99520d",
+    "diamondInit": "0x09E406313412893c076B78962EAe02cc7e9B603A",
+    "DiamondCutFacet": "0x598d7Edd2Cc5C0348a70aD95eD3f027d7574c323",
+    "DiamondLoupeFacet": "0x6aD1eCe648A8a2506C43F8D8A1205B9a9E60C05F",
+    "OwnershipFacet": "0x0158f6c415675256E4B04E43f920BC09389fC202",
+    "VDAVerificationFacet": "0x297716646E92539ff214ABCaA52850aF30F4B67F",
+    "VDADataCenterFacet": "0x9753Cb1A8b32DE77470CC4e5dFeE578BAace83CE",
+    "VDAStorageNodeFacet": "0xEe2AdB9659a7a3bec5dC6A2570493Cf6d1c1f219",
+    "VDAStorageNodeManagementFacet": "0xdA8ff04B771c6b50b63fc6a82ca2b200fA123179"
   }
 }

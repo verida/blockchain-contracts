@@ -484,15 +484,15 @@ describe('StorageNode Node Management Test', async function () {
     })
 
     it("Return false for unregistered data",async () => {
-      expect(await nodeManageContract.isRegisteredName("unregistered name")).to.be.equal(false);
-      expect(await nodeManageContract.isRegisteredAddress(Wallet.createRandom().address)).to.be.equal(false);
-      expect(await nodeManageContract.isRegisteredEndpoint("https://unregistered-endpoint")).to.be.equal(false);
+      expect(await nodeManageContract.isRegisteredNodeName("unregistered name")).to.be.equal(false);
+      expect(await nodeManageContract.isRegisteredNodeAddress(Wallet.createRandom().address)).to.be.equal(false);
+      expect(await nodeManageContract.isRegisteredNodeEndpoint("https://unregistered-endpoint")).to.be.equal(false);
     })
 
     it("Return true for registered data",async () => {
-      expect(await nodeManageContract.isRegisteredName(storageNode.name)).to.be.equal(true);
-      expect(await nodeManageContract.isRegisteredAddress(storageNode.didAddress)).to.be.equal(true);
-      expect(await nodeManageContract.isRegisteredEndpoint(storageNode.endpointUri)).to.be.equal(true);
+      expect(await nodeManageContract.isRegisteredNodeName(storageNode.name)).to.be.equal(true);
+      expect(await nodeManageContract.isRegisteredNodeAddress(storageNode.didAddress)).to.be.equal(true);
+      expect(await nodeManageContract.isRegisteredNodeEndpoint(storageNode.endpointUri)).to.be.equal(true);
     })
 
     it("Return true for pending removal state",async () => {
@@ -501,9 +501,9 @@ describe('StorageNode Node Management Test', async function () {
       const fallbackInfo = getFallbackNodeInfo(fallbackUser, fallbackNode.slotCount);
       await checkRemoveNodeStart(nodeManageContract, user, unregisterTime, fallbackInfo);
 
-      expect(await nodeManageContract.isRegisteredName(storageNode.name)).to.be.equal(true);
-      expect(await nodeManageContract.isRegisteredAddress(storageNode.didAddress)).to.be.equal(true);
-      expect(await nodeManageContract.isRegisteredEndpoint(storageNode.endpointUri)).to.be.equal(true);
+      expect(await nodeManageContract.isRegisteredNodeName(storageNode.name)).to.be.equal(true);
+      expect(await nodeManageContract.isRegisteredNodeAddress(storageNode.didAddress)).to.be.equal(true);
+      expect(await nodeManageContract.isRegisteredNodeEndpoint(storageNode.endpointUri)).to.be.equal(true);
     })
 
     it("Return true for remove completed",async () => {
@@ -513,9 +513,9 @@ describe('StorageNode Node Management Test', async function () {
       await time.increaseTo(unregisterTime);
       await checkRemoveNodeComplete(nodeManageContract, user, fallbackUser, owner);
 
-      expect(await nodeManageContract.isRegisteredName(storageNode.name)).to.be.equal(true);
-      expect(await nodeManageContract.isRegisteredAddress(storageNode.didAddress)).to.be.equal(true);
-      expect(await nodeManageContract.isRegisteredEndpoint(storageNode.endpointUri)).to.be.equal(true);
+      expect(await nodeManageContract.isRegisteredNodeName(storageNode.name)).to.be.equal(true);
+      expect(await nodeManageContract.isRegisteredNodeAddress(storageNode.didAddress)).to.be.equal(true);
+      expect(await nodeManageContract.isRegisteredNodeEndpoint(storageNode.endpointUri)).to.be.equal(true);
     })
   })
 

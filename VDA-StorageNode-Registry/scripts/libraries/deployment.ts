@@ -74,7 +74,9 @@ export async function deploy(tokenAddress?: string , additionalFacets?: string[]
   
   // The `facetCuts` variable is the FacetCut[] that contains the functions to add during diamond deployment
   const facetCuts = [];
-  let retAddress: Record<string, string> = {};
+  let retAddress: Record<string, string> = {
+    "diamondInit": await diamondInit.getAddress()
+  };
 
   let abi: any[] = [];
 
