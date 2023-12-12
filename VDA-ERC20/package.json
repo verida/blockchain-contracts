@@ -1,7 +1,7 @@
 {
   "name": "@verida/erc20-contract",
   "description": "Verida Token Contract",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "author": "Alex J <alex@verida.io, trust2ray@gmail.com>",
   "license": "MIT",
   "repository": {

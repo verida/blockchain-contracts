@@ -29,11 +29,6 @@ interface IVeridaToken {
     function mint(address to, uint256 amount) external;
 
     /**
-     * @dev Burn `amount` tokens from `to`.
-     */
-    function burn(uint256 amount) external;
-
-    /**
      * @notice Enable token transfer
      * @dev Only the contract owner enables. Once enabled, not able to disable.
      */

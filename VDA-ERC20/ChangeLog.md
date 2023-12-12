@@ -1,3 +1,9 @@
+2023-04-06 (v0.4.0)
+-------------------
+- Removed `burn()` function
+- Update `_transfer()` function to reject all transfers to the zero address
+- Update test code to test burn features
+
 2023-04-06 (v0.3.0)
 -------------------
 - Added `pause/unpause` feature
