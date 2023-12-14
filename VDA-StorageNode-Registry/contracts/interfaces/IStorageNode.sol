@@ -130,6 +130,12 @@ interface IStorageNode {
   function DECIMAL() external pure returns(uint8);
 
   /**
+   * @notice Return the Verida token address that is associated with this contract
+   * @return address Verida token address
+   */
+  function getVDATokenAddress() external view returns(address);
+
+  /**
     * @notice Returns whether staking is required to call `addNode()` function
     * @return bool The value of required status
     */

@@ -1,7 +1,7 @@
 {
   "name": "@verida/storage-node-registry",
   "description": "Register storage node operator.",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "author": "Alex J <alex@verida.io>m trust2ray@gmail.com",
   "license": "MIT",
   "repository": {
@@ -39,7 +39,8 @@
     "run": "npx hardhat run",
     "test": "npx hardhat test",
     "deploy": "npx hardhat run scripts/deploy.ts",
-    "verify": "npx hardhat verify"
+    "verify": "npx hardhat verify", 
+    "verify-all": "npx hardhat run scripts/verify.ts"
   },
   "dependencies": {
     "@openzeppelin/contracts": "^5.0.0"

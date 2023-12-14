@@ -37,6 +37,13 @@ contract VDAStorageNodeFacet is IStorageNode {
   /**
     * @dev see { IStorageNode }
     */
+  function getVDATokenAddress() external view returns(address) {
+    return LibStorageNode.nodeStorage().vdaTokenAddress;
+  }
+
+  /**
+    * @dev see { IStorageNode }
+    */
   function isStakingRequired() external view virtual override returns(bool) {
     return LibStorageNode.nodeStorage().isStakingRequired;
   }

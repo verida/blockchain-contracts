@@ -1,3 +1,9 @@
+2023-12-12 (V1.2.0)
+-------------------
+- Add `getVDATokenAddress()` function
+- Added test code for `getVDATokenAddress()` function
+- Added `scripts/verify.ts` to verify all diamod contracts automatically
+
 2023-12-12 (V1.1.1)
 -------------------
 - Update function names in `VDADataCenterFacet` contract

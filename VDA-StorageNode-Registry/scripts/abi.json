@@ -846,6 +846,20 @@
     },
     {
       "type": "function",
+      "name": "getVDATokenAddress",
+      "constant": true,
+      "stateMutability": "view",
+      "payable": false,
+      "inputs": [],
+      "outputs": [
+        {
+          "type": "address",
+          "name": ""
+        }
+      ]
+    },
+    {
+      "type": "function",
       "name": "isStakingRequired",
       "constant": true,
       "stateMutability": "view",

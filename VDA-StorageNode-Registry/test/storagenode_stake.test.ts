@@ -106,6 +106,20 @@ describe('StorageNode Deposit/Withdraw Test', async function () {
     snapShotWithDatacenters = await takeSnapshot();
   })
 
+  describe("Decimal and token address test",async () => {
+    it("Get contract denominator for latitude and longitude",async () => {
+      expect(
+        await nodeContract.DECIMAL()
+      ).to.gt(0);
+    })
+
+    it("Get Verida token address",async () => {
+      expect(
+        await nodeContract.getVDATokenAddress()
+      ).to.be.eq(tokenAddress);
+    })
+  })
+
   describe("Update STAKE_PER_SLOT", () => {
     const STAKE_PER_SLOT = (10n^18n) * 100n;
     it("Failed: Only contract owner allowed",async () => {
