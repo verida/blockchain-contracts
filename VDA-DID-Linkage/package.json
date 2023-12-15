@@ -1,7 +1,7 @@
 {
   "name": "@verida/did-linkage-contract",
   "description": "DID linkage contract of Verida",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "author": "Alex J <alex@verida.io, trust2ray@gmail.com>",
   "license": "MIT",
   "repository": {
