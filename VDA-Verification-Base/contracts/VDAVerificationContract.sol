@@ -12,7 +12,7 @@ error UnregisteredSigner();
 error NoSigners();
 error InvalidSignature();
 
-contract VDAVerificationContract is OwnableUpgradeable {
+abstract contract VDAVerificationContract is OwnableUpgradeable {
 
     using EnumerableSetUpgradeable for EnumerableSetUpgradeable.AddressSet;
 
