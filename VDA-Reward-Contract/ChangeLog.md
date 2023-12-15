@@ -1,3 +1,7 @@
+2023-12-15 (v0.3.1)
+-------------------
+- Added timeout parameters to deployment script
+
 2023-04-06 (v0.3.0)
 -------------------
 - Add scripts for multi-sign support
