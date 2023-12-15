@@ -1,3 +1,7 @@
+2023-12-15 (v0.4.1)
+-------------------
+- Fixed typos in deployment script
+
 2023-04-06 (v0.4.0)
 -------------------
 - Removed `burn()` function
