@@ -49,6 +49,7 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
     error DuplicatedRequest();
     error InvalidAddress();
     error TransferLimited();
+    error BurnNotAllowed();
     error WalletAmountLimited();
     error SellAmountLimited();
     error NoPermission();
@@ -113,13 +114,6 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
             revert NoPermission();
         }
         _mint(to, amount);
-    }
-
-    /**
-     * @dev Burn `amount` tokens from `to`.
-     */
-    function burn(uint256 amount) external virtual override {
-        _burn(_msgSender(), amount);
     }
 
     /**
@@ -192,15 +186,20 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
         address recipient,
         uint256 amount
     ) internal virtual override {
+        bool transferEnabled = isTransferEnabled;
+        assembly {
+            // If burning operation
+            if eq(iszero(recipient), 1) {
+                let ptr := mload(0x40)
+                mstore(ptr, 0xe5d8776700000000000000000000000000000000000000000000000000000000)
+                revert(ptr, 0x4) //revert BurnNotAllowed()
+            }
 
-        if (!isTransferEnabled) {
-            assembly {
+            if eq(iszero(transferEnabled), 1) {
                 if eq(iszero(sender), 0) {
-                    if eq(iszero(recipient), 0) {
-                        let ptr := mload(0x40)
-                        mstore(ptr, 0x69126dbd00000000000000000000000000000000000000000000000000000000)
-                        revert(ptr, 0x4) //revert TransferLimited()
-                    }
+                    let ptr := mload(0x40)
+                    mstore(ptr, 0x69126dbd00000000000000000000000000000000000000000000000000000000)
+                    revert(ptr, 0x4) //revert TransferLimited()
                 }
             }
         }
@@ -353,5 +352,19 @@ contract VeridaToken is ERC20PausableUpgradeable, OwnableUpgradeable,
         _revokeRole(DEFAULT_ADMIN_ROLE, oldOwner);
 
         super._transferOwnership(newOwner);
+    }
+
+    /**
+     * See {IVDA.sol}
+     */
+    function pause() external virtual override payable onlyOwner {
+        _pause();
+    }
+
+    /**
+     * See {IVDA.sol}
+     */
+    function unpause() external virtual override payable onlyOwner {
+        _unpause();
     }
 }

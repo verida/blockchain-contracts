@@ -8,6 +8,7 @@ import hre, { ethers, upgrades } from "hardhat";
 import { VeridaToken } from "../typechain-types";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { BigNumber } from "@ethersproject/bignumber";
+import { Wallet } from "ethers";
 
 let accountList: SignerWithAddress[];
 let owner: SignerWithAddress;
@@ -27,6 +28,8 @@ describe("MVP-Verida Test", () => {
     let MAX_SUPPLY : BigNumber;
     let RATE_DENOMINATOR : number;
 
+    let users: SignerWithAddress[] = [];
+
     const deployContract = async () => {
         const vdaFactory = await ethers.getContractFactory("VeridaToken");
         vda = (await upgrades.deployProxy(vdaFactory, {
@@ -43,50 +46,44 @@ describe("MVP-Verida Test", () => {
         accountList = await ethers.getSigners();
         owner = accountList[0];
         receiver = accountList[1];
-        // for (let i = 0; i < accountList.length; i++)
-        //     console.log("## ", accountList[i].address);
+        for (let i = 2; i < accountList.length; i++) {
+            users.push(accountList[i]);
+        }
 
         await deployContract()
         MAX_SUPPLY = await vda.MAX_SUPPLY();
         RATE_DENOMINATOR = await vda.RATE_DENOMINATOR();
     });
 
-    describe("Mint & burn", () => {
+    describe("Mint", () => {
         before(async () => {
             await deployContract()
         })
 
-        it("Should mint & burn from contract owner", async () => {
+        it("Should mint from contract owner", async () => {
             const owner = accountList[0]
 
-            // Mint
             expect((await vda.balanceOf(owner.address)).toNumber()).to.be.equal(0)
             await vda.mint(owner.address, 100)
             expect((await vda.balanceOf(owner.address)).toNumber()).to.be.equal(100)
-
-            // Burn
-            await vda.burn(100)
-            expect((await vda.balanceOf(owner.address)).toNumber()).to.be.equal(0)
         })
 
         it("Add & revoke minter", async () => {
             const minter = accountList[1]
+            const receiver = Wallet.createRandom();
 
             await expect(
-                vda.connect(minter).mint(minter.address, 100)
+                vda.connect(minter).mint(receiver.address, 100)
             ).to.be.revertedWithCustomError(vda, "NoPermission")
 
             // Add a minter
             await vda.addMinter(minter.address)
 
             // Mint from new minter
-            expect(await vda.balanceOf(minter.address)).to.be.eq(0)
-            await vda.connect(minter).mint(minter.address, 100)
-            expect(await vda.balanceOf(minter.address)).to.be.eq(100)
-
-            // Burn
-            await vda.connect(minter).burn(100)
-
+            expect(await vda.balanceOf(receiver.address)).to.be.eq(0)
+            await vda.connect(minter).mint(receiver.address, 100)
+            expect(await vda.balanceOf(receiver.address)).to.be.eq(100)
+            
             // Revoke a minter
             await vda.revokeMinter(minter.address)
         })
@@ -110,31 +107,28 @@ describe("MVP-Verida Test", () => {
             ).to.be.rejectedWith("Ownable: caller is not the owner")
             
             // New owner has permission to mint
-            expect(await vda.balanceOf(newOwner.address)).to.be.eq(0)
-            await vda.connect(newOwner).mint(newOwner.address, 100)
-            expect(await vda.balanceOf(newOwner.address)).to.be.eq(100)
+            let receiver = Wallet.createRandom();
+            expect(await vda.balanceOf(receiver.address)).to.be.eq(0)
+            await vda.connect(newOwner).mint(receiver.address, 100)
+            expect(await vda.balanceOf(receiver.address)).to.be.eq(100)
 
-            await vda.connect(newOwner).burn(100)
-            expect(await vda.balanceOf(newOwner.address)).to.be.eq(0)
-            
             // New owenr has permission to add a minter
+            receiver = Wallet.createRandom();
             await expect(
-                vda.connect(minter).mint(minter.address, 100)
+                vda.connect(minter).mint(receiver.address, 100)
             ).to.be.revertedWithCustomError(vda, "NoPermission")
+
             await vda.connect(newOwner).addMinter(minter.address)
             
             // Mint from new minter
-            expect(await vda.balanceOf(minter.address)).to.be.eq(0)
-            await vda.connect(minter).mint(minter.address, 100)
-            expect(await vda.balanceOf(minter.address)).to.be.eq(100)
-
-            await vda.connect(minter).burn(100)
-            expect(await vda.balanceOf(minter.address)).to.be.eq(0)
+            expect(await vda.balanceOf(receiver.address)).to.be.eq(0)
+            await vda.connect(minter).mint(receiver.address, 100)
+            expect(await vda.balanceOf(receiver.address)).to.be.eq(100)
 
             // New owner has permission to revoke a minter
             await vda.connect(newOwner).revokeMinter(minter.address)
             await expect(
-                vda.connect(minter).mint(minter.address, 100)
+                vda.connect(minter).mint(receiver.address, 100)
             ).to.be.revertedWithCustomError(vda, "NoPermission")
         })
 
@@ -163,27 +157,65 @@ describe("MVP-Verida Test", () => {
     describe("Token Transfer", () => {
         let receiver : SignerWithAddress
 
+        const MINT_AMOUNT = 500;
+        const TRANSFER_AMOUNT = 100; // TRANSFER_AMOUNT should be less than MINT_AMOUNT
+            
+        const zeroAddress = "0x0000000000000000000000000000000000000000";
+
         before(async () => {
             await deployContract()
 
             receiver = accountList[1]
-            vda.mint(owner.address, 500)
         })
 
-        it("Should reject token transfer before transfer enabled", async () => {
-            await expect(
-                vda.transfer(receiver.address, 100)
-            ).to.be.revertedWithCustomError(vda, "TransferLimited")
+        describe("Before transfer enabled", () => {
+            before(async () => {
+                expect(await vda.isTransferEnabled()).to.be.eq(false);
+            })
+
+            it("Mint allowed",async () => {
+                expect(await vda.balanceOf(owner.address)).to.be.eq(0);
+                vda.mint(owner.address, MINT_AMOUNT);
+                expect(await vda.balanceOf(owner.address)).to.be.eq(MINT_AMOUNT);
+            })
+
+            it("Should reject token transfer to zero address",async () => {
+                await expect(
+                    vda.transfer(zeroAddress, TRANSFER_AMOUNT)
+                ).to.be.revertedWithCustomError(vda, "BurnNotAllowed");
+            })
+
+            it("Should reject token transfer to non-zero address", async () => {
+                await expect(
+                    vda.transfer(receiver.address, TRANSFER_AMOUNT)
+                ).to.be.revertedWithCustomError(vda, "TransferLimited")
+            })
         })
 
-        it("Transfer success after transfer enabled", async () => {
-            await vda.enableTransfer()
+        describe("After transfer enabled", () => {
 
-            const orgAmount = (await vda.balanceOf(receiver.address)).toNumber()
-            vda.transfer(receiver.address, 100)
-            const newAmount = (await vda.balanceOf(receiver.address)).toNumber()
+            it("Mint allowed",async () => {
+                const receiver = Wallet.createRandom();
+                expect(await vda.balanceOf(receiver.address)).to.be.eq(0);
+                vda.mint(receiver.address, MINT_AMOUNT);
+                expect(await vda.balanceOf(receiver.address)).to.be.eq(MINT_AMOUNT);
+            })
 
-            expect(newAmount).to.be.eq(orgAmount + 100)
+            it("Should reject token transfer to zero address",async () => {
+                await expect(
+                    vda.transfer(zeroAddress, TRANSFER_AMOUNT)
+                ).to.be.revertedWithCustomError(vda, "BurnNotAllowed");
+            })
+
+            it("Success", async () => {
+                await vda.enableTransfer()
+    
+                const orgAmount = (await vda.balanceOf(receiver.address)).toNumber()
+                vda.transfer(receiver.address, TRANSFER_AMOUNT)
+                const newAmount = (await vda.balanceOf(receiver.address)).toNumber()
+    
+                expect(newAmount).to.be.eq(orgAmount + TRANSFER_AMOUNT)
+            })
         })
     })
 
@@ -614,6 +646,75 @@ describe("MVP-Verida Test", () => {
     
                 // check mockPoolAccount balance after transaction
                 expect(await vda.balanceOf(mockPoolAccount.address)).to.be.eq(amount_20);
+            })
+        })
+    })
+
+    describe("Pause and Unpause", () => {
+        before(async () => {
+            await deployContract()
+            await vda.enableTransfer()
+
+            await vda.mint(users[2].address, 100);
+        })
+
+        describe("Pause", () => {
+            it("Failed: Not a contract owner",async () => {
+                await expect(
+                    vda.connect(users[1]).pause()
+                ).to.be.rejectedWith("Ownable: caller is not the owner");
+            })
+
+            it("Paused: Mint not allowed",async () => {
+                await expect(
+                    vda.pause()
+                ).to.be.emit(vda, "Paused").withArgs(owner.address);
+
+                // Mint test
+                await expect(
+                    vda.mint(users[1].address, 100)
+                ).to.be.rejectedWith("ERC20Pausable: token transfer while paused");
+            })
+
+            it("Paused: Token transfer is not allowed",async () => {
+                expect(await vda.balanceOf(users[2].address)).to.not.equal(0);
+                await expect(
+                    vda.connect(users[2]).transfer(Wallet.createRandom().address, 10)
+                ).to.be.rejectedWith("ERC20Pausable: token transfer while paused");
+            })
+        })
+
+        describe("Unpause", () => {
+            it("Failed: Not a contract owner",async () => {
+                expect(await vda.paused()).to.be.equal(true);
+
+                await expect(
+                    vda.connect(users[1]).unpause()
+                ).to.be.rejectedWith("Ownable: caller is not the owner");
+            })
+
+            it("Unpaused: Mint allowed",async () => {
+                await expect(
+                    vda.unpause()
+                ).to.be.emit(vda, "Unpaused").withArgs(owner.address);
+
+                // Mint test
+                const mintAmount = 100;
+                expect(await vda.balanceOf(users[1].address)).to.be.eq(0);
+                await vda.mint(users[1].address, mintAmount);
+                expect(await vda.balanceOf(users[1].address)).to.be.eq(mintAmount);
+            })
+
+            it("Unpaused: Token transfer is allowed",async () => {
+                const receiver = Wallet.createRandom();
+                const sendAmount = 10;
+                // Check receiver amount before transfer
+                expect(await vda.balanceOf(receiver.address)).to.equal(0);
+                // Check sender amount
+                expect(await vda.balanceOf(users[2].address)).to.not.equal(0);
+                await vda.connect(users[2]).transfer(receiver.address, sendAmount)
+                // Check receiver amount after transfer
+                expect(await vda.balanceOf(receiver.address)).to.equal(sendAmount);
             })
         })
     })

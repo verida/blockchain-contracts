@@ -29,15 +29,22 @@ interface IVeridaToken {
     function mint(address to, uint256 amount) external;
 
     /**
-     * @dev Burn `amount` tokens from `to`.
-     */
-    function burn(uint256 amount) external;
-
-    /**
      * @notice Enable token transfer
      * @dev Only the contract owner enables. Once enabled, not able to disable.
      */
     function enableTransfer() external payable;
+
+    /**
+     * @notice Pause contract. All transfers become disabled
+     * @dev Only the contract owner is allowed to do this
+     */
+    function pause() external payable;
+
+    /**
+     * @notice Unpause contract. Transfers become allowed
+     * @dev Only the contract owner is allowed to do this
+     */
+    function unpause() external payable;
 
     /**
      * @dev Emitted when MINT_ROLE is added to 'to' address

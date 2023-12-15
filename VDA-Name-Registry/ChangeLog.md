@@ -1,3 +1,7 @@
+2023-12-08 (v0.4.1)
+-------------------
+- Fixed nonce no changed issue
+
 2023-04-03 (v0.4.0)
 -------------------
 Updates on audit report
