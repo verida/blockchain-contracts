@@ -1,7 +1,7 @@
 {
   "name": "@verida/vda-verification-contract",
   "description": "Verification base contract of Verida",
-  "version": "0.1.5",
+  "version": "0.1.7",
   "author": "Alex J <alex@verida.io, trust2ray@gmail.com>",
   "license": "MIT",
   "files": [

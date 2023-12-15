@@ -1,14 +1,12 @@
 //SPDX-License-Identifier: MIT
 pragma solidity ^0.8.18;
 
-import "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 
-contract MockToken is ERC20Upgradeable, OwnableUpgradeable {
-    function initialize(string memory name, string memory symbol) initializer public {
-        __ERC20_init(name, symbol);
-        __Ownable_init();
-    }
+contract MockToken is ERC20, Ownable {
+
+    constructor(string memory name, string memory symbol) ERC20(name, symbol) Ownable(msg.sender) {}
 
     function mint(address to, uint amount) external onlyOwner {
         _mint(to, amount);

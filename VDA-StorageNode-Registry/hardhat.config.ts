@@ -1,26 +1,18 @@
-import * as dotenv from "dotenv";
 import { HardhatUserConfig } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
-
-// For upgradeable deploy
-import "@openzeppelin/hardhat-upgrades";
 // For verification after deploy
-import "@nomiclabs/hardhat-ethers"
-// For defender
-import "@openzeppelin/hardhat-defender"
+// import "@nomiclabs/hardhat-ethers"
+import * as dotenv from "dotenv";
 
 dotenv.config({ path: __dirname + "/.env"});
 const {PRIVATE_KEY, ETHERSCAN_API_KEY, POLYGONSCAN_API_KEY, POLYGON_TESTNET_RPC, POLYGON_MAINNET_RPC} = process.env;
 
+
 const config: HardhatUserConfig = {
-  defender: {
-    apiKey: process.env.DEFENDER_TEAM_API_KEY!,
-    apiSecret: process.env.DEFENDER_TEAM_API_SECRET_KEY!,
-  },
   solidity: {
     compilers: [
       {
-        version: "0.8.18",
+        version: "0.8.20",
         settings: {
           optimizer: {
             enabled: true,
@@ -54,6 +46,9 @@ const config: HardhatUserConfig = {
   etherscan: {
     apiKey: POLYGONSCAN_API_KEY,
   },
+  sourcify: {
+    enabled: true
+  }
 };
 
 export default config;

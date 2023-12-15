@@ -1,90 +1,31 @@
-//SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.18;
 
-import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/utils/cryptography/ECDSAUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/utils/StringsUpgradeable.sol";
+import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import "@openzeppelin/contracts/utils/Strings.sol";
+import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
-import "@openzeppelin/contracts-upgradeable/utils/structs/EnumerableSetUpgradeable.sol";
-
-error RegisteredSigner();
-error UnregisteredSigner();
 error NoSigners();
 error InvalidSignature();
+error InvalidFallbackNodeSiganture();
 
-abstract contract VDAVerificationContract is OwnableUpgradeable {
+library LibVerification {
+    using EnumerableSet for EnumerableSet.AddressSet;
 
-    using EnumerableSetUpgradeable for EnumerableSetUpgradeable.AddressSet;
+    bytes32 constant DIAMOND_STORAGE_POSITION = keccak256("vda.storagenode.verification.storage");
 
-    /** @notice Nonce for dids */
-    mapping(address => uint) internal _nonce;
-
-    /** @notice Trusted signer addresses */
-    EnumerableSetUpgradeable.AddressSet internal _trustedSigners;
-
-    /**
-     * @notice Emitted when the contract owner adds a trusted signer
-     * @param signerAddress Address of signer
-     */
-    event AddTrustedSigner(address signerAddress);
-
-    /**
-     * @notice Emitted when the contract owner removes a trusted signer
-     * @param signerAddress Address of signer
-     */
-    event RemoveTrustedSigner(address signerAddress);
     
-    /**
-     * @notice Initializer for deploying the contract
-     * @dev This contract can't be deployed directly. Should be used as a parent class only
-     */
-    function __VDAVerificationContract_init() internal onlyInitializing {
-        __Ownable_init();
-        __VDAVerificationContract_init_unchained();
+    struct DiamondStorage {
+        mapping(address => uint) nonce;
+        EnumerableSet.AddressSet trustedSigners;
     }
 
-    /**
-     * @notice Initializer for deploying the contract
-     * @dev Initialze the necessary stuffs that are unique to this contract
-     */
-    function __VDAVerificationContract_init_unchained() internal onlyInitializing {
-    }
-
-    /**
-     * @notice Add a trusted signer
-     * @dev Only the contract owner can add
-     * @param didAddress Trusted signer address
-     */
-    function addTrustedSigner(address didAddress) external virtual payable onlyOwner {
-        if (_trustedSigners.contains(didAddress)) {
-            revert RegisteredSigner();
+    function diamondStorage() internal pure returns (DiamondStorage storage ds) {
+        bytes32 position = DIAMOND_STORAGE_POSITION;
+        assembly {
+            ds.slot := position
         }
-        _trustedSigners.add(didAddress);
-        emit AddTrustedSigner(didAddress);
     }
-
-    /**
-     * @notice Remove a trusted signer
-     * @dev Only the contract owner can remove
-     * @param didAddress Trusted signer address
-     */
-    function removeTrustedSigner(address didAddress) external virtual payable onlyOwner {
-        if (!_trustedSigners.contains(didAddress)) {
-            revert UnregisteredSigner();
-        }
-        _trustedSigners.remove(didAddress);
-        emit RemoveTrustedSigner(didAddress);
-    }
-
-    /**
-     * @notice Check whether address is a trusted signer
-     * @param didAddress DID address to be checked
-     * @return bool true if registered, otherwise false
-     */
-    function isTrustedSigner(address didAddress) external view virtual onlyOwner returns(bool) {
-        return _trustedSigners.contains(didAddress);
-    }
-
 
     /**
      * @notice Get a nonce for DID
@@ -92,8 +33,8 @@ abstract contract VDAVerificationContract is OwnableUpgradeable {
      * @param did DID for nonce
      * @return uint Current nonce of the DID
      */
-    function nonce(address did) external view  virtual returns(uint) {
-        return _nonce[did];
+    function nonce(address did) internal view returns(uint) {
+        return diamondStorage().nonce[did];
     }
 
     /**
@@ -107,8 +48,9 @@ abstract contract VDAVerificationContract is OwnableUpgradeable {
         bytes memory data, 
         bytes memory signature,
         bytes memory proof
-    ) internal virtual {
-        if (_trustedSigners.length() == 0) {
+    ) internal view {
+        DiamondStorage storage ds = diamondStorage();
+        if (ds.trustedSigners.length() == 0) {
             revert NoSigners();
         }
 
@@ -117,22 +59,22 @@ abstract contract VDAVerificationContract is OwnableUpgradeable {
         }
 
         bytes32 dataHash = keccak256(data);
-        address contextSigner = ECDSAUpgradeable.recover(dataHash, signature);
-        string memory strContextSigner = StringsUpgradeable.toHexString(uint256(uint160(contextSigner)));
+        address contextSigner = ECDSA.recover(dataHash, signature);
+        string memory strContextSigner = Strings.toHexString(uint256(uint160(contextSigner)));
 
         bool isVerified;
         uint index;
 
-        while (index < _trustedSigners.length() && !isVerified) {
-            address account = _trustedSigners.at(index);
+        while (index < ds.trustedSigners.length() && !isVerified) {
+            address account = ds.trustedSigners.at(index);
 
-            string memory strAccount = StringsUpgradeable.toHexString(uint256(uint160(account)));
+            string memory strAccount = Strings.toHexString(uint256(uint160(account)));
             bytes memory proofString = abi.encodePacked(
                 strAccount,
                 strContextSigner
             );
             bytes32 proofHash = keccak256(proofString);
-            address didSigner = ECDSAUpgradeable.recover(proofHash, proof);
+            address didSigner = ECDSA.recover(proofHash, proof);
 
             if (didSigner == account) {
                 isVerified = true;
@@ -159,7 +101,7 @@ abstract contract VDAVerificationContract is OwnableUpgradeable {
         bytes memory signature,
         bytes memory proof,
         address[] memory validSigners
-    ) internal virtual {
+    ) internal pure {
         if (validSigners.length == 0) {
             revert NoSigners();
         }
@@ -169,8 +111,8 @@ abstract contract VDAVerificationContract is OwnableUpgradeable {
         }
 
         bytes32 dataHash = keccak256(data);
-        address contextSigner = ECDSAUpgradeable.recover(dataHash, signature);
-        string memory strContextSigner = StringsUpgradeable.toHexString(uint256(uint160(contextSigner)));
+        address contextSigner = ECDSA.recover(dataHash, signature);
+        string memory strContextSigner = Strings.toHexString(uint256(uint160(contextSigner)));
 
         bool isVerified;
         uint index;
@@ -178,13 +120,13 @@ abstract contract VDAVerificationContract is OwnableUpgradeable {
         while (index < validSigners.length && !isVerified) {
             address account = validSigners[index];
 
-            string memory strAccount = StringsUpgradeable.toHexString(uint256(uint160(account)));
+            string memory strAccount = Strings.toHexString(uint256(uint160(account)));
             bytes memory proofString = abi.encodePacked(
                 strAccount,
                 strContextSigner
             );
             bytes32 proofHash = keccak256(proofString);
-            address didSigner = ECDSAUpgradeable.recover(proofHash, proof);
+            address didSigner = ECDSA.recover(proofHash, proof);
 
             if (didSigner == account) {
                 isVerified = true;
@@ -198,7 +140,7 @@ abstract contract VDAVerificationContract is OwnableUpgradeable {
         }
     }
     
-     /**
+    /**
      * @notice Verify whether a given request is valid. Verifies the nonce of the DID making the request.
      * 
      * @dev Verify the signature & proof signed by valid signers
@@ -213,9 +155,10 @@ abstract contract VDAVerificationContract is OwnableUpgradeable {
         bytes memory params, 
         bytes memory signature, 
         bytes memory proof
-    ) internal virtual {
+    ) internal {
         // Verify the nonce is valid by including it in the unsignedData to be checked
-        uint didNonce = _nonce[did];
+        DiamondStorage storage ds = diamondStorage();
+        uint didNonce = ds.nonce[did];
         bytes memory unsignedParams = abi.encodePacked(
             params,
             didNonce
@@ -233,6 +176,70 @@ abstract contract VDAVerificationContract is OwnableUpgradeable {
         );
 
         // Increment the nonce to prevent replay attacks
-        _nonce[did]++;
+        ++ds.nonce[did];
+    }
+
+    /**
+     * @notice Check the `authSignature` parameter of `addNode()` function
+     * @param didAddress DID address that is associated with the storage node
+     * @param authSignature Signature signed by a trusted signer
+     */
+    function verifyAuthSignature(address didAddress, bytes calldata authSignature) internal view {
+        EnumerableSet.AddressSet storage signers = diamondStorage().trustedSigners;
+
+        if (signers.length() == 0) {
+            revert NoSigners();
+        }
+
+        if (authSignature.length == 0) {
+            revert InvalidSignature();
+        }
+
+        bytes memory rawMsg = abi.encodePacked(didAddress);
+        bytes32 msgHash = keccak256(rawMsg);
+
+        address authSigner = ECDSA.recover(msgHash, authSignature);
+
+        bool isVerified;
+        uint index;
+        
+        while (index < signers.length() && !isVerified) {
+            address account = signers.at(index);
+
+            if (authSigner == account) {
+                isVerified = true;
+                break;
+            }
+
+            unchecked { ++index; }
+        }
+
+        if (!isVerified) {
+            revert InvalidSignature();
+        }   
+    }
+
+    /**
+     * @notice Check the signer of the `signature`
+     * @dev Used in the `removeNodeStart()` and `removeNodeComplete()` functions
+     * @param msgSigner Signer address
+     * @param data Raw message data
+     * @param signature Data signed by the fallback node
+     */
+    function verifyFallbackNodeSignature(
+        address msgSigner, 
+        bytes memory data, 
+        bytes calldata signature
+    ) internal pure {
+        if (data.length == 0 || signature.length == 0) {
+            revert InvalidFallbackNodeSiganture();
+        }
+
+        bytes32 dataHash = keccak256(data);
+        address recoveredSigner = ECDSA.recover(dataHash, signature);
+        if (msgSigner != recoveredSigner) {
+            revert InvalidFallbackNodeSiganture();
+        }
+
     }
 }

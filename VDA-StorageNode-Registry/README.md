@@ -2,24 +2,27 @@
 
 The selection of storage nodes occurs when a DID is first created and when a context is connected to for the first time. The storage nodes are used to store the actual DID Documents and the same nodes are typically (but not necessarily) used to store data for each application context. [Verida VIP - 10](https://github.com/verida/VIPs/blob/develop/VIPs/vip-10.md)
 
-## Contract owner specific features
-
-Contract owner has following abilities:
-- add datacenters
-- remove datacenters
 
 ## Dependencies
 
-This contract has dependencies to following verida contracts:
-
-- `@verida/vda-verification-contract`
+This contract has no dependencies to any verida contracts:
 
 ## Testing
 
+There are 4 test files inside "test" directory:
+- `diamond.test.ts` : Test diamond features of add/remove/replace facets
+- `datacenter.test.ts` : Test features related to the data centers
+- `storagenode_manage.test.ts` : Test add/remove features of Storage Nodes
+- `storagenode_log.test.ts` : Test logging issues of Storage Nodes.
+
 You can run test by following command:
 ```
-    yarn test test/index.test.ts
+    yarn test <test file name>
 ``` 
+_**Example**_:
+```
+    yarn test test/datacenter.test.ts
+```
 
 ## Deployment
 

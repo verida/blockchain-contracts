@@ -1,3 +1,76 @@
+2023-12-12 (V1.2.0)
+-------------------
+- Add `getVDATokenAddress()` function
+- Added test code for `getVDATokenAddress()` function
+- Added `scripts/verify.ts` to verify all diamod contracts automatically
+
+2023-12-12 (V1.1.1)
+-------------------
+- Update function names in `VDADataCenterFacet` contract
+    `isDataCenterNameRegistered()` -> `isRegisteredDataCenterName`
+- Update function names in `VDAStorageNodeManagementFacet` contract
+    `isRegisteredName()` -> `isRegisteredNodeName()`
+    `isRegisteredAddress()` -> `isRegisteredNodeAddress()`
+    `isRegisteredEndpoint()` -> `isRegisteredNodeEndpoint()`
+- Update deployment script : Added `diamondInit` contract address to the `script\contract-address.json`
+
+2023-12-08 (V1.1.0)
+-------------------
+- **Update deployment script:**
+    Deploy primite facets first, and then diamond contract with less deployment arguments. After diamond deployed, add another facets using the `DiamondCutFacet`. Thus, we can verify the diamond cotract with less arguments.
+
+- Renamed duplicated function names in `VDADataCenterFacet` contract:
+```ts
+function getDataCentersByCountryAndStatus(countryCode, status)...;
+function getDataCentersByRegionAndStatus(regionCode, status) ...;
+```
+- Renamed duplicated function names in `VDAStorageNodeManagementFacet` contract:
+```ts
+function getNodesByCountryAndStatus(countryCode, status)...;
+function getNodesByRegionAndStatus(regionCode, status)...;
+```
+
+2023-12-07 (V1.0.2)
+-------------------
+- Added `Decimal()` function to the `StorageNodeFacet` contract
+```ts
+function DECIMAL() external pure returns(uint8);
+```
+- Added checking function to `StorageNodeManagementFacet` contract
+```ts
+function isRegisteredName(string calldata name) external view returns(bool);
+function isRegisteredAddress(address didAddress) external view returns(bool);
+function isRegisteredEndpoint(string calldata endpointUri) external view returns(bool);
+```
+> As contract following the diamond standard, function are called by delegate call. In the `verida-js` packages, it can't know the rejected reason for `getNodeByName()`, `getNodeByAddress()`, and `getNodeByEndpoint()`. It makes the `verida-js` packages difficult to know whether the transaction rejected by invalid argument or web3 configuration.
+
+2023-12-06 (V1.0.1)
+-------------------
+- Data centers are remained after removed. The status changed from "active" to "removed"
+- Storage nodes are remained after removed. The status changed as following : "active" -> "removing" -> "removed"
+- Updated test codes
+
+2023-12-04 (V1.0.0)
+-------------------
+- Updated contract using diamond standard
+
+2023-11-20 (V0.2.5)
+-------------------
+- Update `logNodeIssue()` function to reject when the `didAddress` and `nodeAddress` are the same
+- Update `excessTokenAmount()` function to consider staking required flag
+- Update test code
+
+2023-11-15 (V0.2.4)
+-------------------
+- Added `removeDataCenterByName()` and `isDataCenterNameRegistered()` functions
+- Updated `getDatacenterByName()` to `getDataCentersByName()`
+- Added test code for above functions
+
+2023-11-09 (V0.2.3)
+-------------------
+- Added `getDatacenterByName()` function
+- Updated functions as `virtual`
+
 2023-11-09 (V0.2.2)
 -------------------
 - Removed `updateTokenAddress()` function
