@@ -1,3 +1,7 @@
+2023-12-15 (v0.2.2)
+-------------------
+- Fixed typos in `scripts/deploy.ts`
+
 2023-05-10 (v0.2.1)
 -------------------
 - Update test code using `@verida/contract-test-utils`

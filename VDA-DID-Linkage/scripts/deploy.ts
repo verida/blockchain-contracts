@@ -23,7 +23,7 @@ async function main() {
   );
 
   await saveDeployedAddress(hre.network.name, proxyAddr, adminAddr, implAddr);
-  console.log("NameRegistry deployed to: ", contract.address);
+  console.log("VeridaDIDLinkage deployed to: ", contract.address);
 }
 
 // We recommend this pattern to be able to use async/await everywhere

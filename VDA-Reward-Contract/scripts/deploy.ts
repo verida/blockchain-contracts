@@ -17,8 +17,10 @@ async function main() {
       contractFactory,
       [rewardTokenAddress],
       {
-          initializer: '__VDARewardContract_init'
-      }
+          initializer: '__VDARewardContract_init',
+          timeout: 0,
+          pollingInterval: 5000,
+      },
   )) as VDARewardContract
   await contract.deployed()
 

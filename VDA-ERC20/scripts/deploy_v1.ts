@@ -16,7 +16,7 @@ async function main() {
 
   await saveDeployedAddress(hre.network.name, proxyAddr, adminAddr, implAddr);
 
-  console.log("VDA deployed to:", vda.address);
+  console.log("VDA Token deployed to:", vda.address);
 }
 
 // We recommend this pattern to be able to use async/await everywhere
