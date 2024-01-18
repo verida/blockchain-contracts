@@ -226,11 +226,17 @@ describe('StorageNode Deposit/Withdraw Test', async function () {
   describe("StakingRequired", () => {
     before(async() => {
       await snapShotWithDatacenters.restore();
+
+      expect(await nodeContract.isStakingRequired()).to.be.eq(false);
+    })
+
+    it("Failed: Only contract owner allowed",async () => {
+      await expect(
+          nodeContract.connect(accounts[1]).setStakingRequired(true)
+      ).to.be.revertedWithCustomError(nodeContract, "NotContractOwner");
     })
 
     it("setStakingRequired() & isStakingRequired()",async () => {
-      expect(await nodeContract.isStakingRequired()).to.be.eq(false);
-
       await expect(
         nodeContract.setStakingRequired(true)
       ).to.emit(nodeContract, "UpdateStakingRequired").withArgs(true);
@@ -247,6 +253,12 @@ describe('StorageNode Deposit/Withdraw Test', async function () {
     })
 
     describe("Update mininum slot count", () => {
+      it("Failed: Only contract owner allowed",async () => {
+        await expect(
+            nodeContract.connect(accounts[1]).updateMinSlotCount(min - 1n)
+        ).to.be.revertedWithCustomError(nodeContract, "NotContractOwner");
+      })
+
       it("Failed : 0 is not available",async () => {
         await expect(
           nodeContract.updateMinSlotCount(0)
@@ -280,6 +292,12 @@ describe('StorageNode Deposit/Withdraw Test', async function () {
     })
 
     describe("Update maximum slot count", () => {
+      it("Failed: Only contract owner allowed",async () => {
+        await expect(
+            nodeContract.connect(accounts[1]).updateMaxSlotCount(max + 1n)
+        ).to.be.revertedWithCustomError(nodeContract, "NotContractOwner");
+      })
+
       it("Failed : 0 is not available",async () => {
         await expect(
             nodeContract.updateMaxSlotCount(0)
@@ -375,8 +393,75 @@ describe('StorageNode Deposit/Withdraw Test', async function () {
     })            
   })
 
+  describe("Withdrawl Enable/Disable", () => {
+    before(async () => {
+      expect(await nodeContract.isWithdrawlEnabled()).to.be.eq(true);
+    })
+
+    it("Failed: Only contract owner allowed",async () => {
+      await expect(
+          nodeContract.connect(accounts[1]).setWithdrawlEnabled(false)
+      ).to.be.revertedWithCustomError(nodeContract, "NotContractOwner");
+    })
+
+    it("Failed : Same value",async () => {
+      await expect(
+        nodeContract.setWithdrawlEnabled(true)
+      ).to.be.revertedWithCustomError(nodeContract, "InvalidValue");
+    })
+
+    it("Success",async () => {
+      // Disable withdrawl
+      await expect(
+        nodeContract.setWithdrawlEnabled(false)
+      ).to.emit(nodeContract, "UpdateWithdrawlEnabled").withArgs(false);
+
+      // Enable Withdrawl
+      await expect(
+        nodeContract.setWithdrawlEnabled(true)
+      ).to.emit(nodeContract, "UpdateWithdrawlEnabled").withArgs(true);
+    })
+  })
+
   describe("Withdraw", () => {
     let requestor : SignerWithAddress;
+
+    // let withdrawlAvailableState : SnapshotRestorer;
+
+    const checkWithdrawl =async (
+      expectResult: boolean,
+      requestor: SignerWithAddress,
+      customError?: string
+    ) => {
+      // Confirm current excess token amount is not zero
+      const excessTokenAmount = await nodeContract.excessTokenAmount(user.address);
+      expect(excessTokenAmount).to.not.eq(0);
+
+      const amount = excessTokenAmount;
+
+      const orgRequestorTokenAmount = await tokenContract.balanceOf(requestor.address);
+
+      // Withdraw
+      const nonce = await nodeManageContract.nonce(user.address);
+      const {requestSignature, requestProof} = getWithdrawSignatures(user, amount, nonce);
+      if (expectResult === true) {
+        await expect(
+          nodeContract.connect(requestor).withdraw(user.address, amount, requestSignature, requestProof)
+        ).to.emit(nodeContract, "TokenWithdrawn").withArgs(
+          user.address,
+          requestor.address,
+          excessTokenAmount);
+        
+        // Check excess tokens are released to requestor
+        const curRequestorTokenAmount = await tokenContract.balanceOf(requestor.address);
+        expect(curRequestorTokenAmount).to.be.eq(orgRequestorTokenAmount + excessTokenAmount);
+      } else {
+        await expect(
+          nodeContract.connect(requestor).withdraw(user.address, amount, requestSignature, requestProof)
+        ).to.be.revertedWithCustomError(nodeContract, customError!);
+      }
+      
+    }
 
     before(async () => {
         requestor = accounts[1];
@@ -422,7 +507,7 @@ describe('StorageNode Deposit/Withdraw Test', async function () {
       await currentSnapshot.restore();
     })
 
-    it("Success",async () => {
+    it("Failed : Withdrawl disabled",async () => {
       // Confirm current excess token amount is zero
       expect(await nodeContract.excessTokenAmount(user.address)).to.be.eq(0);
 
@@ -431,27 +516,20 @@ describe('StorageNode Deposit/Withdraw Test', async function () {
       stakePerSlot = stakePerSlot - 10n;
       await nodeContract.updateStakePerSlot(stakePerSlot);
 
-      // Confirm current excess token amount is not zero
-      const excessTokenAmount = await nodeContract.excessTokenAmount(user.address);
-      expect(excessTokenAmount).to.not.eq(0);
+      // withdrawlAvailableState = await takeSnapshot();
 
-      const amount = excessTokenAmount;
+      // Disable withdrawl
+      await expect(nodeContract.setWithdrawlEnabled(false)).to.emit(nodeContract, "UpdateWithdrawlEnabled");
 
-      const orgRequestorTokenAmount = await tokenContract.balanceOf(requestor.address);
+      await checkWithdrawl(false, requestor, "WithdrawlDisabled");
+    })
+
+    it("Success",async () => {
+      // Enable withdrawl
+      await expect(nodeContract.setWithdrawlEnabled(true)).to.emit(nodeContract, "UpdateWithdrawlEnabled");
 
       // Withdraw
-      const nonce = await nodeManageContract.nonce(user.address);
-      const {requestSignature, requestProof} = getWithdrawSignatures(user, amount, nonce);
-      await expect(
-        nodeContract.connect(requestor).withdraw(user.address, amount, requestSignature, requestProof)
-      ).to.emit(nodeContract, "TokenWithdrawn").withArgs(
-        user.address,
-        requestor.address,
-        excessTokenAmount);
-      
-      // Check excess tokens are released to requestor
-      const curRequestorTokenAmount = await tokenContract.balanceOf(requestor.address);
-      expect(curRequestorTokenAmount).to.be.eq(orgRequestorTokenAmount + excessTokenAmount);
+      await checkWithdrawl(true, requestor);
     })
   });
 })

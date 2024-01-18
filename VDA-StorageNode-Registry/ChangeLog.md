@@ -1,3 +1,12 @@
+2024-01-18 (V1.3.0)
+-------------------
+- Add enable/disable withdrawl feature in the StorageNodeFacet
+```ts
+function isWithdrawlEnabled() external view returns(bool);
+function setWithdrawlEnabled(bool isEnabled) external;
+```
+- Added test code for above functions
+
 2023-12-12 (V1.2.0)
 -------------------
 - Add `getVDATokenAddress()` function

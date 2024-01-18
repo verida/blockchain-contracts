@@ -43,6 +43,7 @@ contract DiamondInit {
         ss.NODE_ISSUE_FEE = 5 * (10 ** ERC20(tokenAddress).decimals());
         ss.SAME_NODE_LOG_DURATION = 1 hours;
         ss.LOG_LIMIT_PER_DAY = 4;
+        ss.isWithdrawlEnabled = true;
 
         LibStorageNode.addReasonCode(10, "Poor performance");
         LibStorageNode.addReasonCode(20, "Unavailable > 10 minutes");
