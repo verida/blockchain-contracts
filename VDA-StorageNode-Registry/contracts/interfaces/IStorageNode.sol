@@ -23,10 +23,10 @@ interface IStorageNode {
   event UpdateStakingRequired(bool newVal);
 
   /**
-    * @notice Emitted when the `isWithdrawlEnabled` value is updated
+    * @notice Emitted when the `isWithdrawalEnabled` value is updated
     * @param newVal New value updated
     */
-  event UpdateWithdrawlEnabled(bool newVal);
+  event UpdateWithdrawalEnabled(bool newVal);
 
   /**
     * @notice Emitted when the `STAKE_PER_SLOT` value is updated
@@ -158,14 +158,14 @@ interface IStorageNode {
    * @notice Returns whether withdrawal is enabled for users
    * @return bool true if enabled, otherwise false
    */
-  function isWithdrawlEnabled() external view returns(bool);
+  function isWithdrawalEnabled() external view returns(bool);
 
   /**
-   * @notice Update the `isWithdrawlEnabled` value of StorageNode - LibStorageNode.nodeStorage()
+   * @notice Update the `isWithdrawalEnabled` value of StorageNode - LibStorageNode.nodeStorage()
    * @dev Only the contract owner is allowed to call this function
    * @param isEnabled The new value to be updated
    */
-  function setWithdrawlEnabled(bool isEnabled) external;
+  function setWithdrawalEnabled(bool isEnabled) external;
 
   /**
     * @notice Returns the `STAKE_PER_SLOT` value of StorageNode - LibStorageNode.nodeStorage()

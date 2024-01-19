@@ -393,42 +393,42 @@ describe('StorageNode Deposit/Withdraw Test', async function () {
     })            
   })
 
-  describe("Withdrawl Enable/Disable", () => {
+  describe("Withdrawal Enable/Disable", () => {
     before(async () => {
-      expect(await nodeContract.isWithdrawlEnabled()).to.be.eq(true);
+      expect(await nodeContract.isWithdrawalEnabled()).to.be.eq(true);
     })
 
     it("Failed: Only contract owner allowed",async () => {
       await expect(
-          nodeContract.connect(accounts[1]).setWithdrawlEnabled(false)
+          nodeContract.connect(accounts[1]).setWithdrawalEnabled(false)
       ).to.be.revertedWithCustomError(nodeContract, "NotContractOwner");
     })
 
     it("Failed : Same value",async () => {
       await expect(
-        nodeContract.setWithdrawlEnabled(true)
+        nodeContract.setWithdrawalEnabled(true)
       ).to.be.revertedWithCustomError(nodeContract, "InvalidValue");
     })
 
     it("Success",async () => {
-      // Disable withdrawl
+      // Disable Withdrawal
       await expect(
-        nodeContract.setWithdrawlEnabled(false)
-      ).to.emit(nodeContract, "UpdateWithdrawlEnabled").withArgs(false);
+        nodeContract.setWithdrawalEnabled(false)
+      ).to.emit(nodeContract, "UpdateWithdrawalEnabled").withArgs(false);
 
-      // Enable Withdrawl
+      // Enable Withdrawal
       await expect(
-        nodeContract.setWithdrawlEnabled(true)
-      ).to.emit(nodeContract, "UpdateWithdrawlEnabled").withArgs(true);
+        nodeContract.setWithdrawalEnabled(true)
+      ).to.emit(nodeContract, "UpdateWithdrawalEnabled").withArgs(true);
     })
   })
 
   describe("Withdraw", () => {
     let requestor : SignerWithAddress;
 
-    // let withdrawlAvailableState : SnapshotRestorer;
+    // let withdrawalAvailableState : SnapshotRestorer;
 
-    const checkWithdrawl =async (
+    const checkWithdrawal =async (
       expectResult: boolean,
       requestor: SignerWithAddress,
       customError?: string
@@ -507,7 +507,7 @@ describe('StorageNode Deposit/Withdraw Test', async function () {
       await currentSnapshot.restore();
     })
 
-    it("Failed : Withdrawl disabled",async () => {
+    it("Failed : Withdrawal disabled",async () => {
       // Confirm current excess token amount is zero
       expect(await nodeContract.excessTokenAmount(user.address)).to.be.eq(0);
 
@@ -516,20 +516,20 @@ describe('StorageNode Deposit/Withdraw Test', async function () {
       stakePerSlot = stakePerSlot - 10n;
       await nodeContract.updateStakePerSlot(stakePerSlot);
 
-      // withdrawlAvailableState = await takeSnapshot();
+      // withdrawalAvailableState = await takeSnapshot();
 
-      // Disable withdrawl
-      await expect(nodeContract.setWithdrawlEnabled(false)).to.emit(nodeContract, "UpdateWithdrawlEnabled");
+      // Disable withdrawal
+      await expect(nodeContract.setWithdrawalEnabled(false)).to.emit(nodeContract, "UpdateWithdrawalEnabled");
 
-      await checkWithdrawl(false, requestor, "WithdrawlDisabled");
+      await checkWithdrawal(false, requestor, "WithdrawalDisabled");
     })
 
     it("Success",async () => {
-      // Enable withdrawl
-      await expect(nodeContract.setWithdrawlEnabled(true)).to.emit(nodeContract, "UpdateWithdrawlEnabled");
+      // Enable withdrawal
+      await expect(nodeContract.setWithdrawalEnabled(true)).to.emit(nodeContract, "UpdateWithdrawalEnabled");
 
       // Withdraw
-      await checkWithdrawl(true, requestor);
+      await checkWithdrawal(true, requestor);
     })
   });
 })

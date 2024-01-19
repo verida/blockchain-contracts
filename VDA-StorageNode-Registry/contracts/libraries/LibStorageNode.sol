@@ -103,7 +103,7 @@ library LibStorageNode {
      * @param SAME_NODE_LOG_DURATION Time after which log available for same node
      * @param totalIssueFee Total amount of tokens that are staked by loggins issues
      * @param isStakingRequired true if staking required, otherwise false
-     * @param isWithdrawlEnabled true if users are allowed to withdraw their staked tokens, otherwise false
+     * @param isWithdrawalEnabled true if users are allowed to withdraw their staked tokens, otherwise false
      */
     struct NodeStorage {
         mapping (uint => StorageNode) _nodeMap;
@@ -137,7 +137,7 @@ library LibStorageNode {
         uint totalIssueFee;
 
         bool isStakingRequired;
-        bool isWithdrawlEnabled;
+        bool isWithdrawalEnabled;
 
         address vdaTokenAddress;
     }
