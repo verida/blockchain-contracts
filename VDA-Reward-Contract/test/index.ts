@@ -350,26 +350,6 @@ describe("VeridaRewardContract", () => {
             )).to.be.revertedWithCustomError(contract, "InvalidSignature")
         })
 
-        it("Failed for Insufficient reward token in contract", async () => {
-            expect(await token.balanceOf(contract.address)).to.be.equal(0)
-
-            const [signature, proof] = await getSignature(
-                credentials[0],
-                claimTypes[0].schema,
-                receiverAddress[0],
-                contextSigner,
-                trustedSigners[0]
-            )
-
-            await expect(contract.claim(
-                claimTypes[0].id,
-                credentials[0],
-                receiverAddress[0],
-                signature,
-                proof                
-            )).to.be.revertedWithCustomError(contract, "InsufficientTokenAmount")
-        })
-
         it("Claim successfully", async () => {
             await token.mint(contract.address, mintAmount)
 
