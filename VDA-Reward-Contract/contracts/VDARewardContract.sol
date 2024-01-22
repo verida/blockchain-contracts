@@ -121,14 +121,15 @@ contract VDARewardContract is IVDARewardContract, VDAVerificationContract {
         if (claims[rawMsg]) {
             revert DuplicatedRequest();
         }
+        claims[rawMsg] = true;
 
+        rawMsg = abi.encodePacked(rawMsg,to);
         verifyData(rawMsg, signature, proof);
         
         if (rewardToken.balanceOf(address(this)) < claimType.reward) {
             revert InsufficientTokenAmount();
         }
 
-        claims[rawMsg] = true;
         rewardToken.transfer(to, claimType.reward);
 
         emit Claim(typeId, hash, to);

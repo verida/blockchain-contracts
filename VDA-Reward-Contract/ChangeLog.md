@@ -1,3 +1,7 @@
+2024-01-22 (v0.3.2)
+-------------------
+- [Audit-Update] Update `claim()` function to prevent front-running attack. 
+
 2023-12-15 (v0.3.1)
 -------------------
 - Added timeout parameters to deployment script
