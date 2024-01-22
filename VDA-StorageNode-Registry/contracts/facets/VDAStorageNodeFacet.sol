@@ -17,6 +17,7 @@ import { IStorageNode } from "../interfaces/IStorageNode.sol";
 error InvalidDIDAddress();
 error InvalidValue();
 
+error WithdrawalDisabled();
 error NoExcessTokenAmount();
 error TimeNotElapsed(); // `LOG_LIMIT_PER_DAY` logs in 24 hour
 error InvalidSameNodeTime();   
@@ -60,6 +61,27 @@ contract VDAStorageNodeFacet is IStorageNode {
 
     ds.isStakingRequired = isRequired;
     emit UpdateStakingRequired(isRequired);
+  }
+
+  /**
+    * @dev see { IStorageNode }
+    */
+  function isWithdrawalEnabled() external view virtual override returns(bool) {
+    return LibStorageNode.nodeStorage().isWithdrawalEnabled;
+  }
+
+  /**
+    * @dev see { IStorageNode }
+    */
+  function setWithdrawalEnabled(bool isEnabled) external virtual override {
+    LibDiamond.enforceIsContractOwner();
+    LibStorageNode.NodeStorage storage ds = LibStorageNode.nodeStorage();
+    if (isEnabled == ds.isWithdrawalEnabled) {
+      revert InvalidValue();
+    }
+
+    ds.isWithdrawalEnabled = isEnabled;
+    emit UpdateWithdrawalEnabled(isEnabled);
   }
 
   /**
@@ -165,6 +187,10 @@ contract VDAStorageNodeFacet is IStorageNode {
     }
 
     LibStorageNode.NodeStorage storage ds = LibStorageNode.nodeStorage();
+
+    if (!ds.isWithdrawalEnabled) {
+      revert WithdrawalDisabled();
+    }
 
     int excessAmount = getExcessTokenAmount(didAddress);
 

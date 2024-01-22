@@ -23,6 +23,12 @@ interface IStorageNode {
   event UpdateStakingRequired(bool newVal);
 
   /**
+    * @notice Emitted when the `isWithdrawalEnabled` value is updated
+    * @param newVal New value updated
+    */
+  event UpdateWithdrawalEnabled(bool newVal);
+
+  /**
     * @notice Emitted when the `STAKE_PER_SLOT` value is updated
     * @param newVal New value updated
     */
@@ -142,20 +148,33 @@ interface IStorageNode {
   function isStakingRequired() external view returns(bool);
 
   /**
-    * @notice Update the `isStakingRequired` value of `_slotInfo` struct
+    * @notice Update the `isStakingRequired` value of StorageNode - LibStorageNode.nodeStorage()
     * @dev Only the contract owner is allowed to call this function
     * @param isRequired The new value to be updated
     */
   function setStakingRequired(bool isRequired) external;
 
   /**
-    * @notice Returns the `STAKE_PER_SLOT` value of `_slotInfo` struct
+   * @notice Returns whether withdrawal is enabled for users
+   * @return bool true if enabled, otherwise false
+   */
+  function isWithdrawalEnabled() external view returns(bool);
+
+  /**
+   * @notice Update the `isWithdrawalEnabled` value of StorageNode - LibStorageNode.nodeStorage()
+   * @dev Only the contract owner is allowed to call this function
+   * @param isEnabled The new value to be updated
+   */
+  function setWithdrawalEnabled(bool isEnabled) external;
+
+  /**
+    * @notice Returns the `STAKE_PER_SLOT` value of StorageNode - LibStorageNode.nodeStorage()
     * @return uint Required token amount for one slot
     */
   function getStakePerSlot() external view returns(uint);
   
   /**
-    * @notice Update the `STAKE_PER_SLOT` value of `_slotInfo` struct
+    * @notice Update the `STAKE_PER_SLOT` value of StorageNode - LibStorageNode.nodeStorage()
     * @dev Only the contract owner is allowed to call this function
     * @param newVal The new value to be updated
     */
@@ -163,21 +182,21 @@ interface IStorageNode {
 
   /**
     * @notice Return the range of `slotCount` value by pair of minimum and maximum value
-    * @dev Return the `MinSlots` and `MaxSlots` value of `_slotInfo` struct
+    * @dev Return the `MinSlots` and `MaxSlots` value of StorageNode - LibStorageNode.nodeStorage()
     * @return uint available minimum value of `slotCount`
     * @return uint available maximum value of `slotCount`
     */
   function getSlotCountRange() external view returns(uint, uint);
 
   /**
-    * @notice Update the `MIN_SLOTS` value of `_slotInfo` struct
+    * @notice Update the `MIN_SLOTS` value of StorageNode - LibStorageNode.nodeStorage()
     * @dev Only the contract owner is allowed to call this function
     * @param minSlots The new value to be updated
     */
   function updateMinSlotCount(uint minSlots) external;
 
   /**
-    * @notice Update the `MAX_SLOTS` value of `_slotInfo` struct
+    * @notice Update the `MAX_SLOTS` value of StorageNode - LibStorageNode.nodeStorage()
     * @dev Only the contract owner is allowed to call this function
     * @param maxSlots The new value to be updated
     */
