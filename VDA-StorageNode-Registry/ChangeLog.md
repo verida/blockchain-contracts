@@ -2,8 +2,8 @@
 -------------------
 - Add enable/disable withdrawl feature in the StorageNodeFacet
 ```ts
-function isWithdrawlEnabled() external view returns(bool);
-function setWithdrawlEnabled(bool isEnabled) external;
+function isWithdrawalEnabled() external view returns(bool);
+function setWithdrawalEnabled(bool isEnabled) external;
 ```
 - Added test code for above functions
 
