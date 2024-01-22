@@ -561,7 +561,7 @@ describe('DataCenter Test', async function () {
       await checkRemoveNodeStart(nodeManageContract, user, unregisterTime, fallbackInfo); 
       // Remove complete
       await time.increaseTo(unregisterTime);
-      await checkRemoveNodeComplete(nodeManageContract, user, fallbackUser, owner);
+      await checkRemoveNodeComplete(nodeManageContract, user, fallbackUser, owner.address, owner);
     }
 
     before(async () => {

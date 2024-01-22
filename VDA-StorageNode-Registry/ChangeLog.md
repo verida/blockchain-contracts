@@ -1,3 +1,8 @@
+2024-01-22 (V1.0.0)
+-------------------
+- Add recipient address parameter to the `withdraw()` function
+- Add recipient address parameter to the `removeNodeComplete()` function
+
 2024-01-18 (V1.0.0)
 -------------------
 - Add enable/disable withdrawl feature in the StorageNodeFacet
