@@ -1,3 +1,7 @@
+2024-01-23 (v0.4.0)
+-------------------
+- Added `claimToStorage()` function : issue#136
+
 2024-01-22 (v0.3.3)
 -------------------
 - Removed unnecessary code and test code: Custom error "InsufficientTokenAmount" is unnecessary, checked by default inside ERC20's `_transfer()` function

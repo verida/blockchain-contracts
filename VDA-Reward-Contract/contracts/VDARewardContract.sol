@@ -2,14 +2,16 @@
 pragma solidity ^0.8.18;
 
 import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
-import "./IVDARewardContract.sol";
-
 import "@verida/vda-verification-contract/contracts/VDAVerificationContract.sol";
+import { IStorageNode } from "./IStorageNode.sol";
+import "./IVDARewardContract.sol";
 
 contract VDARewardContract is IVDARewardContract, VDAVerificationContract {
 
     /** ReardToken : ERC20 contract */
     IERC20Upgradeable internal rewardToken;
+    /** StorageNodeRegistry contract */
+    IStorageNode internal storageNodeContract;
 
     /** Mapping of claim ID => claim Type */
     mapping(string => ClaimType) internal claimTypes;
@@ -36,13 +38,14 @@ contract VDARewardContract is IVDARewardContract, VDAVerificationContract {
     error InvalidSchema();
     error DuplicatedRequest();
 
-    function __VDARewardContract_init(IERC20Upgradeable token) public initializer {
+    function __VDARewardContract_init(IERC20Upgradeable token, IStorageNode nodeContract) public initializer {
         __Ownable_init();
-        __VDARewardContract_init_unchained(token);
+        __VDARewardContract_init_unchained(token, nodeContract);
     }
 
-    function __VDARewardContract_init_unchained(IERC20Upgradeable token) internal {
+    function __VDARewardContract_init_unchained(IERC20Upgradeable token, IStorageNode nodeContract) internal {
         rewardToken = token;
+        storageNodeContract = nodeContract;
     }
 
     /**
@@ -101,16 +104,20 @@ contract VDARewardContract is IVDARewardContract, VDAVerificationContract {
     }
 
     /**
-     * @dev see {IVDARewardContract-claim}
+     * @notice Internal function. Verify claim request and return reward amount
+     * @param typeId - Unique ID of the ClaimType (ie: facebook)
+     * @param hash - Uique hash from the credential (ie: 09c247n5t089247n90812798c14)
+     * @param paramAddress - Recipient address or DIDAddress
+     * @param signature - Signature from the credential that signed a combination of the hash and credential schema
+     * @param proof - Proof that signature was verified by the trusted address
      */
-    function claim(
+    function verifyClaimRequest(
         string calldata typeId, 
         string calldata hash, 
-        address to,
+        address paramAddress,
         bytes calldata signature,
         bytes calldata proof
-    ) external virtual override onlyExistingClaimType(typeId) {
-
+    ) internal virtual onlyExistingClaimType(typeId) returns(uint)  {
         ClaimType storage claimType = claimTypes[typeId];
         bytes memory rawMsg = abi.encodePacked(
             hash,
@@ -122,11 +129,42 @@ contract VDARewardContract is IVDARewardContract, VDAVerificationContract {
         }
         claims[rawMsg] = true;
 
-        rawMsg = abi.encodePacked(rawMsg,to);
+        rawMsg = abi.encodePacked(rawMsg,paramAddress);
         verifyData(rawMsg, signature, proof);
-        
-        rewardToken.transfer(to, claimType.reward);
 
+        return claimType.reward;
+    }
+
+    /**
+     * @dev see {IVDARewardContract-claim}
+     */
+    function claim(
+        string calldata typeId, 
+        string calldata hash, 
+        address to,
+        bytes calldata signature,
+        bytes calldata proof
+    ) external virtual override {
+        uint amount = verifyClaimRequest(typeId, hash, to, signature, proof);
+        rewardToken.transfer(to, amount);
         emit Claim(typeId, hash, to);
+    }
+
+    /**
+     * @dev see {IVDARewardContract-claim}
+     */
+    function claimToStorage(
+        string calldata typeId, 
+        string calldata hash, 
+        address didAddress,
+        bytes calldata signature,
+        bytes calldata proof
+    ) external virtual override {
+        uint amount = verifyClaimRequest(typeId, hash, didAddress, signature, proof);
+        // Call function of StorageNodeRegistry contract
+        rewardToken.approve(address(storageNodeContract), amount);
+        storageNodeContract.depositTokenFromProvider(didAddress, address(this), amount);
+
+        emit ClaimToStorage(typeId, hash, didAddress);
     }
 } 

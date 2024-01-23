@@ -1,3 +1,7 @@
+2024-01-23 (V1.0.0)
+-------------------
+- Add `depositTokenFromProvider`
+
 2024-01-22 (V1.0.0)
 -------------------
 - Add recipient address parameter to the `withdraw()` function
