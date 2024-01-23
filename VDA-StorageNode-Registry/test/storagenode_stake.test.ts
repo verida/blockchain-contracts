@@ -184,42 +184,89 @@ describe('StorageNode Deposit/Withdraw Test', async function () {
 
   describe("Deposit", () => {
     let requestor : SignerWithAddress;
+    let currentSnapshot: SnapshotRestorer
 
     before(async () => {
       requestor = accounts[1];
-
       await setNodeAddedStatus();
 
-      // Mint 10000 tokens to the requestor
-      await tokenContract.mint(requestor.address, BigInt("10000000000000000000000"));
+      currentSnapshot = await takeSnapshot();
     })
 
-    it("Failed : unregistered DID", async () => {
-      const randomDID = Wallet.createRandom().address;
-      await expect(
-        nodeContract.connect(requestor).depositToken(randomDID, 1)
-      ).to.be.revertedWithCustomError(nodeContract, "InvalidDIDAddress");
+    describe("Deposit from transaction sender", () => {
+      before(async () => {
+        // Mint 10000 tokens to the requestor
+        await tokenContract.mint(requestor.address, BigInt("10000000000000000000000"));
+      })
+
+      it("Failed : unregistered DID", async () => {
+        const randomDID = Wallet.createRandom().address;
+        await expect(
+          nodeContract.connect(requestor).depositToken(randomDID, 1)
+        ).to.be.revertedWithCustomError(nodeContract, "InvalidDIDAddress");
+      })
+  
+      it("Failed : token not approved", async () => {
+        await expect(
+          nodeContract.connect(requestor).depositToken(user.address, 100)
+        ).to.be.revertedWithCustomError(tokenContract, "ERC20InsufficientAllowance");
+      })
+  
+      it("Success", async () => {
+        const depositAmount = 100;
+        // Approve token
+        await tokenContract.connect(requestor).approve(diamondAddress, depositAmount);
+  
+        // Deposit
+        await expect(
+            nodeContract.connect(requestor).depositToken(user.address, depositAmount)
+        ).to.emit(nodeContract, "TokenDeposited").withArgs(
+            user.address,
+            requestor.address,
+            depositAmount
+        );
+      })
     })
 
-    it("Failed : token not approved", async () => {
-      await expect(
-        nodeContract.connect(requestor).depositToken(user.address, 100)
-      ).to.be.revertedWithCustomError(tokenContract, "ERC20InsufficientAllowance");
-    })
+    describe("Deposit from a provider", () => {
+      let tokenProvider : SignerWithAddress
 
-    it("Success", async () => {
-      const depositAmount = 100;
-      // Approve token
-      await tokenContract.connect(requestor).approve(diamondAddress, depositAmount);
+      before(async () => {
+        await currentSnapshot.restore();
 
-      // Deposit
-      await expect(
-          nodeContract.connect(requestor).depositToken(user.address, depositAmount)
-      ).to.emit(nodeContract, "TokenDeposited").withArgs(
-          user.address,
-          requestor.address,
-          depositAmount
-      );
+        tokenProvider = accounts[2];
+
+        // Mint 10000 tokens to the tokenProvider
+        await tokenContract.mint(tokenProvider.address, BigInt("10000000000000000000000"));
+      })
+
+      it("Failed : unregistered DID", async () => {
+        const randomDID = Wallet.createRandom().address;
+        await expect(
+          nodeContract.connect(requestor).depositTokenFromProvider(randomDID, tokenProvider.address, 1)
+        ).to.be.revertedWithCustomError(nodeContract, "InvalidDIDAddress");
+      })
+  
+      it("Failed : token not approved", async () => {
+        await expect(
+          nodeContract.connect(requestor).depositTokenFromProvider(user.address, tokenProvider.address, 100)
+        ).to.be.revertedWithCustomError(tokenContract, "ERC20InsufficientAllowance");
+      })
+  
+      it("Success", async () => {
+        const depositAmount = 100;
+        // Approve token
+        await tokenContract.connect(tokenProvider).approve(diamondAddress, depositAmount);
+  
+        // Deposit
+        await expect(
+            nodeContract.connect(requestor).depositTokenFromProvider(user.address, tokenProvider.address, depositAmount)
+        ).to.emit(nodeContract, "TokenDeposited").withArgs(
+            user.address,
+            tokenProvider.address,
+            depositAmount
+        );
+      })
     })
   })
 

@@ -211,20 +211,37 @@ contract VDAStorageNodeFacet is IStorageNode {
   }
 
   /**
+   * @notice Internal function for `depositToken()` functions
+   * @param didAddress DID Address
+   * @param from Smart contract or EOA address that provide depositing tokens
+   * @param tokenAmount Depositing amount
+   */
+  function _depositToken(address didAddress, address from, uint tokenAmount) internal virtual {
+    LibStorageNode.NodeStorage storage ds = LibStorageNode.nodeStorage();
+    uint nodeId = ds._didNodeId[didAddress];
+    if (nodeId == 0) {
+        revert InvalidDIDAddress();
+    }
+
+    IERC20(ds.vdaTokenAddress).transferFrom(from, address(this), tokenAmount);
+
+    ds._stakedTokenAmount[didAddress] = ds._stakedTokenAmount[didAddress] + tokenAmount;
+
+    emit TokenDeposited(didAddress, from, tokenAmount);
+  }
+
+  /**
     * @dev see { IStorageNodeRegistry }
     */
   function depositToken(address didAddress, uint tokenAmount) external virtual override {
-      LibStorageNode.NodeStorage storage ds = LibStorageNode.nodeStorage();
-      uint nodeId = ds._didNodeId[didAddress];
-      if (nodeId == 0) {
-          revert InvalidDIDAddress();
-      }
+    _depositToken(didAddress, tx.origin, tokenAmount);
+  }
 
-      IERC20(ds.vdaTokenAddress).transferFrom(tx.origin, address(this), tokenAmount);
-
-      ds._stakedTokenAmount[didAddress] = ds._stakedTokenAmount[didAddress] + tokenAmount;
-
-      emit TokenDeposited(didAddress, tx.origin, tokenAmount);
+  /**
+    * @dev see { IStorageNodeRegistry }
+    */
+  function depositTokenFromProvider(address didAddress, address from, uint tokenAmount) external virtual override {
+    _depositToken(didAddress, from, tokenAmount);
   }
 
   /**

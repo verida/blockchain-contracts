@@ -16,6 +16,14 @@ interface IVDARewardContract {
     event Claim(string typeId, string hash, address to);
 
     /**
+     * @dev Emitted when claimed successfully
+     * @param typeId - Unique ID of the ClaimType.
+     * @param hash - Uniquie hash from the credential
+     * @param didAddress - DIDAddress in the `StorageNodeRegistry` contract
+     */
+    event ClaimToStorage(string typeId, string hash, address didAddress);
+
+    /**
      * @dev Emitted when owner added a new claim type.
      * @param typeId - ID of added ClaimType
      * @param rewardAmount - reward amount of added ClaimType
@@ -38,17 +46,34 @@ interface IVDARewardContract {
 
     
     /**
-     * @dev User claim a token reward (VDAR)
+     * @dev User claims reward token to targeting address
      * @param typeId - Unique ID of the ClaimType (ie: facebook)
      * @param hash - Uique hash from the credential (ie: 09c247n5t089247n90812798c14)
+     * @param to - Reward token receiving address
      * @param signature - Signature from the credential that signed a combination of the hash and credential schema
      * @param proof - Proof that signature was verified by the trusted address
-     * @param to - Reward token receiving address
+     
      */
     function claim(
         string calldata typeId, 
         string calldata hash, 
         address to,
+        bytes calldata signature,
+        bytes calldata proof        
+    ) external;
+
+    /**
+     * @dev User claims reward token to the `StorageNodeRegistry` contract
+     * @param typeId - Unique ID of the ClaimType (ie: facebook)
+     * @param hash - Uique hash from the credential (ie: 09c247n5t089247n90812798c14)
+     * @param didAddress - DIDAddress in the `StorageNodeRegistry` contract
+     * @param signature - Signature from the credential that signed a combination of the hash and credential schema
+     * @param proof - Proof that signature was verified by the trusted address
+     */
+    function claimToStorage(
+        string calldata typeId, 
+        string calldata hash, 
+        address didAddress,
         bytes calldata signature,
         bytes calldata proof        
     ) external;

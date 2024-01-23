@@ -1,9 +1,10 @@
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
+import { SnapshotRestorer, takeSnapshot } from "@nomicfoundation/hardhat-network-helpers";
 import { expect } from "chai";
 import { BigNumber, Wallet } from "ethers";
 
 import hre, { ethers , upgrades } from "hardhat"
-import { VDARewardContract } from "../typechain-types";
+import { MockStorageNode, VDARewardContract } from "../typechain-types";
 import { VeridaToken } from "@verida/erc20-contract/typechain-types";
 import EncryptionUtils from '@verida/encryption-utils'
 
@@ -54,6 +55,7 @@ const claimTypes : ClaimType[] = [
 describe("VeridaRewardContract", () => {
     let contract: VDARewardContract
     let token: VeridaToken
+    let storageNodeContract: MockStorageNode
 
     const deployContracts = async() => {
         const tokenFactory = await ethers.getContractFactory(TokenABI, TokenByteCode)
@@ -63,10 +65,14 @@ describe("VeridaRewardContract", () => {
 
         await token.enableTransfer();
 
+        const storageNodeFactory = await ethers.getContractFactory("MockStorageNode");
+        storageNodeContract = await storageNodeFactory.deploy(token.address);
+        await storageNodeContract.deployed();
+
         const contractFactory = await ethers.getContractFactory("VDARewardContract")
         contract = (await upgrades.deployProxy(
             contractFactory,
-            [token.address],
+            [token.address, (storageNodeContract as any).address],
             {
                 initializer: '__VDARewardContract_init'
             }
@@ -271,6 +277,8 @@ describe("VeridaRewardContract", () => {
 
         const contextSigner = Wallet.createRandom()
 
+        let claimSnapShot: SnapshotRestorer;
+
         const getSignature = (
             hash: string, 
             schema: string,
@@ -313,86 +321,132 @@ describe("VeridaRewardContract", () => {
                     claimType.schema
                 )
             })
+
+            claimSnapShot = await takeSnapshot();
         })
 
-        it("Failed for non-existing claim types", async () => {
-            const [signature, proof] = await getSignature(
-                credentials[0],
-                claimTypes[0].schema,
-                receiverAddress[0],
-                contextSigner,
-                trustedSigners[0]
-            )
-            await expect(contract.claim(
-                "Invalid ClaimID",
-                credentials[0],
-                receiverAddress[0],
-                signature,
-                proof
-            )).to.be.revertedWithCustomError(contract, "InvalidId")
+        describe("Claim to address", () => {
+            it("Failed for non-existing claim types", async () => {
+                const [signature, proof] = await getSignature(
+                    credentials[0],
+                    claimTypes[0].schema,
+                    receiverAddress[0],
+                    contextSigner,
+                    trustedSigners[0]
+                )
+                await expect(contract.claim(
+                    "Invalid ClaimID",
+                    credentials[0],
+                    receiverAddress[0],
+                    signature,
+                    proof
+                )).to.be.revertedWithCustomError(contract, "InvalidId")
+            })
+    
+            it("Failed for Invalid signer", async () => {
+                const badSigner = Wallet.createRandom()
+                const [signature, proof] = await getSignature(
+                    credentials[0],
+                    claimTypes[0].schema,
+                    receiverAddress[0],
+                    contextSigner,
+                    badSigner
+                )
+                await expect(contract.claim(
+                    claimTypes[0].id,
+                    credentials[0],
+                    receiverAddress[0],
+                    signature,
+                    proof
+                )).to.be.revertedWithCustomError(contract, "InvalidSignature")
+            })
+    
+            it("Claim successfully", async () => {
+                await token.mint(contract.address, mintAmount)
+    
+                const orgContractBalance = await token.balanceOf(contract.address)
+    
+                expect(orgContractBalance).to.be.greaterThan(claimTypes[0].reward)
+                expect(await token.balanceOf(receiverAddress[0])).to.be.equal(0)
+    
+                const [signature, proof] = await getSignature(
+                    credentials[0],
+                    claimTypes[0].schema,
+                    receiverAddress[0],
+                    contextSigner,
+                    trustedSigners[0]
+                )
+    
+                await expect(
+                    contract.claim(claimTypes[0].id, credentials[0], receiverAddress[0], signature,proof)
+                ).to.emit(contract, "Claim").withArgs(claimTypes[0].id, credentials[0], receiverAddress[0])
+    
+                expect(await token.balanceOf(receiverAddress[0])).to.be.equal(claimTypes[0].reward)
+                expect(await token.balanceOf(contract.address)).to.be.equal(orgContractBalance.sub(BigNumber.from(claimTypes[0].reward)))
+            })
+    
+            it("Failed for already claimed", async () => {
+                const orgContractBalance = await token.balanceOf(contract.address)
+                expect(orgContractBalance).to.be.greaterThan(claimTypes[0].reward)
+    
+                const [signature, proof] = await getSignature(
+                    credentials[0],
+                    claimTypes[0].schema,
+                    receiverAddress[0],
+                    contextSigner,
+                    trustedSigners[0]
+                )
+    
+                await expect(contract.claim(
+                    claimTypes[0].id,
+                    credentials[0],
+                    receiverAddress[0],
+                    signature,
+                    proof                
+                )).to.be.revertedWithCustomError(contract, "DuplicatedRequest")
+            })
         })
 
-        it("Failed for Invalid signer", async () => {
-            const badSigner = Wallet.createRandom()
-            const [signature, proof] = await getSignature(
-                credentials[0],
-                claimTypes[0].schema,
-                receiverAddress[0],
-                contextSigner,
-                badSigner
-            )
-            await expect(contract.claim(
-                claimTypes[0].id,
-                credentials[0],
-                receiverAddress[0],
-                signature,
-                proof
-            )).to.be.revertedWithCustomError(contract, "InvalidSignature")
-        })
+        describe("Claim to storage", () => {
+            before(async () => {
+                await claimSnapShot.restore();
+            })
+    
+            it("Claim successfully", async () => {
+                await token.mint(contract.address, mintAmount)
+                const orgContractBalance = await token.balanceOf(contract.address)
+                expect(orgContractBalance).to.be.greaterThan(claimTypes[0].reward)
 
-        it("Claim successfully", async () => {
-            await token.mint(contract.address, mintAmount)
+                const orgStorageBalance = await token.balanceOf(storageNodeContract.address);
 
-            const orgContractBalance = await token.balanceOf(contract.address)
+                const nodeDID = Wallet.createRandom();
+                const orgDIDBalance = await storageNodeContract.getBalance(nodeDID.address);              
+                    
+                const [signature, proof] = await getSignature(
+                    credentials[0],
+                    claimTypes[0].schema,
+                    nodeDID.address,
+                    contextSigner,
+                    trustedSigners[0]
+                )
+    
+                await expect(
+                    contract.claimToStorage(claimTypes[0].id, credentials[0], nodeDID.address, signature,proof)
+                ).to.emit(contract, "ClaimToStorage").withArgs(claimTypes[0].id, credentials[0], nodeDID.address)
+    
+                // Check token deposited
+                expect(
+                    await token.balanceOf(storageNodeContract.address)
+                ).to.be.equal(orgStorageBalance + claimTypes[0].reward);
+                expect(
+                    await token.balanceOf(contract.address)
+                ).to.be.equal(orgContractBalance.sub(BigNumber.from(claimTypes[0].reward)))
 
-            expect(orgContractBalance).to.be.greaterThan(claimTypes[0].reward)
-            expect(await token.balanceOf(receiverAddress[0])).to.be.equal(0)
-
-            const [signature, proof] = await getSignature(
-                credentials[0],
-                claimTypes[0].schema,
-                receiverAddress[0],
-                contextSigner,
-                trustedSigners[0]
-            )
-
-            await expect(
-                contract.claim(claimTypes[0].id, credentials[0], receiverAddress[0], signature,proof)
-            ).to.emit(contract, "Claim").withArgs(claimTypes[0].id, credentials[0], receiverAddress[0])
-
-            expect(await token.balanceOf(receiverAddress[0])).to.be.equal(claimTypes[0].reward)
-            expect(await token.balanceOf(contract.address)).to.be.equal(orgContractBalance.sub(BigNumber.from(claimTypes[0].reward)))
-        })
-
-        it("Failed for already claimed", async () => {
-            const orgContractBalance = await token.balanceOf(contract.address)
-            expect(orgContractBalance).to.be.greaterThan(claimTypes[0].reward)
-
-            const [signature, proof] = await getSignature(
-                credentials[0],
-                claimTypes[0].schema,
-                receiverAddress[0],
-                contextSigner,
-                trustedSigners[0]
-            )
-
-            await expect(contract.claim(
-                claimTypes[0].id,
-                credentials[0],
-                receiverAddress[0],
-                signature,
-                proof                
-            )).to.be.revertedWithCustomError(contract, "DuplicatedRequest")
+                // Check DID balance changed
+                expect(
+                    await storageNodeContract.getBalance(nodeDID.address)
+                ).to.be.eq(orgDIDBalance + claimTypes[0].reward);
+            })
         })
     })
 })
