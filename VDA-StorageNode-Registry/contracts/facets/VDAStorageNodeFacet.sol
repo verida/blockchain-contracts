@@ -177,12 +177,13 @@ contract VDAStorageNodeFacet is IStorageNode {
     */
   function withdraw(
       address didAddress,
+      address to,
       uint amount,
       bytes calldata requestSignature,
       bytes calldata requestProof
   ) external virtual override {
     {
-        bytes memory params = abi.encodePacked(didAddress, amount);
+        bytes memory params = abi.encodePacked(didAddress, to, amount);
         LibVerification.verifyRequest(didAddress, params, requestSignature, requestProof);
     }
 
@@ -202,11 +203,11 @@ contract VDAStorageNodeFacet is IStorageNode {
         revert InvalidAmount();
     }
 
-    IERC20(ds.vdaTokenAddress).transfer(tx.origin, amount);
+    IERC20(ds.vdaTokenAddress).transfer(to, amount);
 
     ds._stakedTokenAmount[didAddress] = ds._stakedTokenAmount[didAddress] - amount;
 
-    emit TokenWithdrawn(didAddress, tx.origin, amount);
+    emit TokenWithdrawn(didAddress, to, amount);
   }
 
   /**

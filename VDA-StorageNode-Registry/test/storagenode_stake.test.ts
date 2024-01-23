@@ -437,27 +437,27 @@ describe('StorageNode Deposit/Withdraw Test', async function () {
       const excessTokenAmount = await nodeContract.excessTokenAmount(user.address);
       expect(excessTokenAmount).to.not.eq(0);
 
+      const recipient = Wallet.createRandom();
       const amount = excessTokenAmount;
-
-      const orgRequestorTokenAmount = await tokenContract.balanceOf(requestor.address);
 
       // Withdraw
       const nonce = await nodeManageContract.nonce(user.address);
-      const {requestSignature, requestProof} = getWithdrawSignatures(user, amount, nonce);
+      const {requestSignature, requestProof} = getWithdrawSignatures(user, recipient.address, amount, nonce);
       if (expectResult === true) {
         await expect(
-          nodeContract.connect(requestor).withdraw(user.address, amount, requestSignature, requestProof)
+          nodeContract.connect(requestor).withdraw(user.address, recipient.address, amount, requestSignature, requestProof)
         ).to.emit(nodeContract, "TokenWithdrawn").withArgs(
           user.address,
-          requestor.address,
+          recipient.address,
           excessTokenAmount);
         
-        // Check excess tokens are released to requestor
-        const curRequestorTokenAmount = await tokenContract.balanceOf(requestor.address);
-        expect(curRequestorTokenAmount).to.be.eq(orgRequestorTokenAmount + excessTokenAmount);
+        // Check excess tokens are released to recipient
+        expect(
+          await tokenContract.balanceOf(recipient.address)
+        ).to.be.eq(excessTokenAmount);
       } else {
         await expect(
-          nodeContract.connect(requestor).withdraw(user.address, amount, requestSignature, requestProof)
+          nodeContract.connect(requestor).withdraw(user.address, recipient.address, amount, requestSignature, requestProof)
         ).to.be.revertedWithCustomError(nodeContract, customError!);
       }
       
@@ -472,12 +472,13 @@ describe('StorageNode Deposit/Withdraw Test', async function () {
     it("Failed : No excess token",async () => {
       const nonce = await nodeManageContract.nonce(user.address);
       const amount = 10;
+      const recipient = Wallet.createRandom();
 
       expect(await nodeContract.excessTokenAmount(user.address)).to.be.eq(0);
 
-      const {requestSignature, requestProof} = getWithdrawSignatures(user, amount, nonce);
+      const {requestSignature, requestProof} = getWithdrawSignatures(user, recipient.address, amount, nonce);
       await expect(
-        nodeContract.withdraw(user.address, amount, requestSignature, requestProof)
+        nodeContract.withdraw(user.address, recipient.address, amount, requestSignature, requestProof)
       ).to.be.revertedWithCustomError(nodeContract, "NoExcessTokenAmount");
     })
 
@@ -497,11 +498,12 @@ describe('StorageNode Deposit/Withdraw Test', async function () {
       expect(excessTokenAmount).to.not.eq(0);
 
       const amount = excessTokenAmount + 10n;
+      const recipient = Wallet.createRandom();
 
       const nonce = await nodeManageContract.nonce(user.address);
-      const {requestSignature, requestProof} = getWithdrawSignatures(user, amount, nonce);
+      const {requestSignature, requestProof} = getWithdrawSignatures(user, recipient.address, amount, nonce);
       await expect(
-        nodeContract.connect(requestor).withdraw(user.address, amount, requestSignature, requestProof)
+        nodeContract.connect(requestor).withdraw(user.address, recipient.address, amount, requestSignature, requestProof)
       ).to.be.revertedWithCustomError(nodeContract, "InvalidAmount");
       
       await currentSnapshot.restore();

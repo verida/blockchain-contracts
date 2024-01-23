@@ -253,6 +253,7 @@ contract VDAStorageNodeManagementFacet is IStorageNodeManagement {
     */
   function removeNodeComplete(
       address didAddress,
+      address fundReleasedTo,
       bytes calldata fallbackMigrationProof,
       bytes calldata requestSignature,
       bytes calldata requestProof
@@ -281,14 +282,14 @@ contract VDAStorageNodeManagementFacet is IStorageNodeManagement {
       LibVerification.verifyFallbackNodeSignature(nodeInfo.fallbackNodeAddress, params, fallbackMigrationProof);
 
       // Verify the request
-      params = abi.encodePacked(didAddress, fallbackMigrationProof);
+      params = abi.encodePacked(didAddress, fundReleasedTo, fallbackMigrationProof);
       LibVerification.verifyRequest(didAddress, params, requestSignature, requestProof);
     }
 
     // Release staked token
     uint totalAmount = ds._stakedTokenAmount[didAddress];
     if (totalAmount != 0) {
-        IERC20(ds.vdaTokenAddress).transfer(tx.origin, totalAmount);
+        IERC20(ds.vdaTokenAddress).transfer(fundReleasedTo, totalAmount);
         ds._stakedTokenAmount[didAddress] = 0;
     }        
 
@@ -302,7 +303,7 @@ contract VDAStorageNodeManagementFacet is IStorageNodeManagement {
     address fallbackAddress = nodeInfo.fallbackNodeAddress;
     delete ds._isFallbackSet[fallbackAddress];
 
-    emit RemoveNodeComplete(didAddress, fallbackAddress);
+    emit RemoveNodeComplete(didAddress, fallbackAddress, fundReleasedTo);
   }
 
   /**

@@ -81,7 +81,7 @@ interface IStorageNodeManagement {
     * @param didAddress DID address that is to be removed from the network
     * @param unregisterDateTime The unix timestamp of when the storage node should no logner be available for selection.
       Must be at leaset 28 dayse in the future from calling function point
-      @param fallbackNodeAddress DID address of the stroage node that will take responsibility for user data that isn't migrated away from this node before the unregister timestamp.
+    * @param fallbackNodeAddress DID address of the stroage node that will take responsibility for user data that isn't migrated away from this node before the unregister timestamp.
     */
   event RemoveNodeStart(address indexed didAddress, uint unregisterDateTime, address fallbackNodeAddress);
 
@@ -89,8 +89,9 @@ interface IStorageNodeManagement {
     * @notice Emitted when a removing node is completed
     * @param didAddress DID address that is to be removed from the network
     * @param fallbackNodeAddress DID address of the fallback stroage node
+    * @param fundReleasedTo Address that receives the remaining fund 
     */
-  event RemoveNodeComplete(address indexed didAddress, address fallbackNodeAddress);
+  event RemoveNodeComplete(address indexed didAddress, address fallbackNodeAddress, address fundReleasedTo);
 
   /**
    * @notice Return the noce for a DID address
@@ -132,8 +133,9 @@ interface IStorageNodeManagement {
   ) external;
 
   /**
-    * @notice Complete storage node unregisteration
+    * @notice Complete storage node unregisteration. Release the remaining tokens to the `fundReleasedTo`
     * @param didAddress DID address that is to be removed from the network
+    * @param fundReleasedTo Address that receives the remaining fund 
     * @param fallbackMigrationProof A message signed by the `fallbackNode` specified in the 
       original `removeNodeStart()` request confirming the migration of any remaining data has been completed.
     * @param requestSignature The request parameters signed by the `didAddress` private key
@@ -141,6 +143,7 @@ interface IStorageNodeManagement {
     */
   function removeNodeComplete(
       address didAddress,
+      address fundReleasedTo,
       bytes calldata fallbackMigrationProof,
       bytes calldata requestSignature,
       bytes calldata requestProof

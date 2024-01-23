@@ -391,7 +391,7 @@ describe('StorageNode Node Management Test', async function () {
 
         // Remove complete
         await time.increaseTo(unregisterTime);
-        await checkRemoveNodeComplete(nodeManageContract, user, fallbackUser, owner);
+        await checkRemoveNodeComplete(nodeManageContract, user, fallbackUser, owner.address, owner);
 
         // Check remove completed name, address, & endpoint
         await checkDuplicatedValuesFailed();
@@ -465,7 +465,7 @@ describe('StorageNode Node Management Test', async function () {
 
           // Remove complete
           await time.increaseTo(unregisterTime);
-          await checkRemoveNodeComplete(nodeManageContract, user, fallbackUser, owner);
+          await checkRemoveNodeComplete(nodeManageContract, user, fallbackUser, owner.address, owner);
 
           await checkDuplicatedValuesFailed();
         })
@@ -511,7 +511,7 @@ describe('StorageNode Node Management Test', async function () {
       const unregisterTime = blockTime + days(30);
       // Remove complete
       await time.increaseTo(unregisterTime);
-      await checkRemoveNodeComplete(nodeManageContract, user, fallbackUser, owner);
+      await checkRemoveNodeComplete(nodeManageContract, user, fallbackUser, owner.address, owner);
 
       expect(await nodeManageContract.isRegisteredNodeName(storageNode.name)).to.be.equal(true);
       expect(await nodeManageContract.isRegisteredNodeAddress(storageNode.didAddress)).to.be.equal(true);
@@ -564,7 +564,7 @@ describe('StorageNode Node Management Test', async function () {
       const unregisterTime = blockTime + days(30);
       // Remove complete
       await time.increaseTo(unregisterTime);
-      await checkRemoveNodeComplete(nodeManageContract, users[0], fallbackUser, owner);
+      await checkRemoveNodeComplete(nodeManageContract, users[0], fallbackUser, owner.address, owner);
     }
 
     before(async () => {
@@ -1117,16 +1117,16 @@ describe('StorageNode Node Management Test', async function () {
 
     describe("Remove node complete", () => {
       const checkRemoveComplete =async (requestor: SignerWithAddress, stakeRequired = false) => {
-        const requestorOrgTokenAmount = await tokenContract.balanceOf(requestor.address);
-
+        const fundReceiver = Wallet.createRandom();
         const stakedTokenAmount = stakeRequired===true ? await nodeContract.getBalance(user.address) : 0n;
 
         // complete remove node
-        await checkRemoveNodeComplete(nodeManageContract, user, fallbackUser, requestor);
+        await checkRemoveNodeComplete(nodeManageContract, user, fallbackUser, fundReceiver.address, requestor);
 
-        // Confirm requstor token
-        const requestorCurTokenAmount = await tokenContract.balanceOf(requestor.address);
-        expect(requestorCurTokenAmount).to.be.equal(requestorOrgTokenAmount + stakedTokenAmount);
+        // Confirm fund released
+        expect(
+          await tokenContract.balanceOf(fundReceiver.address)
+        ).to.be.equal(stakedTokenAmount);
       }
 
       before(async () => {
@@ -1142,16 +1142,17 @@ describe('StorageNode Node Management Test', async function () {
       })
 
       describe("Failed for invalid parameters", () => {
+        const fundReceiver = Wallet.createRandom();
         it("Failed: Unregistered address", async () => {
           const temp = Wallet.createRandom();
           await expect(
-            nodeManageContract.removeNodeComplete(temp.address, "0x00", "0x00", "0x00")
+            nodeManageContract.removeNodeComplete(temp.address, fundReceiver.address, "0x00", "0x00", "0x00")
           ).to.be.revertedWithCustomError(nodeManageContract, "InvalidDIDAddress");
         })
 
         it("Failed: Remove node not started", async () => {
           await expect(
-            nodeManageContract.removeNodeComplete(user.address, "0x00", "0x00", "0x00")
+            nodeManageContract.removeNodeComplete(user.address, fundReceiver.address, "0x00", "0x00", "0x00")
           ).to.be.revertedWithCustomError(nodeManageContract, "InvalidDIDAddress");
         })
 
@@ -1163,20 +1164,20 @@ describe('StorageNode Node Management Test', async function () {
           
           // Remove node not completed
           await expect(
-            nodeManageContract.removeNodeComplete(user.address, "0x00", "0x00", "0x00")
+            nodeManageContract.removeNodeComplete(user.address, fundReceiver.address, "0x00", "0x00", "0x00")
           ).to.be.revertedWithCustomError(nodeManageContract, "InvalidUnregisterTime")
 
           const blockTime = await time.latest();
           // After 10 days from start
           await time.increaseTo(blockTime + days(10));
           await expect(
-            nodeManageContract.removeNodeComplete(user.address, "0x00", "0x00", "0x00")
+            nodeManageContract.removeNodeComplete(user.address, fundReceiver.address, "0x00", "0x00", "0x00")
           ).to.be.revertedWithCustomError(nodeManageContract, "InvalidUnregisterTime")
 
           // After 20 days from start
           await time.increaseTo(blockTime + days(20));
           await expect(
-            nodeManageContract.removeNodeComplete(user.address, "0x00", "0x00", "0x00")
+            nodeManageContract.removeNodeComplete(user.address, fundReceiver.address, "0x00", "0x00", "0x00")
           ).to.be.revertedWithCustomError(nodeManageContract, "InvalidUnregisterTime")
 
           await currentSnapshot.restore();
@@ -1193,13 +1194,13 @@ describe('StorageNode Node Management Test', async function () {
 
           // Empty migration proof
           await expect(
-            nodeManageContract.removeNodeComplete(user.address, "0x", "0x00", "0x00")
+            nodeManageContract.removeNodeComplete(user.address, fundReceiver.address, "0x", "0x00", "0x00")
           ).to.be.revertedWithCustomError(nodeManageContract, "InvalidFallbackNodeSiganture")
 
           // Invalid migration proof
           const invalid_migration = getFallbackMigrationProof(user.address, fallbackUser.address, Wallet.createRandom());
           await expect(
-            nodeManageContract.removeNodeComplete(user.address, invalid_migration, "0x00", "0x00")
+            nodeManageContract.removeNodeComplete(user.address, fundReceiver.address, invalid_migration, "0x00", "0x00")
           ).to.be.revertedWithCustomError(nodeManageContract, "InvalidFallbackNodeSiganture")
 
           await currentSnapShot.restore();

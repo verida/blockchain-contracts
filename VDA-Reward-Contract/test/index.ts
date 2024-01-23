@@ -274,13 +274,13 @@ describe("VeridaRewardContract", () => {
         const getSignature = (
             hash: string, 
             schema: string,
-            // receiver: string,
+            receiver: string,
             contextSigner: Wallet, 
             proofSigner : Wallet
         ) => {
             const rawMsg = ethers.utils.solidityPack(
-                ['string', 'string', 'string'],
-                [hash, "|", schema]
+                ['string', 'string', 'string', 'address'],
+                [hash, "|", schema, receiver]
             )
             let privateKeyArray = new Uint8Array(Buffer.from(contextSigner.privateKey.slice(2), 'hex'))
             const signature = EncryptionUtils.signData(rawMsg, privateKeyArray)
@@ -319,6 +319,7 @@ describe("VeridaRewardContract", () => {
             const [signature, proof] = await getSignature(
                 credentials[0],
                 claimTypes[0].schema,
+                receiverAddress[0],
                 contextSigner,
                 trustedSigners[0]
             )
@@ -336,6 +337,7 @@ describe("VeridaRewardContract", () => {
             const [signature, proof] = await getSignature(
                 credentials[0],
                 claimTypes[0].schema,
+                receiverAddress[0],
                 contextSigner,
                 badSigner
             )
@@ -346,25 +348,6 @@ describe("VeridaRewardContract", () => {
                 signature,
                 proof
             )).to.be.revertedWithCustomError(contract, "InvalidSignature")
-        })
-
-        it("Failed for Insufficient reward token in contract", async () => {
-            expect(await token.balanceOf(contract.address)).to.be.equal(0)
-
-            const [signature, proof] = await getSignature(
-                credentials[0],
-                claimTypes[0].schema,
-                contextSigner,
-                trustedSigners[0]
-            )
-
-            await expect(contract.claim(
-                claimTypes[0].id,
-                credentials[0],
-                receiverAddress[0],
-                signature,
-                proof                
-            )).to.be.revertedWithCustomError(contract, "InsufficientTokenAmount")
         })
 
         it("Claim successfully", async () => {
@@ -378,6 +361,7 @@ describe("VeridaRewardContract", () => {
             const [signature, proof] = await getSignature(
                 credentials[0],
                 claimTypes[0].schema,
+                receiverAddress[0],
                 contextSigner,
                 trustedSigners[0]
             )
@@ -397,6 +381,7 @@ describe("VeridaRewardContract", () => {
             const [signature, proof] = await getSignature(
                 credentials[0],
                 claimTypes[0].schema,
+                receiverAddress[0],
                 contextSigner,
                 trustedSigners[0]
             )

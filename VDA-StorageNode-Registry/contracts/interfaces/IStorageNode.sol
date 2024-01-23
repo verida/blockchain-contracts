@@ -220,13 +220,15 @@ interface IStorageNode {
   /**
     * @notice Withdraw amount of tokens to the requestor
     * @dev Will send tokens to the `tx.origin`
-    * @param didAddress DID address
+    * @param didAddress DID address from which staked tokens to be withdrawn
+    * @param to Recipient address that receives withdrawn tokens
     * @param amount Token amount to be withdrawn
     * @param requestSignature The request parameters signed by the `didAddress` private key
     * @param requestProof Used to verify request
     */
   function withdraw(
       address didAddress, 
+      address to,
       uint amount,
       bytes calldata requestSignature,
       bytes calldata requestProof
