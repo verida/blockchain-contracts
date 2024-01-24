@@ -12,6 +12,7 @@ The key objectives are:
 ### Verida contract dependency
 - `@verida/vda-verification-contract` : VDA-Verification-Base contract
 - `@verida/erc20-contract` : VDA-ERC20 - Used in test script
+- `@verida/storage-node-registry` : Need the deployed address of`VDA-StorageNodeRegistry-Contract` to deploy
 
 # Test & Deploy
 ## Test
@@ -21,6 +22,10 @@ You can run test by following command:
 ``` 
 
 ## Deploy
+### Deployment parameters
+- Reward token address : Address of the Verida token contract
+- StorageNode registry contract address : Address of `VDA-StorageNode-Registry` contract
+### Deployment scripts
 You can deploy contract by following command:
 ```
     yarn deploy --network <Target Network>

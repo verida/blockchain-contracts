@@ -1,3 +1,8 @@
+2024-01-23 (v0.4.1)
+-------------------
+- Fixed the deployment script
+- Updated the `README.md`
+
 2024-01-23 (v0.4.0)
 -------------------
 - Added `claimToStorage()` function : issue#136
