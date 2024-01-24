@@ -26,6 +26,7 @@ async function main() {
     console.log("Verifying diamond contract")
     exec(`npx hardhat verify --${network} --constructor-args argument.js ${orgData[network]["diamond"]}`);
 
+    // Verify facet contracts
     const keyArr = Object.keys(orgData[network]).filter((key: string) => key !== 'date' && key !== 'diamond');
     for (let i = 0; i < keyArr.length; i++) {
         const tokenName = keyArr[i];

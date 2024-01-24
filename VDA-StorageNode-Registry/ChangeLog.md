@@ -1,3 +1,7 @@
+2024-01-24 (V1.0.0)
+-------------------
+- Untrack script/*.json files
+
 2024-01-23 (V1.0.0)
 -------------------
 - Add `depositTokenFromProvider`
