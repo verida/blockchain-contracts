@@ -167,4 +167,18 @@ contract VDARewardContract is IVDARewardContract, VDAVerificationContract {
 
         emit ClaimToStorage(typeId, hash, didAddress);
     }
+
+    /**
+     * @dev see {IVDARewardContract-claim}
+     */
+    function getTokenAddress() external view returns(address) {
+        return address(rewardToken);
+    }
+
+    /**
+     * @dev see {IVDARewardContract-claim}
+     */
+    function getStorageNodeContractAddress() external view returns(address) {
+        return address(storageNodeContract);
+    }
 } 

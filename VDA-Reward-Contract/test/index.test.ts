@@ -272,6 +272,20 @@ describe("VeridaRewardContract", () => {
         })
     })
 
+    describe("Get contract addresses", () => {
+        it("Get token address",async () => {
+            expect(
+                await contract.getTokenAddress()
+            ).to.be.eq(token.address);
+        })
+
+        it("Get StorageNodeRegistry contract address",async () => {
+            expect(
+                await contract.getStorageNodeContractAddress()
+            ).to.be.eq(storageNodeContract.address);
+        })
+    })
+
     describe("Claim", () => {
         const mintAmount = ethers.utils.parseEther('100000')
 
