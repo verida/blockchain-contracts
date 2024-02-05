@@ -10,12 +10,13 @@ async function main() {
   // const rewardTokenAddress = "0x64CE49E8249b5a8456CC8759A993f7B24854e199"
 
   // Polygon testnet
-  const rewardTokenAddress = "0x8342Eff0a73bDbf3487E33f60D4307710dD34120"
+  const rewardTokenAddress = ""; //"0x1CD8557B2cBCfad36a1dAcB702FD7Bc90a4Fcf98"
+  const storageNodeRegistryAddress = ""; //"0xDbFa75B77f573677C2b3aA08d016b7E6A2e554C9"
 
   const contractFactory = await ethers.getContractFactory("VDARewardContract")
   const contract = (await upgrades.deployProxy(
       contractFactory,
-      [rewardTokenAddress],
+      [rewardTokenAddress, storageNodeRegistryAddress],
       {
           initializer: '__VDARewardContract_init',
           timeout: 0,

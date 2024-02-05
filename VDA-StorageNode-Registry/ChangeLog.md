@@ -1,3 +1,7 @@
+2024-01-24 (V1.0.0)
+-------------------
+- Untrack script/*.json files
+
 2024-01-23 (V1.0.0)
 -------------------
 - Add `depositTokenFromProvider`
@@ -9,7 +13,7 @@
 
 2024-01-18 (V1.0.0)
 -------------------
-- Add enable/disable withdrawl feature in the StorageNodeFacet
+- Add enable/disable withdrawal feature in the StorageNodeFacet
 ```ts
 function isWithdrawalEnabled() external view returns(bool);
 function setWithdrawalEnabled(bool isEnabled) external;

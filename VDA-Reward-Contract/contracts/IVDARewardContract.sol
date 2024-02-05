@@ -106,4 +106,16 @@ interface IVDARewardContract {
      * @param amount - The amount of VDAR tokens to be rewarded for successful claim.
      */
     function updateClaimTypeReward(string calldata typeId, uint amount) external payable;
+
+    /**
+     * @notice Returns the Reward token address (= Verida Token address)
+     * @return address Token address initialized in the deployment
+     */
+    function getTokenAddress() external view returns(address);
+
+    /**
+     * @notice Returns the `StorageNodeRegistry` contract address that is associated with this contract
+     * @return address Address of `StorageNodeRegistry` contract
+     */
+    function getStorageNodeContractAddress() external view returns(address);
 }

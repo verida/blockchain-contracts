@@ -12,3 +12,10 @@ node_modules
 # solidity-coverage files
 /coverage
 /coverage.json
+
+# JSON files
+scripts/*.json
+scripts/argument.js
+
+# Temp test file
+test/temp.test.ts
