@@ -11,7 +11,7 @@ library LibDataCentre {
 
     using EnumerableSet for EnumerableSet.UintSet;
 
-    bytes32 constant DATACENTER_STORAGE_POSITION = keccak256("vda.storagenode.datacentre.storage");
+    bytes32 constant DATACENTRE_STORAGE_POSITION = keccak256("vda.storagenode.datacentre.storage");
 
     /**
      * @notice Struct representing a data centre
@@ -51,7 +51,7 @@ library LibDataCentre {
     }
 
     function dataCentreStorage() internal pure returns (DataCentreStorage storage ds) {
-        bytes32 position = DATACENTER_STORAGE_POSITION;
+        bytes32 position = DATACENTRE_STORAGE_POSITION;
         assembly {
             ds.slot := position
         }

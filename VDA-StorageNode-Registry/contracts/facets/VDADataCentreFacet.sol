@@ -114,7 +114,7 @@ contract VDADataCentreFacet is IDataCentre {
   /**
     * @dev see { IDataCentre }
     */
-  function getDataCentres(uint[] calldata ids) external view virtual override returns(LibDataCentre.DataCentre[] memory) {
+  function getDataCentresById(uint[] calldata ids) external view virtual override returns(LibDataCentre.DataCentre[] memory) {
     LibDataCentre.DataCentreStorage storage ds = LibDataCentre.dataCentreStorage();
     uint maxID = ds._datacentreIdCounter;
 
@@ -202,7 +202,7 @@ contract VDADataCentreFacet is IDataCentre {
   /**
     * @dev see { IDataCentre }
     */
-  function getDataCentresByCountry(string calldata countryCode) external view virtual override returns(LibDataCentre.DataCentre[] memory) {
+  function getDataCentresByCountryCode(string calldata countryCode) external view virtual override returns(LibDataCentre.DataCentre[] memory) {
     LibUtils.validateCountryCode(countryCode);
     
     LibDataCentre.DataCentreStorage storage ds = LibDataCentre.dataCentreStorage();
@@ -222,7 +222,7 @@ contract VDADataCentreFacet is IDataCentre {
   /**
     * @dev see { IDataCentre }
     */
-  function getDataCentresByRegion(string calldata regionCode) external view virtual override returns(LibDataCentre.DataCentre[] memory) {
+  function getDataCentresByRegionCode(string calldata regionCode) external view virtual override returns(LibDataCentre.DataCentre[] memory) {
     LibUtils.validateRegionCode(regionCode);
     LibDataCentre.DataCentreStorage storage ds = LibDataCentre.dataCentreStorage();
 

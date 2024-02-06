@@ -82,7 +82,7 @@ interface IDataCentre {
     * @param ids Array of datacentreIds
     * @return Datacentre[] Array of `Datacentre` structs 
     */
-  function getDataCentres(uint[] calldata ids) external view returns(LibDataCentre.DataCentre[] memory);
+  function getDataCentresById(uint[] calldata ids) external view returns(LibDataCentre.DataCentre[] memory);
 
   /**
     * @notice Return a data centre with the given name
@@ -97,7 +97,7 @@ interface IDataCentre {
     * @param countryCode Unique two-character string code
     * @return Datacentre[] Array of `Datacentre` structs 
     */
-  function getDataCentresByCountry(string calldata countryCode) external view returns(LibDataCentre.DataCentre[] memory);
+  function getDataCentresByCountryCode(string calldata countryCode) external view returns(LibDataCentre.DataCentre[] memory);
 
   /**
     * @notice Return an array of `Datacentre` structs for country code 
@@ -112,7 +112,7 @@ interface IDataCentre {
     * @param regionCode Unique region string code
     * @return Datacentre[] Array of `Datacentre` structs 
     */
-  function getDataCentresByRegion(string calldata regionCode) external view returns(LibDataCentre.DataCentre[] memory);
+  function getDataCentresByRegionCode(string calldata regionCode) external view returns(LibDataCentre.DataCentre[] memory);
 
   /**
     * @notice Return an array of `Datacentre` structs for region

@@ -711,7 +711,7 @@ describe('StorageNode Node Management Test', async function () {
       })
     })
 
-    describe("Get by Country", () => {
+    describe("Get by CountryCode", () => {
       before(async()=> {
         await testEnvironment.restore();
       })
@@ -720,7 +720,7 @@ describe('StorageNode Node Management Test', async function () {
         const unregistedCode = "sg";
         assert(storageNodes.findIndex(item => item.countryCode === unregistedCode) === -1);
 
-        expect(await nodeManageContract.getNodesByCountry(unregistedCode)).to.deep.equal([]);
+        expect(await nodeManageContract.getNodesByCountryCode(unregistedCode)).to.deep.equal([]);
       })
 
       it("Success: without status option", async () => {
@@ -729,7 +729,7 @@ describe('StorageNode Node Management Test', async function () {
 
         for (let i = 0; i < countryCodes.length; i++ ){
           const orgCountryNodes = storageNodes.filter(item => item.countryCode === countryCodes[i])
-          const nodesReturned = await nodeManageContract.getNodesByCountry(countryCodes[i]);
+          const nodesReturned = await nodeManageContract.getNodesByCountryCode(countryCodes[i]);
           expect(orgCountryNodes.length).to.equal(nodesReturned.length);
   
           for (let j = 0; j < orgCountryNodes.length; j++) {
@@ -742,13 +742,13 @@ describe('StorageNode Node Management Test', async function () {
         const country = storageNodes[0].countryCode;
 
         expect(
-          (await nodeManageContract.getNodesByCountryAndStatus(country, EnumStatus.removing)).length
+          (await nodeManageContract.getNodesByCountryCodeAndStatus(country, EnumStatus.removing)).length
         ).to.eq(0);
 
         await startRemove();
 
         expect(
-          (await nodeManageContract.getNodesByCountryAndStatus(country, EnumStatus.removing)).length
+          (await nodeManageContract.getNodesByCountryCodeAndStatus(country, EnumStatus.removing)).length
         ).to.eq(1);
       })
 
@@ -757,27 +757,27 @@ describe('StorageNode Node Management Test', async function () {
         // Before complete remove
         /// 1 pending removal country
         expect(
-          (await nodeManageContract.getNodesByCountryAndStatus(country, EnumStatus.removing)).length
+          (await nodeManageContract.getNodesByCountryCodeAndStatus(country, EnumStatus.removing)).length
         ).to.eq(1);
         /// No remove completed country
         expect(
-          (await nodeManageContract.getNodesByCountryAndStatus(country, EnumStatus.removed)).length
+          (await nodeManageContract.getNodesByCountryCodeAndStatus(country, EnumStatus.removed)).length
         ).to.eq(0);
 
         await completeRemove();
         // After complete remove
         /// No pending removal country
         expect(
-          (await nodeManageContract.getNodesByCountryAndStatus(country, EnumStatus.removing)).length
+          (await nodeManageContract.getNodesByCountryCodeAndStatus(country, EnumStatus.removing)).length
         ).to.eq(0);
         /// 1 remove completed country
         expect(
-          (await nodeManageContract.getNodesByCountryAndStatus(country, EnumStatus.removed)).length
+          (await nodeManageContract.getNodesByCountryCodeAndStatus(country, EnumStatus.removed)).length
         ).to.eq(1);
       })
     })
 
-    describe("Get by Region", () => {
+    describe("Get by RegionCode", () => {
       before(async()=> {
         await testEnvironment.restore();
       })
@@ -786,7 +786,7 @@ describe('StorageNode Node Management Test', async function () {
         const unregistedCode = "africa";
         assert(storageNodes.findIndex(item => item.regionCode === unregistedCode) === -1);
 
-        expect(await nodeManageContract.getNodesByRegion(unregistedCode)).to.deep.equal([]);
+        expect(await nodeManageContract.getNodesByRegionCode(unregistedCode)).to.deep.equal([]);
       })
 
       it("Success: without status option", async () => {
@@ -796,7 +796,7 @@ describe('StorageNode Node Management Test', async function () {
         for (let i = 0; i < regionCodes.length; i++ ){
           const orgRegionNodes = storageNodes.filter(item => item.regionCode === regionCodes[i]);
 
-          const nodesReturned = await nodeManageContract.getNodesByRegion(regionCodes[i]);
+          const nodesReturned = await nodeManageContract.getNodesByRegionCode(regionCodes[i]);
 
           expect(orgRegionNodes.length).to.equal(nodesReturned.length);
 
@@ -810,13 +810,13 @@ describe('StorageNode Node Management Test', async function () {
         const region = storageNodes[0].regionCode;
 
         expect(
-          (await nodeManageContract.getNodesByRegionAndStatus(region, EnumStatus.removing)).length
+          (await nodeManageContract.getNodesByRegionCodeAndStatus(region, EnumStatus.removing)).length
         ).to.eq(0);
 
         await startRemove();
 
         expect(
-          (await nodeManageContract.getNodesByRegionAndStatus(region, EnumStatus.removing)).length
+          (await nodeManageContract.getNodesByRegionCodeAndStatus(region, EnumStatus.removing)).length
         ).to.eq(1);
       })
 
@@ -825,23 +825,72 @@ describe('StorageNode Node Management Test', async function () {
         // Before complete remove
         /// 1 pending removal region
         expect(
-          (await nodeManageContract.getNodesByRegionAndStatus(region, EnumStatus.removing)).length
+          (await nodeManageContract.getNodesByRegionCodeAndStatus(region, EnumStatus.removing)).length
         ).to.eq(1);
         /// No remove completed region
         expect(
-          (await nodeManageContract.getNodesByRegionAndStatus(region, EnumStatus.removed)).length
+          (await nodeManageContract.getNodesByRegionCodeAndStatus(region, EnumStatus.removed)).length
         ).to.eq(0);
 
         await completeRemove();
         // After complete remove
         /// No pending removal region
         expect(
-          (await nodeManageContract.getNodesByRegionAndStatus(region, EnumStatus.removing)).length
+          (await nodeManageContract.getNodesByRegionCodeAndStatus(region, EnumStatus.removing)).length
         ).to.eq(0);
         /// 1 remove completed region
         expect(
-          (await nodeManageContract.getNodesByRegionAndStatus(region, EnumStatus.removed)).length
+          (await nodeManageContract.getNodesByRegionCodeAndStatus(region, EnumStatus.removed)).length
         ).to.eq(1);
+      })
+    })
+
+    describe("Get by status", () => {
+      let totalNodeCount: number;
+      before(async()=> {
+        await testEnvironment.restore();
+        
+        totalNodeCount = storageNodes.length + 1; //1 is for fallback node added
+      })
+
+      it("Test after nodes added", async () => {
+        expect(
+          (await nodeManageContract.getNodesByStatus(EnumStatus.active)).length
+        ).to.be.eq(totalNodeCount);
+        expect(
+          (await nodeManageContract.getNodesByStatus(EnumStatus.removing)).length
+        ).to.be.eq(0);
+        expect(
+          (await nodeManageContract.getNodesByStatus(EnumStatus.removed)).length
+        ).to.be.eq(0);
+      })
+
+      it("Test after start removing", async () => {
+        await startRemove();
+
+        expect(
+          (await nodeManageContract.getNodesByStatus(EnumStatus.active)).length
+        ).to.be.eq(totalNodeCount - 1);
+        expect(
+          (await nodeManageContract.getNodesByStatus(EnumStatus.removing)).length
+        ).to.be.eq(1);
+        expect(
+          (await nodeManageContract.getNodesByStatus(EnumStatus.removed)).length
+        ).to.be.eq(0);
+      })
+
+      it("Test after node removed", async () => {
+        await completeRemove();
+
+        expect(
+          (await nodeManageContract.getNodesByStatus(EnumStatus.active)).length
+        ).to.be.eq(totalNodeCount - 1);
+        expect(
+          (await nodeManageContract.getNodesByStatus(EnumStatus.removing)).length
+        ).to.be.eq(0);
+        expect(
+          (await nodeManageContract.getNodesByStatus(EnumStatus.removed)).length
+        ).to.be.eq(1);
       })
     })
   })

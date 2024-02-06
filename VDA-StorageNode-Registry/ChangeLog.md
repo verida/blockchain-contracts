@@ -1,3 +1,19 @@
+2024-02-06 (V1.0.0)
+-------------------
+- Update spelling `datacenter` to `datacentre`
+- Update following function names
+```
+getDataCentres()            --> getDataCentresById()
+getDataCentresByCountry()   --> getDataCentresByCountryCode()
+getDataCentresByRegion()    --> getDataCentresRegionCode()
+getNodesByCountry()         --> getNodesByCountryCode()
+getNodesByRegion()          --> getNodesByRegionCode()
+```
+- Added following functions
+```ts
+function getNodesByStatus(LibCommon.EnumStatus status) external view returns(LibStorageNode.StorageNode[] memory);
+```
+
 2024-01-24 (V1.0.0)
 -------------------
 - Untrack script/*.json files
@@ -48,8 +64,8 @@ function getDataCentresByRegionAndStatus(regionCode, status) ...;
 ```
 - Renamed duplicated function names in `VDAStorageNodeManagementFacet` contract:
 ```ts
-function getNodesByCountryAndStatus(countryCode, status)...;
-function getNodesByRegionAndStatus(regionCode, status)...;
+function getNodesByCountryCodeAndStatus(countryCode, status)...;
+function getNodesByRegionCodeAndStatus(regionCode, status)...;
 ```
 
 2023-12-07 (V1.0.0)

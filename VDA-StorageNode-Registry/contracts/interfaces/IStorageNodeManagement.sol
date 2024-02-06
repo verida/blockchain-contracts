@@ -197,7 +197,7 @@ interface IStorageNodeManagement {
     * @param countryCode Unique two-character string code
     * @return StorageNode[] An array of `Storagenode` structs. Reaturs all kinds of status
     */
-  function getNodesByCountry(string calldata countryCode) external view returns(LibStorageNode.StorageNode[] memory);
+  function getNodesByCountryCode(string calldata countryCode) external view returns(LibStorageNode.StorageNode[] memory);
 
   /**
     * @notice Return an array of `Storagenode` structs for countryCode
@@ -205,14 +205,14 @@ interface IStorageNodeManagement {
     * @param status Target status to be returned
     * @return StorageNode[] An array of `Storagenode` structs with inputed status
     */
-  function getNodesByCountryAndStatus(string calldata countryCode, LibCommon.EnumStatus status) external view returns(LibStorageNode.StorageNode[] memory);
+  function getNodesByCountryCodeAndStatus(string calldata countryCode, LibCommon.EnumStatus status) external view returns(LibStorageNode.StorageNode[] memory);
 
   /**
     * @notice Return an array of `Storagenode` structs for regionCode
     * @param regionCode Unique region string code
     * @return StorageNode[] An array of `Storagenode` structs
     */
-  function getNodesByRegion(string calldata regionCode) external view returns(LibStorageNode.StorageNode[] memory);
+  function getNodesByRegionCode(string calldata regionCode) external view returns(LibStorageNode.StorageNode[] memory);
 
   /**
     * @notice Return an array of `Storagenode` structs for regionCode
@@ -220,5 +220,12 @@ interface IStorageNodeManagement {
     * @param status Target status to be returned
     * @return StorageNode[] An array of `Storagenode` structs with inputed status
     */
-  function getNodesByRegionAndStatus(string calldata regionCode, LibCommon.EnumStatus status) external view returns(LibStorageNode.StorageNode[] memory);
+  function getNodesByRegionCodeAndStatus(string calldata regionCode, LibCommon.EnumStatus status) external view returns(LibStorageNode.StorageNode[] memory);
+
+  /**
+   * @notice Returns an array of `StorageNode` by the specified status
+   * @param status Target status to be returned
+   * @return StorageNode[] An array of `Storagenode` structs with inputed status
+   */
+  function getNodesByStatus(LibCommon.EnumStatus status) external view returns(LibStorageNode.StorageNode[] memory);
 }

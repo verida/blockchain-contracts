@@ -243,20 +243,20 @@ describe('DataCentre Test', async function () {
 
       it("Failed: Invalid IDs", async () => {
         let invalidIDs: bigint[] = [0n];
-        await expect(contract.getDataCentres(invalidIDs)).to.be.revertedWithCustomError(contract, "InvalidDataCentreId");
+        await expect(contract.getDataCentresById(invalidIDs)).to.be.revertedWithCustomError(contract, "InvalidDataCentreId");
 
         invalidIDs = [0n, maxDataCentreID + 1n];
-        await expect(contract.getDataCentres(invalidIDs)).to.be.revertedWithCustomError(contract, "InvalidDataCentreId");
+        await expect(contract.getDataCentresById(invalidIDs)).to.be.revertedWithCustomError(contract, "InvalidDataCentreId");
 
         invalidIDs = [0n, datacentreIds[0]];
-        await expect(contract.getDataCentres(invalidIDs)).to.be.revertedWithCustomError(contract, "InvalidDataCentreId");
+        await expect(contract.getDataCentresById(invalidIDs)).to.be.revertedWithCustomError(contract, "InvalidDataCentreId");
 
         invalidIDs = [datacentreIds[0], maxDataCentreID + 1n];
-        await expect(contract.getDataCentres(invalidIDs)).to.be.revertedWithCustomError(contract, "InvalidDataCentreId");
+        await expect(contract.getDataCentresById(invalidIDs)).to.be.revertedWithCustomError(contract, "InvalidDataCentreId");
       })
 
       it("Success",async () => {
-        const result = await contract.getDataCentres(datacentreIds);
+        const result = await contract.getDataCentresById(datacentreIds);
         for (let i = 0; i < DATA_CENTERS.length; i++) {
             checkDatacentreResult(result[i], DATA_CENTERS[i]);
             expect(result[i].status).to.be.eq(EnumStatus.active);
@@ -270,7 +270,7 @@ describe('DataCentre Test', async function () {
         const tx = await contract.removeDataCentre(datacentreIds[0]);
         await expect(tx).to.emit(contract, "RemoveDataCentre").withArgs(datacentreIds[0], DATA_CENTERS[0].name);
 
-        const result = await contract.getDataCentres([datacentreIds[0]]);
+        const result = await contract.getDataCentresById([datacentreIds[0]]);
         checkDatacentreResult(result[0], DATA_CENTERS[0]);
         expect(result[0].status).to.be.eq(EnumStatus.removed);
 
@@ -282,7 +282,7 @@ describe('DataCentre Test', async function () {
       describe("Get without status filter", () => {
         it("Failed: Invalid country code", async () => {
           for (let i = 0; i < INVALID_COUNTRY_CODES.length; i++) {
-              await expect(contract.getDataCentresByCountry(INVALID_COUNTRY_CODES[i])).to.be.revertedWithCustomError(contract, "InvalidCountryCode");
+              await expect(contract.getDataCentresByCountryCode(INVALID_COUNTRY_CODES[i])).to.be.revertedWithCustomError(contract, "InvalidCountryCode");
           }
         })
   
@@ -290,18 +290,18 @@ describe('DataCentre Test', async function () {
           const unregisteredCountryCodes = ["at", "by", "sg"];
           for (let i = 0; i < unregisteredCountryCodes.length; i++) {
               expect(
-                  await contract.getDataCentresByCountry(unregisteredCountryCodes[i])
+                  await contract.getDataCentresByCountryCode(unregisteredCountryCodes[i])
               ).to.deep.equal([]);
           }
         })
   
         it("Success", async () => {
-          let result = await contract.getDataCentresByCountry("us");
+          let result = await contract.getDataCentresByCountryCode("us");
           expect(result.length).to.equal(2);
           checkDatacentreResult(result[0], DATA_CENTERS[0]);
           checkDatacentreResult(result[1], DATA_CENTERS[2]);
   
-          result = await contract.getDataCentresByCountry("uk");
+          result = await contract.getDataCentresByCountryCode("uk");
           expect(result.length).to.equal(1);
           checkDatacentreResult(result[0], DATA_CENTERS[1]);
         })
@@ -317,14 +317,14 @@ describe('DataCentre Test', async function () {
           }
           
           // Check getDataCentresByCountry
-          let result = await contract.getDataCentresByCountry("us");
+          let result = await contract.getDataCentresByCountryCode("us");
           expect(result.length).to.equal(2);
           checkDatacentreResult(result[0], DATA_CENTERS[0]);
           expect(result[0].status).to.be.eq(EnumStatus.removed);
           checkDatacentreResult(result[1], DATA_CENTERS[2]);
           expect(result[1].status).to.be.eq(EnumStatus.active);
   
-          result = await contract.getDataCentresByCountry("uk");
+          result = await contract.getDataCentresByCountryCode("uk");
           expect(result.length).to.equal(1);
           checkDatacentreResult(result[0], DATA_CENTERS[1]);
           expect(result[0].status).to.be.eq(EnumStatus.removed);
@@ -400,23 +400,23 @@ describe('DataCentre Test', async function () {
     describe("Get datacentres by region code", () => {
       describe("Get without status filter", () => {
         it("Failed: Invalid region code", async () => {
-            await expect(contract.getDataCentresByRegion("")).to.be.revertedWithCustomError(contract, "InvalidRegionCode");
+            await expect(contract.getDataCentresByRegionCode("")).to.be.revertedWithCustomError(contract, "InvalidRegionCode");
         })
   
         it("Return empty arry for unregistered region codes", async () => {
           const unregisteredRegionCodes = ["asia", "africa"];
           for (let i = 0; i < unregisteredRegionCodes.length; i++) {
-              expect(await contract.getDataCentresByRegion(unregisteredRegionCodes[i])).to.deep.equal([]);
+              expect(await contract.getDataCentresByRegionCode(unregisteredRegionCodes[i])).to.deep.equal([]);
           }
         })
   
         it("Success", async () => {
-          let result = await contract.getDataCentresByRegion("north america");
+          let result = await contract.getDataCentresByRegionCode("north america");
           expect(result.length).to.equal(2);
           checkDatacentreResult(result[0], DATA_CENTERS[0]);
           checkDatacentreResult(result[1], DATA_CENTERS[2]);
   
-          result = await contract.getDataCentresByRegion("europe");
+          result = await contract.getDataCentresByRegionCode("europe");
           expect(result.length).to.equal(1);
           checkDatacentreResult(result[0], DATA_CENTERS[1]);
         })
@@ -432,14 +432,14 @@ describe('DataCentre Test', async function () {
           }
           
           // Check getDataCentresByCountry
-          let result = await contract.getDataCentresByRegion("north america");
+          let result = await contract.getDataCentresByRegionCode("north america");
           expect(result.length).to.equal(2);
           checkDatacentreResult(result[0], DATA_CENTERS[0]);
           expect(result[0].status).to.be.eq(EnumStatus.removed);
           checkDatacentreResult(result[1], DATA_CENTERS[2]);
           expect(result[1].status).to.be.eq(EnumStatus.active);
   
-          result = await contract.getDataCentresByRegion("europe");
+          result = await contract.getDataCentresByRegionCode("europe");
           expect(result.length).to.equal(1);
           checkDatacentreResult(result[0], DATA_CENTERS[1]);
           expect(result[0].status).to.be.eq(EnumStatus.removed);
