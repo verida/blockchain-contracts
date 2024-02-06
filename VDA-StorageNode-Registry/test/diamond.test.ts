@@ -6,7 +6,7 @@ import { deploy } from "../scripts/libraries/deployment";
 import { ethers } from 'hardhat';
 import { DiamondCutFacet, DiamondLoupeFacet, OwnershipFacet } from '../typechain-types';
 import { expect } from 'chai';
-import { createDatacenterStruct } from './utils/helpers';
+import { createDatacentreStruct } from './utils/helpers';
 
 const { assert } = require('chai')
 
@@ -68,15 +68,15 @@ describe('Diamond Test', async function () {
     )
   })
 
-  it('should add DataCenter functions', async () => {
-    const datacenterFacet = await ethers.deployContract("VDADataCenterFacet");
-    await datacenterFacet.waitForDeployment();
+  it('should add DataCentre functions', async () => {
+    const datacentreFacet = await ethers.deployContract("VDADataCentreFacet");
+    await datacentreFacet.waitForDeployment();
 
-    addresses.push(await datacenterFacet.getAddress())
-    const selectors = getSelectors(datacenterFacet).remove(['removeDataCenterByName'])
+    addresses.push(await datacentreFacet.getAddress())
+    const selectors = getSelectors(datacentreFacet).remove(['removeDataCentreByName'])
     tx = await diamondCutFacet.diamondCut(
       [{
-        facetAddress: await datacenterFacet.getAddress(),
+        facetAddress: await datacentreFacet.getAddress(),
         action: FacetCutAction.Add,
         functionSelectors: selectors
       }],
@@ -85,27 +85,27 @@ describe('Diamond Test', async function () {
     if (!receipt.status) {
       throw Error(`Diamond upgrade failed: ${tx.hash}`)
     }
-    result = await diamondLoupeFacet.facetFunctionSelectors(await datacenterFacet.getAddress())
+    result = await diamondLoupeFacet.facetFunctionSelectors(await datacentreFacet.getAddress())
     expect(selectors).to.have.all.members(result, "Have same selectors");
   })
 
   it('should test function call', async () => {
-    const datacenter = createDatacenterStruct("center-1", "us", "north america", -90, -150);
+    const datacentre = createDatacentreStruct("centre-1", "us", "north america", -90, -150);
 
-    const datacenterFacet = await ethers.getContractAt("VDADataCenterFacet", diamondAddress);
+    const datacentreFacet = await ethers.getContractAt("VDADataCentreFacet", diamondAddress);
     
-    const tx = await datacenterFacet.addDataCenter(datacenter);
+    const tx = await datacentreFacet.addDataCentre(datacentre);
 
-    await expect(tx).to.emit(datacenterFacet, "AddDataCenter");
+    await expect(tx).to.emit(datacentreFacet, "AddDataCentre");
   })
 
-  it('should add `removeDataCenterByName` function', async () => {
-    const datacenterFacet = await ethers.getContractFactory("VDADataCenterFacet");
-    const selectors = getSelectors(datacenterFacet).get(['removeDataCenterByName'])
-    const datacenterFacetAddress = addresses[3];
+  it('should add `removeDataCentreByName` function', async () => {
+    const datacentreFacet = await ethers.getContractFactory("VDADataCentreFacet");
+    const selectors = getSelectors(datacentreFacet).get(['removeDataCentreByName'])
+    const datacentreFacetAddress = addresses[3];
     tx = await diamondCutFacet.diamondCut(
       [{
-        facetAddress: datacenterFacetAddress,
+        facetAddress: datacentreFacetAddress,
         action: FacetCutAction.Add,
         functionSelectors: selectors
       }],
@@ -114,14 +114,14 @@ describe('Diamond Test', async function () {
     if (!receipt.status) {
       throw Error(`Diamond upgrade failed: ${tx.hash}`)
     }
-    result = await diamondLoupeFacet.facetFunctionSelectors(datacenterFacetAddress)
-    expect(getSelectors(datacenterFacet)).to.have.all.members(result, "Have same selectors");
+    result = await diamondLoupeFacet.facetFunctionSelectors(datacentreFacetAddress)
+    expect(getSelectors(datacentreFacet)).to.have.all.members(result, "Have same selectors");
   })
 
-  it('should remove some datacenter functions', async () => {
-    const datacenterFacet = await ethers.getContractAt("VDADataCenterFacet", diamondAddress)
-    const functionsToKeep = ['addDataCenter', 'removeDataCenter', 'getDataCenters']
-    const selectors = getSelectors(datacenterFacet).remove(functionsToKeep)
+  it('should remove some datacentre functions', async () => {
+    const datacentreFacet = await ethers.getContractAt("VDADataCentreFacet", diamondAddress)
+    const functionsToKeep = ['addDataCentre', 'removeDataCentre', 'getDataCentres']
+    const selectors = getSelectors(datacentreFacet).remove(functionsToKeep)
     tx = await diamondCutFacet.diamondCut(
       [{
         facetAddress: ethers.ZeroAddress,
@@ -134,7 +134,7 @@ describe('Diamond Test', async function () {
       throw Error(`Diamond upgrade failed: ${tx.hash}`)
     }
     result = await diamondLoupeFacet.facetFunctionSelectors(addresses[3])
-    expect(getSelectors(datacenterFacet).get(functionsToKeep)).to.have.all.members(result, "Have same selectors");
+    expect(getSelectors(datacentreFacet).get(functionsToKeep)).to.have.all.members(result, "Have same selectors");
   })
   
   it('remove all functions and facets accept \'diamondCut\' and \'facets\'', async () => {
@@ -166,7 +166,7 @@ describe('Diamond Test', async function () {
 
   it('add most functions and facets', async () => {
     const diamondLoupeFacetSelectors = getSelectors(diamondLoupeFacet).remove(['supportsInterface(bytes4)'])
-    const dataCenterFacet = await ethers.getContractFactory("VDADataCenterFacet")
+    const dataCentreFacet = await ethers.getContractFactory("VDADataCentreFacet")
     // Any number of functions from any number of facets can be added/replaced/removed in a
     // single transaction
     const cut = [
@@ -183,7 +183,7 @@ describe('Diamond Test', async function () {
       {
         facetAddress: addresses[3],
         action: FacetCutAction.Add,
-        functionSelectors: getSelectors(dataCenterFacet)
+        functionSelectors: getSelectors(dataCentreFacet)
       }
     ]
     tx = await diamondCutFacet.diamondCut(cut, ethers.ZeroAddress, '0x', { gasLimit: 8000000 })
@@ -203,6 +203,6 @@ describe('Diamond Test', async function () {
     expect(getSelectors(diamondCutFacet)).to.have.all.members(facets[findAddressPositionInFacets(addresses[0], facets)!][1])
     expect(diamondLoupeFacetSelectors).to.have.all.members(facets[findAddressPositionInFacets(addresses[1], facets)!][1]);
     expect(getSelectors(ownershipFacet)).to.have.all.members(facets[findAddressPositionInFacets(addresses[2], facets)!][1]);
-    expect(getSelectors(dataCenterFacet)).to.have.all.members(facets[findAddressPositionInFacets(addresses[3], facets)!][1]);
+    expect(getSelectors(dataCentreFacet)).to.have.all.members(facets[findAddressPositionInFacets(addresses[3], facets)!][1]);
   })
 })

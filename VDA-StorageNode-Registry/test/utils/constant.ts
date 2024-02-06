@@ -1,4 +1,4 @@
-import { createDatacenterStruct } from "./helpers";
+import { createDatacentreStruct } from "./helpers";
 
 export enum EnumStatus {
     removed = 0,
@@ -22,9 +22,9 @@ export const INVALID_REGION_CODES = [
 ]
 
 export const DATA_CENTERS = [
-    createDatacenterStruct("center-1", "us", "north america", -90, -150),
-    createDatacenterStruct("center-2", "uk", "europe", 80, 130),
-    createDatacenterStruct("center-3", "us", "north america", -70, -120),
+    createDatacentreStruct("centre-1", "us", "north america", -90, -150),
+    createDatacentreStruct("centre-2", "uk", "europe", 80, 130),
+    createDatacentreStruct("centre-3", "us", "north america", -70, -120),
 ]
 
 export const VALID_NUMBER_SLOTS = 20000;

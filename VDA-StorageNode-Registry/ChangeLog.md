@@ -28,8 +28,8 @@ function setWithdrawalEnabled(bool isEnabled) external;
 
 2023-12-12 (V1.0.0)
 -------------------
-- Update function names in `VDADataCenterFacet` contract
-    `isDataCenterNameRegistered()` -> `isRegisteredDataCenterName`
+- Update function names in `VDADataCentreFacet` contract
+    `isDataCentreNameRegistered()` -> `isRegisteredDataCentreName`
 - Update function names in `VDAStorageNodeManagementFacet` contract
     `isRegisteredName()` -> `isRegisteredNodeName()`
     `isRegisteredAddress()` -> `isRegisteredNodeAddress()`
@@ -41,10 +41,10 @@ function setWithdrawalEnabled(bool isEnabled) external;
 - **Update deployment script:**
     Deploy primite facets first, and then diamond contract with less deployment arguments. After diamond deployed, add another facets using the `DiamondCutFacet`. Thus, we can verify the diamond cotract with less arguments.
 
-- Renamed duplicated function names in `VDADataCenterFacet` contract:
+- Renamed duplicated function names in `VDADataCentreFacet` contract:
 ```ts
-function getDataCentersByCountryAndStatus(countryCode, status)...;
-function getDataCentersByRegionAndStatus(regionCode, status) ...;
+function getDataCentresByCountryAndStatus(countryCode, status)...;
+function getDataCentresByRegionAndStatus(regionCode, status) ...;
 ```
 - Renamed duplicated function names in `VDAStorageNodeManagementFacet` contract:
 ```ts
@@ -68,7 +68,7 @@ function isRegisteredEndpoint(string calldata endpointUri) external view returns
 
 2023-12-06 (V1.0.0)
 -------------------
-- Data centers are remained after removed. The status changed from "active" to "removed"
+- Data centres are remained after removed. The status changed from "active" to "removed"
 - Storage nodes are remained after removed. The status changed as following : "active" -> "removing" -> "removed"
 - Updated test codes
 
@@ -84,13 +84,13 @@ function isRegisteredEndpoint(string calldata endpointUri) external view returns
 
 2023-11-15 (V0.2.4)
 -------------------
-- Added `removeDataCenterByName()` and `isDataCenterNameRegistered()` functions
-- Updated `getDatacenterByName()` to `getDataCentersByName()`
+- Added `removeDataCentreByName()` and `isDataCentreNameRegistered()` functions
+- Updated `getDatacentreByName()` to `getDataCentresByName()`
 - Added test code for above functions
 
 2023-11-09 (V0.2.3)
 -------------------
-- Added `getDatacenterByName()` function
+- Added `getDatacentreByName()` function
 - Updated functions as `virtual`
 
 2023-11-09 (V0.2.2)

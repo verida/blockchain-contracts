@@ -7,7 +7,7 @@ import { checkAddNode, checkRemoveNodeComplete, checkRemoveNodeStart, createStor
 import { SignerWithAddress } from "@nomicfoundation/hardhat-ethers/signers";
 import { HDNodeWallet, Wallet } from 'ethers'
 import { SnapshotRestorer, takeSnapshot, time } from "@nomicfoundation/hardhat-network-helpers";
-import { IStorageNodeManagement, MockToken, VDADataCenterFacet, VDAStorageNodeFacet, VDAStorageNodeManagementFacet, VDAVerificationFacet } from "../typechain-types";
+import { IStorageNodeManagement, MockToken, VDADataCentreFacet, VDAStorageNodeFacet, VDAStorageNodeManagementFacet, VDAVerificationFacet } from "../typechain-types";
 import { DATA_CENTERS, EnumStatus, INVALID_COUNTRY_CODES, INVALID_REGION_CODES, VALID_NUMBER_SLOTS } from "./utils/constant";
 import { days, hours } from "@nomicfoundation/hardhat-network-helpers/dist/src/helpers/time/duration";
 import { LibStorageNode } from "../typechain-types/contracts/facets/VDAStorageNodeManagementFacet";
@@ -50,15 +50,15 @@ describe('StorageNode Node Management Test', async function () {
   let accounts: SignerWithAddress[];
 
   let verificationContract: VDAVerificationFacet;
-  let datacenterContract: VDADataCenterFacet;
+  let datacentreContract: VDADataCentreFacet;
   let nodeManageContract: VDAStorageNodeManagementFacet;
   let nodeContract: VDAStorageNodeFacet;
   let tokenContract: MockToken;
 
-  const datacenterIds : bigint[] = [];
-  let maxDataCenterID : bigint;
+  const datacentreIds : bigint[] = [];
+  let maxDataCentreID : bigint;
 
-  let snapShotWithDatacenters: SnapshotRestorer;
+  let snapShotWithDatacentres: SnapshotRestorer;
 
   const slotTokenAmount = async (numberSlot: bigint) : Promise<bigint> => {
     const stakePerSlot = await nodeContract.getStakePerSlot();
@@ -90,34 +90,34 @@ describe('StorageNode Node Management Test', async function () {
       tokenAddress
     } = await deploy(undefined, [
       'VDAVerificationFacet', 
-      'VDADataCenterFacet', 
+      'VDADataCentreFacet', 
       'VDAStorageNodeManagementFacet',
       'VDAStorageNodeFacet'
     ]));
 
     verificationContract = await ethers.getContractAt("VDAVerificationFacet", diamondAddress);
-    datacenterContract = await ethers.getContractAt("VDADataCenterFacet", diamondAddress)
+    datacentreContract = await ethers.getContractAt("VDADataCentreFacet", diamondAddress)
     nodeManageContract = await ethers.getContractAt("VDAStorageNodeManagementFacet", diamondAddress);
     nodeContract = await ethers.getContractAt("VDAStorageNodeFacet", diamondAddress);
     
     tokenContract = await ethers.getContractAt("MockToken", tokenAddress);
 
-    // Add datacenters
+    // Add datacentres
     for (let i = 0; i < DATA_CENTERS.length; i++) {
-        const tx = await datacenterContract.addDataCenter(DATA_CENTERS[i])
+        const tx = await datacentreContract.addDataCentre(DATA_CENTERS[i])
 
         const transactionReceipt = await tx.wait();
-        const events = await datacenterContract.queryFilter(
-          datacenterContract.filters.AddDataCenter,
+        const events = await datacentreContract.queryFilter(
+          datacentreContract.filters.AddDataCentre,
           transactionReceipt?.blockNumber,
           transactionReceipt?.blockNumber
         );
         if (events.length > 0) {
-          datacenterIds.push(events[0].args[0]);
+          datacentreIds.push(events[0].args[0]);
         }
     }
-    maxDataCenterID = datacenterIds[datacenterIds.length -1];
-    snapShotWithDatacenters = await takeSnapshot();
+    maxDataCentreID = datacentreIds[datacentreIds.length -1];
+    snapShotWithDatacentres = await takeSnapshot();
   })
 
   describe("Add storage node", () => {
@@ -143,7 +143,7 @@ describe('StorageNode Node Management Test', async function () {
     }
 
     before(async () => {
-        await snapShotWithDatacenters.restore();
+        await snapShotWithDatacentres.restore();
     })
 
     describe("Failed for invalid arguments", () => {
@@ -209,8 +209,8 @@ describe('StorageNode Node Management Test', async function () {
         }
       })
 
-      it("Failed: Invalid datacenterID - unregistered", async () => {
-        const invalidIds = [0n, maxDataCenterID + 1n, maxDataCenterID + 100n];
+      it("Failed: Invalid datacentreID - unregistered", async () => {
+        const invalidIds = [0n, maxDataCentreID + 1n, maxDataCentreID + 100n];
         for (let i = 0; i < invalidIds.length; i++) {
           const nodeInfo = createStorageNodeInputStruct(
             validNodeName,
@@ -226,14 +226,14 @@ describe('StorageNode Node Management Test', async function () {
 
           await expect(
               nodeManageContract.addNode(nodeInfo, "0x00", "0x00", "0x00")
-          ).to.be.revertedWithCustomError(nodeManageContract, "InvalidDataCenterId");
+          ).to.be.revertedWithCustomError(nodeManageContract, "InvalidDataCentreId");
         }
       })
 
-      it("Failed: Invalid datacenterID - removed", async () => {
+      it("Failed: Invalid datacentreID - removed", async () => {
         const currentSnapshot = await takeSnapshot();
 
-        await datacenterContract.removeDataCenter(datacenterIds[0]);
+        await datacentreContract.removeDataCentre(datacentreIds[0]);
 
         const nodeInfo = createStorageNodeInputStruct(
           validNodeName,
@@ -241,7 +241,7 @@ describe('StorageNode Node Management Test', async function () {
           "https://1",
           "us",
           "north america",
-          datacenterIds[0],
+          datacentreIds[0],
           0,
           0,
           1,
@@ -249,7 +249,7 @@ describe('StorageNode Node Management Test', async function () {
 
         await expect(
             nodeManageContract.addNode(nodeInfo, "0x00", "0x00", "0x00")
-        ).to.be.revertedWithCustomError(nodeManageContract, "InvalidDataCenterId");
+        ).to.be.revertedWithCustomError(nodeManageContract, "InvalidDataCentreId");
 
         await currentSnapshot.restore();
       })
@@ -263,7 +263,7 @@ describe('StorageNode Node Management Test', async function () {
             "https://1",
             "us",
             "north america",
-            datacenterIds[0],
+            datacentreIds[0],
             invalidLatValues[i],
             0,
             1,
@@ -283,7 +283,7 @@ describe('StorageNode Node Management Test', async function () {
             "https://1",
             "us",
             "north america",
-            datacenterIds[0],
+            datacentreIds[0],
             0,
             invalidLongValues[i],
             1,
@@ -303,7 +303,7 @@ describe('StorageNode Node Management Test', async function () {
             "https://1",
             "us",
             "north america",
-            datacenterIds[0],
+            datacentreIds[0],
             0,
             0,
             invalidSlots[i],
@@ -342,7 +342,7 @@ describe('StorageNode Node Management Test', async function () {
 
     describe("Test when the staking is not required", () => {
       before(async () => {
-          await snapShotWithDatacenters.restore();
+          await snapShotWithDatacentres.restore();
           await verificationContract.addTrustedSigner(trustedSigner.address);
 
           expect(await nodeContract.isStakingRequired()).to.be.eq(false);
@@ -400,7 +400,7 @@ describe('StorageNode Node Management Test', async function () {
 
     describe("Test when the staking is required", () => {
         before(async () => {
-          await snapShotWithDatacenters.restore();
+          await snapShotWithDatacentres.restore();
           await verificationContract.addTrustedSigner(trustedSigner.address);
 
           await expect(
@@ -474,7 +474,7 @@ describe('StorageNode Node Management Test', async function () {
 
   describe("Is registered data",async () => {
     before(async () => {
-      await snapShotWithDatacenters.restore();
+      await snapShotWithDatacentres.restore();
       await verificationContract.addTrustedSigner(trustedSigner.address);
       
       // Add node
@@ -529,7 +529,7 @@ describe('StorageNode Node Management Test', async function () {
     const endpointURI = ["https://1", "https://2", "https://3"];
     const nodeCountry = ["us", "us", "uk"];
     const nodeRegion = ["north america", "north america", "europe"];
-    const datacenterId = [1, 2, 3];
+    const datacentreId = [1, 2, 3];
     const lat = [-90, -88.5, 40];
     const long = [-180, 10.436, 120.467];
 
@@ -545,7 +545,7 @@ describe('StorageNode Node Management Test', async function () {
         expect(result.endpointUri).to.equal(org.endpointUri);
         expect(result.countryCode).to.equal(org.countryCode);
         expect(result.regionCode).to.equal(org.regionCode);
-        expect(result.datacenterId).to.equal(org.datacenterId);
+        expect(result.datacentreId).to.equal(org.datacentreId);
         expect(result.lat).to.equal(org.lat);
         expect(result.long).to.equal(org.long);
         expect(result.slotCount).to.equal(org.slotCount);
@@ -568,7 +568,7 @@ describe('StorageNode Node Management Test', async function () {
     }
 
     before(async () => {
-      await snapShotWithDatacenters.restore();
+      await snapShotWithDatacentres.restore();
 
       await verificationContract.addTrustedSigner(trustedSigner.address);
 
@@ -579,7 +579,7 @@ describe('StorageNode Node Management Test', async function () {
           endpointURI[i],
           nodeCountry[i],
           nodeRegion[i],
-          datacenterId[i],
+          datacentreId[i],
           lat[i],
           long[i],
           VALID_NUMBER_SLOTS,
@@ -879,7 +879,7 @@ describe('StorageNode Node Management Test', async function () {
       let beforeRemoveStartStatus: SnapshotRestorer
 
       before(async () => {
-        await snapShotWithDatacenters.restore();
+        await snapShotWithDatacentres.restore();
         await verificationContract.addTrustedSigner(trustedSigner.address);
         // Confirm that staking is not required
         expect(await nodeContract.isStakingRequired()).to.be.eq(false);
@@ -1130,7 +1130,7 @@ describe('StorageNode Node Management Test', async function () {
       }
 
       before(async () => {
-        await snapShotWithDatacenters.restore();
+        await snapShotWithDatacentres.restore();
         await verificationContract.addTrustedSigner(trustedSigner.address);
 
         // Confirm that staking is not required
@@ -1236,7 +1236,7 @@ describe('StorageNode Node Management Test', async function () {
         let snapShotRemoveStarted: SnapshotRestorer;
 
         before(async () => {
-          await snapShotWithDatacenters.restore();
+          await snapShotWithDatacentres.restore();
   
           await verificationContract.addTrustedSigner(trustedSigner.address);
           // Set staking as required

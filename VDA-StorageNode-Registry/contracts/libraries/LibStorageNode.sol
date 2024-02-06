@@ -19,7 +19,7 @@ library LibStorageNode {
      * @param endpointUri The storage node endpoint
      * @param countryCode Unique two-character string code
      * @param regionCode Unique region string code
-     * @param datacenterId Unique datacenter identifier that is created by `addDataCenter()` method.
+     * @param datacentreId Unique datacentre identifier that is created by `addDataCentre()` method.
      * @param lat Latitude
      * @param long Longitude
      * @param slotCount Number of slots indicationg how many storage slots the node will provide
@@ -35,7 +35,7 @@ library LibStorageNode {
         string endpointUri;
         string countryCode;
         string regionCode;
-        uint datacenterId;
+        uint datacentreId;
         int lat;
         int long;
         uint slotCount;

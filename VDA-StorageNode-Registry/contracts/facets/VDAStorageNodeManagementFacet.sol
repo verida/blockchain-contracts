@@ -7,7 +7,7 @@ import "@openzeppelin/contracts/utils/structs/EnumerableMap.sol";
 
 import { LibDiamond } from "../libraries/LibDiamond.sol";
 import { LibCommon } from "../libraries/LibCommon.sol";
-import { LibDataCenter } from "../libraries/LibDataCenter.sol";
+import { LibDataCentre } from "../libraries/LibDataCentre.sol";
 import { LibStorageNode } from "../libraries/LibStorageNode.sol";
 import { LibVerification } from "../libraries/LibVerification.sol";
 import { LibUtils } from "../libraries/LibUtils.sol";
@@ -53,7 +53,7 @@ contract VDAStorageNodeManagementFacet is IStorageNodeManagement {
       node.endpointUri = nodeInfo.endpointUri;
       node.countryCode = nodeInfo.countryCode;
       node.regionCode = nodeInfo.regionCode;
-      node.datacenterId = nodeInfo.datacenterId;
+      node.datacentreId = nodeInfo.datacentreId;
       node.lat = nodeInfo.lat;
       node.long = nodeInfo.long;
       node.slotCount = nodeInfo.slotCount;
@@ -67,7 +67,7 @@ contract VDAStorageNodeManagementFacet is IStorageNodeManagement {
       ds._countryNodeIds[nodeInfo.countryCode].add(nodeId);
       ds._regionNodeIds[nodeInfo.regionCode].add(nodeId);
 
-      LibDataCenter.increaseDataCenterNodeCount(nodeInfo.datacenterId);
+      LibDataCentre.increaseDataCentreNodeCount(nodeInfo.datacentreId);
     }
 
     emit AddNode(
@@ -76,7 +76,7 @@ contract VDAStorageNodeManagementFacet is IStorageNodeManagement {
       nodeInfo.endpointUri, 
       nodeInfo.countryCode, 
       nodeInfo.regionCode, 
-      nodeInfo.datacenterId,
+      nodeInfo.datacentreId,
       nodeInfo.lat,
       nodeInfo.long,
       nodeInfo.slotCount,
@@ -107,7 +107,7 @@ contract VDAStorageNodeManagementFacet is IStorageNodeManagement {
 
       LibUtils.validateCountryCode(nodeInfo.countryCode);
       LibUtils.validateRegionCode(nodeInfo.regionCode);
-      LibDataCenter.checkDataCenterIdActive(nodeInfo.datacenterId);
+      LibDataCentre.checkDataCentreIdActive(nodeInfo.datacentreId);
       LibUtils.validateGeoPosition(nodeInfo.lat, nodeInfo.long);
 
       // Check whether name was registered before
@@ -139,7 +139,7 @@ contract VDAStorageNodeManagementFacet is IStorageNodeManagement {
       params = abi.encodePacked(
         params,
         nodeInfo.regionCode,
-        nodeInfo.datacenterId);
+        nodeInfo.datacentreId);
           
       params = abi.encodePacked(
         params,
@@ -296,8 +296,8 @@ contract VDAStorageNodeManagementFacet is IStorageNodeManagement {
     // Update the status
     nodeInfo.status = LibCommon.EnumStatus.removed;
 
-    // Decrease active node count for data center
-    LibDataCenter.decreaseDataCenterNodeCount(nodeInfo.datacenterId);
+    // Decrease active node count for data centre
+    LibDataCentre.decreaseDataCentreNodeCount(nodeInfo.datacentreId);
     
     // Release fallback node to free
     address fallbackAddress = nodeInfo.fallbackNodeAddress;

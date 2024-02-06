@@ -17,7 +17,7 @@ interface IStorageNodeManagement {
     * @param endpointUri The storage node endpoint
     * @param countryCode Unique two-character string code
     * @param regionCode Unique region string code
-    * @param datacenterId Unique datacenter identifier that is created by `addDataCenter()` method.
+    * @param datacentreId Unique datacentre identifier that is created by `addDataCentre()` method.
     * @param lat Latitude
     * @param long Longitude
     * @param slotCount Number of slots indicationg how many storage slots the node will provide
@@ -29,7 +29,7 @@ interface IStorageNodeManagement {
     string endpointUri;
     string countryCode;
     string regionCode;
-    uint datacenterId;
+    uint datacentreId;
     int lat;
     int long;
     uint slotCount;
@@ -57,7 +57,7 @@ interface IStorageNodeManagement {
     * @param endpointUri The storage node endpoint
     * @param countryCode Unique two-character string code
     * @param regionCode Unique region string code
-    * @param datacenterId Unique datacenter identifier that is created by `addDataCenter()` method.
+    * @param datacentreId Unique datacentre identifier that is created by `addDataCentre()` method.
     * @param slotCount Number of slots indicationg how many storage slots the node will provide
     * @param acceptFallbackSlots Indicates if this storage node is willing to accept data from nodes that are shutting down
     * @param establishmentDate Node added time in seconds
@@ -68,7 +68,7 @@ interface IStorageNodeManagement {
     string endpointUri,
     string countryCode,
     string regionCode,
-    uint datacenterId,
+    uint datacentreId,
     int lat,
     int long,
     uint slotCount,

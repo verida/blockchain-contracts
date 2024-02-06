@@ -5,7 +5,7 @@ import { saveABI, saveDeployArgument, saveDeployedAddress } from "./libraries/ut
 async function main() {
   const { diamondAddress, tokenAddress, facetsAddress, abi, deployArgument } = await deploy(
     undefined, 
-    ['VDAVerificationFacet', 'VDADataCenterFacet', 'VDAStorageNodeFacet', 'VDAStorageNodeManagementFacet']);
+    ['VDAVerificationFacet', 'VDADataCentreFacet', 'VDAStorageNodeFacet', 'VDAStorageNodeManagementFacet']);
 
   await saveDeployedAddress(hre.network.name, diamondAddress, tokenAddress, facetsAddress);
   await saveABI(abi);

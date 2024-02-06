@@ -7,7 +7,7 @@ import { checkAddNode, createStorageNodeInputStruct, getWithdrawSignatures } fro
 import { SignerWithAddress } from "@nomicfoundation/hardhat-ethers/signers";
 import { Wallet } from 'ethers'
 import { SnapshotRestorer, takeSnapshot } from "@nomicfoundation/hardhat-network-helpers";
-import { MockToken, VDADataCenterFacet, VDAStorageNodeFacet, VDAStorageNodeManagementFacet, VDAVerificationFacet } from "../typechain-types";
+import { MockToken, VDADataCentreFacet, VDAStorageNodeFacet, VDAStorageNodeManagementFacet, VDAVerificationFacet } from "../typechain-types";
 import { DATA_CENTERS, VALID_NUMBER_SLOTS } from "./utils/constant";
 
 const { assert } = require('chai')
@@ -35,14 +35,14 @@ describe('StorageNode Deposit/Withdraw Test', async function () {
   let accounts: SignerWithAddress[];
 
   let verificationContract: VDAVerificationFacet;
-  let datacenterContract: VDADataCenterFacet;
+  let datacentreContract: VDADataCentreFacet;
   let nodeContract: VDAStorageNodeFacet;
   let nodeManageContract: VDAStorageNodeManagementFacet;
   let tokenContract: MockToken;
 
-  const datacenterIds : bigint[] = [];
+  const datacentreIds : bigint[] = [];
 
-  let snapShotWithDatacenters: SnapshotRestorer;
+  let snapShotWithDatacentres: SnapshotRestorer;
 
   const slotTokenAmount = async (numberSlot: bigint) : Promise<bigint> => {
     const stakePerSlot = await nodeContract.getStakePerSlot();
@@ -59,7 +59,7 @@ describe('StorageNode Deposit/Withdraw Test', async function () {
   }
 
   const setNodeAddedStatus = async () => {
-    await snapShotWithDatacenters.restore();
+    await snapShotWithDatacentres.restore();
     await verificationContract.addTrustedSigner(trustedSigner.address);
     await nodeContract.setStakingRequired(true);
     await approveToken(BigInt(storageNode.slotCount), owner, diamondAddress, true);
@@ -80,30 +80,30 @@ describe('StorageNode Deposit/Withdraw Test', async function () {
     ({
       diamondAddress,
       tokenAddress
-    } = await deploy(undefined, ['VDAVerificationFacet', 'VDADataCenterFacet', 'VDAStorageNodeFacet', 'VDAStorageNodeManagementFacet']));
+    } = await deploy(undefined, ['VDAVerificationFacet', 'VDADataCentreFacet', 'VDAStorageNodeFacet', 'VDAStorageNodeManagementFacet']));
 
     verificationContract = await ethers.getContractAt("VDAVerificationFacet", diamondAddress);
-    datacenterContract = await ethers.getContractAt("VDADataCenterFacet", diamondAddress)
+    datacentreContract = await ethers.getContractAt("VDADataCentreFacet", diamondAddress)
     nodeContract = await ethers.getContractAt("VDAStorageNodeFacet", diamondAddress);
     nodeManageContract = await ethers.getContractAt("VDAStorageNodeManagementFacet", diamondAddress);
     
     tokenContract = await ethers.getContractAt("MockToken", tokenAddress);
 
-    // Add datacenters
+    // Add datacentres
     for (let i = 0; i < DATA_CENTERS.length; i++) {
-        const tx = await datacenterContract.addDataCenter(DATA_CENTERS[i])
+        const tx = await datacentreContract.addDataCentre(DATA_CENTERS[i])
 
         const transactionReceipt = await tx.wait();
-        const events = await datacenterContract.queryFilter(
-          datacenterContract.filters.AddDataCenter,
+        const events = await datacentreContract.queryFilter(
+          datacentreContract.filters.AddDataCentre,
           transactionReceipt?.blockNumber,
           transactionReceipt?.blockNumber
         );
         if (events.length > 0) {
-          datacenterIds.push(events[0].args[0]);
+          datacentreIds.push(events[0].args[0]);
         }
     }
-    snapShotWithDatacenters = await takeSnapshot();
+    snapShotWithDatacentres = await takeSnapshot();
   })
 
   describe("Decimal and token address test",async () => {
@@ -151,7 +151,7 @@ describe('StorageNode Deposit/Withdraw Test', async function () {
 
   describe("Get balance", () => {
     before(async () => {
-      await snapShotWithDatacenters.restore();
+      await snapShotWithDatacentres.restore();
       await verificationContract.addTrustedSigner(trustedSigner.address);
     })
 
@@ -272,7 +272,7 @@ describe('StorageNode Deposit/Withdraw Test', async function () {
 
   describe("StakingRequired", () => {
     before(async() => {
-      await snapShotWithDatacenters.restore();
+      await snapShotWithDatacentres.restore();
 
       expect(await nodeContract.isStakingRequired()).to.be.eq(false);
     })
@@ -384,7 +384,7 @@ describe('StorageNode Deposit/Withdraw Test', async function () {
 
     describe("Test when staking not required", () => {
       before(async () => {
-        await snapShotWithDatacenters.restore();
+        await snapShotWithDatacentres.restore();
         await verificationContract.addTrustedSigner(trustedSigner.address);
         
         expect(await nodeContract.isStakingRequired()).to.be.eq(false);
