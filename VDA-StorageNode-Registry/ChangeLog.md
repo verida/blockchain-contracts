@@ -1,5 +1,9 @@
 2024-02-06 (V1.0.0)
 -------------------
+- Update typos in `ChangeLog.md` and `comments` : `depoist` to `deposit`
+
+2024-02-06 (V1.0.0)
+-------------------
 - Update spelling `datacenter` to `datacentre`
 - Update following function names
 ```
@@ -158,7 +162,7 @@ removeNodeComplete()
 ```
 - Added following functions related to staking feature
 ```
-function depoistToken(address didAddress, uint tokenAmount) external;
+function depositToken(address didAddress, uint tokenAmount) external;
 function withdrawExcessToken(address didAddress, bytes calldata requestSignature, bytes calldata requestProof) external;
 function getBalance(address didAddress) external view returns(uint);
 function excessTokenAmount(address didAddress) external view returns(uint);

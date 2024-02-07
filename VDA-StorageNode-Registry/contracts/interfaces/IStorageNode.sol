@@ -235,7 +235,7 @@ interface IStorageNode {
   ) external;
 
   /**
-    * @notice Depoist verida tokens from transaction creator(tx.origin) to the didAddress
+    * @notice Deposit verida tokens from transaction creator(tx.origin) to the didAddress
     * @dev Work for only the registered DIDs
     * @param didAddress DID address
     * @param tokenAmount Depositing amount of Verida token
@@ -243,7 +243,7 @@ interface IStorageNode {
   function depositToken(address didAddress, uint tokenAmount) external;
 
   /**
-    * @notice Depoist verida tokens from specified address(`from` parameter) to the didAddress
+    * @notice Deposit verida tokens from specified address(`from` parameter) to the didAddress
     * @dev Work for only the registered DIDs
     * @param didAddress DID address
     * @param from Smart contract or EOA address that provide the deposited token

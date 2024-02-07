@@ -6,7 +6,7 @@ interface IStorageNode {
   event TokenDeposited(address indexed didAddress, address from, uint amount);
 
   /**
-    * @notice Depoist verida tokens from specified address(`from` parameter) to the didAddress
+    * @notice Deposit verida tokens from specified address(`from` parameter) to the didAddress
     * @dev Work for only the registered DIDs
     * @param didAddress DID address
     * @param from Smart contract or EOA address that provide the deposited token
