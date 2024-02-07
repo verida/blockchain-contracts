@@ -1,6 +1,11 @@
-2024-02-06 (V1.0.0)
+2024-02-07 (V1.0.0)
 -------------------
 - Update typos in `ChangeLog.md` and `comments` : `depoist` to `deposit`
+- Update function name
+```
+getDatacentresByCountryAndStatus()      --> getDatacentresByCountryCodeAndStatus()
+getDatacentresByRegionAndStatus()      --> getDatacentresByRegionCodeAndStatus()
+```
 
 2024-02-06 (V1.0.0)
 -------------------

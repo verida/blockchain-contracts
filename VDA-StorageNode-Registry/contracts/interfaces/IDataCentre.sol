@@ -105,7 +105,7 @@ interface IDataCentre {
     * @param status Status of data centres to be returned
     * @return Datacentre[] Array of `Datacentre` structs 
     */
-  function getDataCentresByCountryAndStatus(string calldata countryCode, LibCommon.EnumStatus status) external view returns(LibDataCentre.DataCentre[] memory);
+  function getDataCentresByCountryCodeAndStatus(string calldata countryCode, LibCommon.EnumStatus status) external view returns(LibDataCentre.DataCentre[] memory);
 
   /**
     * @notice Return an array of `Datacentre` structs for region
@@ -120,5 +120,5 @@ interface IDataCentre {
     * @param status Status of data centres to be returned
     * @return Datacentre[] Array of `Datacentre` structs 
     */
-  function getDataCentresByRegionAndStatus(string calldata regionCode, LibCommon.EnumStatus status) external view returns(LibDataCentre.DataCentre[] memory);
+  function getDataCentresByRegionCodeAndStatus(string calldata regionCode, LibCommon.EnumStatus status) external view returns(LibDataCentre.DataCentre[] memory);
 }

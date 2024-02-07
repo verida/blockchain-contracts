@@ -336,8 +336,8 @@ describe('DataCentre Test', async function () {
       describe("Get with status filter", () => {
         it("Failed: Invalid country code", async () => {
           for (let i = 0; i < INVALID_COUNTRY_CODES.length; i++) {
-              await expect(contract.getDataCentresByCountryAndStatus(INVALID_COUNTRY_CODES[i], EnumStatus.active)).to.be.revertedWithCustomError(contract, "InvalidCountryCode");
-              await expect(contract.getDataCentresByCountryAndStatus(INVALID_COUNTRY_CODES[i], EnumStatus.removed)).to.be.revertedWithCustomError(contract, "InvalidCountryCode");
+              await expect(contract.getDataCentresByCountryCodeAndStatus(INVALID_COUNTRY_CODES[i], EnumStatus.active)).to.be.revertedWithCustomError(contract, "InvalidCountryCode");
+              await expect(contract.getDataCentresByCountryCodeAndStatus(INVALID_COUNTRY_CODES[i], EnumStatus.removed)).to.be.revertedWithCustomError(contract, "InvalidCountryCode");
           }
         })
   
@@ -345,31 +345,31 @@ describe('DataCentre Test', async function () {
           const unregisteredCountryCodes = ["at", "by", "sg"];
           for (let i = 0; i < unregisteredCountryCodes.length; i++) {
               expect(
-                  await contract.getDataCentresByCountryAndStatus(unregisteredCountryCodes[i], EnumStatus.active)
+                  await contract.getDataCentresByCountryCodeAndStatus(unregisteredCountryCodes[i], EnumStatus.active)
               ).to.deep.equal([]);
 
               expect(
-                await contract.getDataCentresByCountryAndStatus(unregisteredCountryCodes[i], EnumStatus.removed)
+                await contract.getDataCentresByCountryCodeAndStatus(unregisteredCountryCodes[i], EnumStatus.removed)
             ).to.deep.equal([]);
           }
         })
   
         it("Success", async () => {
           // 2 active data centres for "us"
-          let result = await contract.getDataCentresByCountryAndStatus("us", EnumStatus.active);
+          let result = await contract.getDataCentresByCountryCodeAndStatus("us", EnumStatus.active);
           expect(result.length).to.equal(2);
           checkDatacentreResult(result[0], DATA_CENTERS[0]);
           checkDatacentreResult(result[1], DATA_CENTERS[2]);
           // No removed data centres for "us"
-          result = await contract.getDataCentresByCountryAndStatus("us", EnumStatus.removed);
+          result = await contract.getDataCentresByCountryCodeAndStatus("us", EnumStatus.removed);
           expect(result.length).to.equal(0);
   
           // 1 active data cetner for "uk"
-          result = await contract.getDataCentresByCountryAndStatus("uk", EnumStatus.active);
+          result = await contract.getDataCentresByCountryCodeAndStatus("uk", EnumStatus.active);
           expect(result.length).to.equal(1);
           checkDatacentreResult(result[0], DATA_CENTERS[1]);
           // No removed data centres for "uk"
-          result = await contract.getDataCentresByCountryAndStatus("uk", EnumStatus.removed);
+          result = await contract.getDataCentresByCountryCodeAndStatus("uk", EnumStatus.removed);
           expect(result.length).to.equal(0);
         })
   
@@ -385,12 +385,12 @@ describe('DataCentre Test', async function () {
           
           // Check getDataCentresByCountry
           // 1 active and 1 removed for "us"
-          expect((await contract.getDataCentresByCountryAndStatus("us", EnumStatus.active)).length).to.equal(1);
-          expect((await contract.getDataCentresByCountryAndStatus("us", EnumStatus.removed)).length).to.equal(1);
+          expect((await contract.getDataCentresByCountryCodeAndStatus("us", EnumStatus.active)).length).to.equal(1);
+          expect((await contract.getDataCentresByCountryCodeAndStatus("us", EnumStatus.removed)).length).to.equal(1);
           
           // 0 active and 1 removed for "uk"
-          expect((await contract.getDataCentresByCountryAndStatus("uk", EnumStatus.active)).length).to.equal(0);
-          expect((await contract.getDataCentresByCountryAndStatus("uk", EnumStatus.removed)).length).to.equal(1);
+          expect((await contract.getDataCentresByCountryCodeAndStatus("uk", EnumStatus.active)).length).to.equal(0);
+          expect((await contract.getDataCentresByCountryCodeAndStatus("uk", EnumStatus.removed)).length).to.equal(1);
 
           await currentSnapshot.restore();
         })
@@ -450,34 +450,34 @@ describe('DataCentre Test', async function () {
 
       describe("Get with status filter", () => {
         it("Failed: Invalid region code", async () => {
-            await expect(contract.getDataCentresByRegionAndStatus("", EnumStatus.active)).to.be.revertedWithCustomError(contract, "InvalidRegionCode");
-            await expect(contract.getDataCentresByRegionAndStatus("", EnumStatus.removed)).to.be.revertedWithCustomError(contract, "InvalidRegionCode");
+            await expect(contract.getDataCentresByRegionCodeAndStatus("", EnumStatus.active)).to.be.revertedWithCustomError(contract, "InvalidRegionCode");
+            await expect(contract.getDataCentresByRegionCodeAndStatus("", EnumStatus.removed)).to.be.revertedWithCustomError(contract, "InvalidRegionCode");
         })
   
         it("Return empty arry for unregistered region codes", async () => {
           const unregisteredRegionCodes = ["asia", "africa"];
           for (let i = 0; i < unregisteredRegionCodes.length; i++) {
-              expect(await contract.getDataCentresByRegionAndStatus(unregisteredRegionCodes[i], EnumStatus.active)).to.deep.equal([]);
-              expect(await contract.getDataCentresByRegionAndStatus(unregisteredRegionCodes[i], EnumStatus.removed)).to.deep.equal([]);
+              expect(await contract.getDataCentresByRegionCodeAndStatus(unregisteredRegionCodes[i], EnumStatus.active)).to.deep.equal([]);
+              expect(await contract.getDataCentresByRegionCodeAndStatus(unregisteredRegionCodes[i], EnumStatus.removed)).to.deep.equal([]);
           }
         })
   
         it("Success", async () => {
           // 2 active data centres for "north america"
-          let result = await contract.getDataCentresByRegionAndStatus("north america", EnumStatus.active);
+          let result = await contract.getDataCentresByRegionCodeAndStatus("north america", EnumStatus.active);
           expect(result.length).to.equal(2);
           checkDatacentreResult(result[0], DATA_CENTERS[0]);
           checkDatacentreResult(result[1], DATA_CENTERS[2]);
           // no removed data centre for "north america"
-          result = await contract.getDataCentresByRegionAndStatus("north america", EnumStatus.removed);
+          result = await contract.getDataCentresByRegionCodeAndStatus("north america", EnumStatus.removed);
           expect(result.length).to.equal(0);
           
           // 1 active data centre for "europe"
-          result = await contract.getDataCentresByRegionAndStatus("europe", EnumStatus.active);
+          result = await contract.getDataCentresByRegionCodeAndStatus("europe", EnumStatus.active);
           expect(result.length).to.equal(1);
           checkDatacentreResult(result[0], DATA_CENTERS[1]);
           // no removed data centre for "europe"
-          result = await contract.getDataCentresByRegionAndStatus("europe", EnumStatus.removed);
+          result = await contract.getDataCentresByRegionCodeAndStatus("europe", EnumStatus.removed);
           expect(result.length).to.equal(0);
         })
   
@@ -492,12 +492,12 @@ describe('DataCentre Test', async function () {
           }
           
           // 1 active data centre and 1 removed data centre for "north america"
-          expect((await contract.getDataCentresByRegionAndStatus("north america", EnumStatus.active)).length).to.equal(1);
-          expect((await contract.getDataCentresByRegionAndStatus("north america", EnumStatus.removed)).length).to.equal(1);
+          expect((await contract.getDataCentresByRegionCodeAndStatus("north america", EnumStatus.active)).length).to.equal(1);
+          expect((await contract.getDataCentresByRegionCodeAndStatus("north america", EnumStatus.removed)).length).to.equal(1);
           
           // no active data centre and 1 removed data centre for "europe"
-          expect((await contract.getDataCentresByRegionAndStatus("europe", EnumStatus.active)).length).to.equal(0);
-          expect((await contract.getDataCentresByRegionAndStatus("europe", EnumStatus.removed)).length).to.equal(1);
+          expect((await contract.getDataCentresByRegionCodeAndStatus("europe", EnumStatus.active)).length).to.equal(0);
+          expect((await contract.getDataCentresByRegionCodeAndStatus("europe", EnumStatus.removed)).length).to.equal(1);
 
           await currentSnapshot.restore();
         })
