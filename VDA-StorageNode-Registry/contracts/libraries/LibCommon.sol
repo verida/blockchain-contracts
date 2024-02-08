@@ -3,7 +3,7 @@ pragma solidity ^0.8.18;
 
 library LibCommon {
     /**
-     * @notice Status of storage node & data center
+     * @notice Status of storage node & data centre
      */
     enum EnumStatus{
         removed,

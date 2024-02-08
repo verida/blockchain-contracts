@@ -1,19 +1,19 @@
 import { ethers } from "hardhat";
 import { BigNumberish, BytesLike, HDNodeWallet, Wallet } from "ethers";
 import EncryptionUtils from "@verida/encryption-utils";
-import { IDataCenter, IStorageNode, IStorageNodeManagement, VDAStorageNodeFacet, VDAStorageNodeManagementFacet } from "../../typechain-types";
+import { IDataCentre, IStorageNode, IStorageNodeManagement, VDAStorageNodeFacet, VDAStorageNodeManagementFacet } from "../../typechain-types";
 import { expect } from "chai";
 import { anyValue } from "@nomicfoundation/hardhat-chai-matchers/withArgs";
 import { SignerWithAddress } from "@nomicfoundation/hardhat-ethers/signers";
 
 const CONTRACT_DECIMAL = 9;
 
-export function createDatacenterStruct(
+export function createDatacentreStruct(
     name: string,
     countryCode: string,
     regionCode: string,
     lat: number,
-    long: number) : IDataCenter.DatacenterInputStruct {
+    long: number) : IDataCentre.DatacentreInputStruct {
     return {
         name,
         countryCode,
@@ -29,7 +29,7 @@ export function createStorageNodeInputStruct(
     endpointUri: string,
     countryCode: string,
     regionCode: string,
-    datacenterId: BigNumberish,
+    datacentreId: BigNumberish,
     lat: number,
     long: number,
     slotCount: BigNumberish,
@@ -41,7 +41,7 @@ export function createStorageNodeInputStruct(
         endpointUri,
         countryCode,
         regionCode,
-        datacenterId,
+        datacentreId,
         lat: ethers.parseUnits(lat.toString(), CONTRACT_DECIMAL),
         long: ethers.parseUnits(long.toString(), CONTRACT_DECIMAL),
         slotCount: slotCount,
@@ -63,7 +63,7 @@ export function getAddNodeSignatures(
 ) : RequestSignature {
     const rawmsg = ethers.solidityPacked(
         ["string", "address", "string", "uint", "int", "int", "uint", "bool", "uint"],
-        [node.name, node.didAddress, `${node.endpointUri}${node.countryCode}${node.regionCode}`, node.datacenterId, node.lat, node.long, node.slotCount, node.acceptFallbackSlots, nonce]
+        [node.name, node.didAddress, `${node.endpointUri}${node.countryCode}${node.regionCode}`, node.datacentreId, node.lat, node.long, node.slotCount, node.acceptFallbackSlots, nonce]
     );
 
     const privateKeyBuffer = new Uint8Array(Buffer.from(user.privateKey.slice(2), 'hex'));
@@ -204,7 +204,7 @@ export const checkAddNode = async (
             storageNode.endpointUri,
             storageNode.countryCode,
             storageNode.regionCode,
-            storageNode.datacenterId,
+            storageNode.datacentreId,
             storageNode.lat,
             storageNode.long,
             storageNode.slotCount,

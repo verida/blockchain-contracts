@@ -11,7 +11,7 @@ This contract has no dependencies to any verida contracts:
 
 There are 4 test files inside "test" directory:
 - `diamond.test.ts` : Test diamond features of add/remove/replace facets
-- `datacenter.test.ts` : Test features related to the data centers
+- `datacentre.test.ts` : Test features related to the data centres
 - `storagenode_manage.test.ts` : Test add/remove features of Storage Nodes
 - `storagenode_log.test.ts` : Test logging issues of Storage Nodes.
 
@@ -21,7 +21,7 @@ You can run test by following command:
 ``` 
 _**Example**_:
 ```
-    yarn test test/datacenter.test.ts
+    yarn test test/datacentre.test.ts
 ```
 
 ## Deployment

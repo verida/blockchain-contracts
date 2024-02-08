@@ -7,7 +7,7 @@ import { checkAddNode, createStorageNodeInputStruct, getLogNodeIssueSignatures }
 import { SignerWithAddress } from "@nomicfoundation/hardhat-ethers/signers";
 import { BigNumberish, HDNodeWallet, Wallet } from 'ethers'
 import { SnapshotRestorer, takeSnapshot, time } from "@nomicfoundation/hardhat-network-helpers";
-import { IStorageNode, MockToken, VDADataCenterFacet, VDAStorageNodeFacet, VDAStorageNodeManagementFacet, VDAVerificationFacet } from "../typechain-types";
+import { IStorageNode, MockToken, VDADataCentreFacet, VDAStorageNodeFacet, VDAStorageNodeManagementFacet, VDAVerificationFacet } from "../typechain-types";
 import { DATA_CENTERS, VALID_NUMBER_SLOTS } from "./utils/constant";
 import { hours } from "@nomicfoundation/hardhat-network-helpers/dist/src/helpers/time/duration";
 import { anyValue } from "@nomicfoundation/hardhat-chai-matchers/withArgs";
@@ -37,13 +37,13 @@ describe('SorageNode Log Related Test', async function () {
   let accounts: SignerWithAddress[];
 
   let verificationContract: VDAVerificationFacet;
-  let datacenterContract: VDADataCenterFacet;
+  let datacentreContract: VDADataCentreFacet;
   let nodeContract: VDAStorageNodeFacet;
   let nodeManageContract: VDAStorageNodeManagementFacet;
   let tokenContract: MockToken;
 
-  const datacenterIds : bigint[] = [];
-  let maxDataCenterID : bigint;
+  const datacentreIds : bigint[] = [];
+  let maxDataCentreID : bigint;
 
   let snapShotWithNodeAdded : SnapshotRestorer;
 
@@ -115,31 +115,31 @@ describe('SorageNode Log Related Test', async function () {
       diamondAddress,
       tokenAddress,
     } = await deploy(undefined, [
-      'VDAVerificationFacet', 'VDADataCenterFacet', 'VDAStorageNodeFacet', 'VDAStorageNodeManagementFacet'
+      'VDAVerificationFacet', 'VDADataCentreFacet', 'VDAStorageNodeFacet', 'VDAStorageNodeManagementFacet'
     ]));
 
     verificationContract = await ethers.getContractAt("VDAVerificationFacet", diamondAddress);
-    datacenterContract = await ethers.getContractAt("VDADataCenterFacet", diamondAddress)
+    datacentreContract = await ethers.getContractAt("VDADataCentreFacet", diamondAddress)
     nodeContract = await ethers.getContractAt("VDAStorageNodeFacet", diamondAddress);
     nodeManageContract = await ethers.getContractAt("VDAStorageNodeManagementFacet", diamondAddress);
     
     tokenContract = await ethers.getContractAt("MockToken", tokenAddress);
 
-    // Add datacenters
+    // Add datacentres
     for (let i = 0; i < DATA_CENTERS.length; i++) {
-        const tx = await datacenterContract.addDataCenter(DATA_CENTERS[i])
+        const tx = await datacentreContract.addDataCentre(DATA_CENTERS[i])
 
         const transactionReceipt = await tx.wait();
-        const events = await datacenterContract.queryFilter(
-          datacenterContract.filters.AddDataCenter,
+        const events = await datacentreContract.queryFilter(
+          datacentreContract.filters.AddDataCentre,
           transactionReceipt?.blockNumber,
           transactionReceipt?.blockNumber
         );
         if (events.length > 0) {
-          datacenterIds.push(events[0].args[0]);
+          datacentreIds.push(events[0].args[0]);
         }
     }
-    maxDataCenterID = datacenterIds[datacenterIds.length -1];
+    maxDataCentreID = datacentreIds[datacentreIds.length -1];
 
     // Add nodes
     await verificationContract.addTrustedSigner(trustedSigner.address);

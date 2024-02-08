@@ -7,7 +7,7 @@ import "@openzeppelin/contracts/utils/structs/EnumerableMap.sol";
 
 import { LibDiamond } from "../libraries/LibDiamond.sol";
 import { LibCommon } from "../libraries/LibCommon.sol";
-import { LibDataCenter } from "../libraries/LibDataCenter.sol";
+import { LibDataCentre } from "../libraries/LibDataCentre.sol";
 import { LibStorageNode } from "../libraries/LibStorageNode.sol";
 import { LibVerification } from "../libraries/LibVerification.sol";
 import { LibUtils } from "../libraries/LibUtils.sol";
@@ -42,7 +42,7 @@ contract VDAStorageNodeManagementFacet is IStorageNodeManagement {
     * @dev Internal function used in the `addNode()` function. Created for stack deep error
     * @param nodeInfo Node information to store
     */
-  function storeNodeInfo(StorageNodeInput memory nodeInfo) internal virtual {
+  function _storeNodeInfo(StorageNodeInput memory nodeInfo) internal virtual {
     LibStorageNode.NodeStorage storage ds = LibStorageNode.nodeStorage();
     {
       uint nodeId = ++ds._nodeIdCounter;
@@ -53,7 +53,7 @@ contract VDAStorageNodeManagementFacet is IStorageNodeManagement {
       node.endpointUri = nodeInfo.endpointUri;
       node.countryCode = nodeInfo.countryCode;
       node.regionCode = nodeInfo.regionCode;
-      node.datacenterId = nodeInfo.datacenterId;
+      node.datacentreId = nodeInfo.datacentreId;
       node.lat = nodeInfo.lat;
       node.long = nodeInfo.long;
       node.slotCount = nodeInfo.slotCount;
@@ -67,7 +67,7 @@ contract VDAStorageNodeManagementFacet is IStorageNodeManagement {
       ds._countryNodeIds[nodeInfo.countryCode].add(nodeId);
       ds._regionNodeIds[nodeInfo.regionCode].add(nodeId);
 
-      LibDataCenter.increaseDataCenterNodeCount(nodeInfo.datacenterId);
+      LibDataCentre.increaseDataCentreNodeCount(nodeInfo.datacentreId);
     }
 
     emit AddNode(
@@ -76,7 +76,7 @@ contract VDAStorageNodeManagementFacet is IStorageNodeManagement {
       nodeInfo.endpointUri, 
       nodeInfo.countryCode, 
       nodeInfo.regionCode, 
-      nodeInfo.datacenterId,
+      nodeInfo.datacentreId,
       nodeInfo.lat,
       nodeInfo.long,
       nodeInfo.slotCount,
@@ -107,7 +107,7 @@ contract VDAStorageNodeManagementFacet is IStorageNodeManagement {
 
       LibUtils.validateCountryCode(nodeInfo.countryCode);
       LibUtils.validateRegionCode(nodeInfo.regionCode);
-      LibDataCenter.checkDataCenterIdActive(nodeInfo.datacenterId);
+      LibDataCentre.checkDataCentreIdActive(nodeInfo.datacentreId);
       LibUtils.validateGeoPosition(nodeInfo.lat, nodeInfo.long);
 
       // Check whether name was registered before
@@ -139,7 +139,7 @@ contract VDAStorageNodeManagementFacet is IStorageNodeManagement {
       params = abi.encodePacked(
         params,
         nodeInfo.regionCode,
-        nodeInfo.datacenterId);
+        nodeInfo.datacentreId);
           
       params = abi.encodePacked(
         params,
@@ -160,7 +160,7 @@ contract VDAStorageNodeManagementFacet is IStorageNodeManagement {
       ds._stakedTokenAmount[nodeInfo.didAddress] = ds._stakedTokenAmount[nodeInfo.didAddress] + totalAmount;
     }
 
-    storeNodeInfo(nodeInfo);
+    _storeNodeInfo(nodeInfo);
   }
 
   /**
@@ -296,8 +296,8 @@ contract VDAStorageNodeManagementFacet is IStorageNodeManagement {
     // Update the status
     nodeInfo.status = LibCommon.EnumStatus.removed;
 
-    // Decrease active node count for data center
-    LibDataCenter.decreaseDataCenterNodeCount(nodeInfo.datacenterId);
+    // Decrease active node count for data centre
+    LibDataCentre.decreaseDataCentreNodeCount(nodeInfo.datacentreId);
     
     // Release fallback node to free
     address fallbackAddress = nodeInfo.fallbackNodeAddress;
@@ -369,12 +369,12 @@ contract VDAStorageNodeManagementFacet is IStorageNodeManagement {
 
   /**
     * @notice Filter nodes with inputed status
-    * @dev Used for `getNodesByCountry()` and `getNodesByRegion()` functions
+    * @dev Used for `getNodesByCountryCode()` and `getNodesByRegionCode()` functions
     * @param ids ID set
     * @param status Target status of storage nodes
     * @return StorageNode[] Array of active storage nodes
     */
-  function filterStorageNodes(EnumerableSet.UintSet storage ids, LibCommon.EnumStatus status) internal view virtual returns(LibStorageNode.StorageNode[] memory) {
+  function _filterNodesByStatus(EnumerableSet.UintSet storage ids, LibCommon.EnumStatus status) internal view virtual returns(LibStorageNode.StorageNode[] memory) {
     LibStorageNode.NodeStorage storage ds = LibStorageNode.nodeStorage();
 
     uint count = ids.length();
@@ -412,7 +412,7 @@ contract VDAStorageNodeManagementFacet is IStorageNodeManagement {
    * @param ids Array of nodeIds
    * @return StorageNode[] Array of storage node
    */
-  function getAllStorageNodes(EnumerableSet.UintSet storage ids) internal view virtual returns(LibStorageNode.StorageNode[] memory) {
+  function _getNodesById(EnumerableSet.UintSet storage ids) internal view virtual returns(LibStorageNode.StorageNode[] memory) {
     LibStorageNode.NodeStorage storage ds = LibStorageNode.nodeStorage();
     
     uint count = ids.length();
@@ -430,28 +430,60 @@ contract VDAStorageNodeManagementFacet is IStorageNodeManagement {
   /**
     * @dev see { IStorageNodeManagement }
     */
-  function getNodesByCountry(string calldata countryCode) external view virtual override returns(LibStorageNode.StorageNode[] memory) {
-    return getAllStorageNodes(LibStorageNode.nodeStorage()._countryNodeIds[countryCode]);
+  function getNodesByCountryCode(string calldata countryCode) external view virtual override returns(LibStorageNode.StorageNode[] memory) {
+    return _getNodesById(LibStorageNode.nodeStorage()._countryNodeIds[countryCode]);
   }
 
   /**
     * @dev see { IStorageNodeManagement }
     */
-  function getNodesByCountryAndStatus(string calldata countryCode, LibCommon.EnumStatus status) external view returns(LibStorageNode.StorageNode[] memory) {
-    return filterStorageNodes(LibStorageNode.nodeStorage()._countryNodeIds[countryCode], status);
+  function getNodesByCountryCodeAndStatus(string calldata countryCode, LibCommon.EnumStatus status) external view returns(LibStorageNode.StorageNode[] memory) {
+    return _filterNodesByStatus(LibStorageNode.nodeStorage()._countryNodeIds[countryCode], status);
   }
 
   /**
     * @dev see { IStorageNodeManagement }
     */
-  function getNodesByRegion(string calldata regionCode) external view virtual override returns(LibStorageNode.StorageNode[] memory) {
-    return getAllStorageNodes(LibStorageNode.nodeStorage()._regionNodeIds[regionCode]);
+  function getNodesByRegionCode(string calldata regionCode) external view virtual override returns(LibStorageNode.StorageNode[] memory) {
+    return _getNodesById(LibStorageNode.nodeStorage()._regionNodeIds[regionCode]);
   }
 
   /**
     * @dev see { IStorageNodeManagement }
     */
-  function getNodesByRegionAndStatus(string calldata regionCode, LibCommon.EnumStatus status) external view returns(LibStorageNode.StorageNode[] memory) {
-    return filterStorageNodes(LibStorageNode.nodeStorage()._regionNodeIds[regionCode], status);
+  function getNodesByRegionCodeAndStatus(string calldata regionCode, LibCommon.EnumStatus status) external view returns(LibStorageNode.StorageNode[] memory) {
+    return _filterNodesByStatus(LibStorageNode.nodeStorage()._regionNodeIds[regionCode], status);
+  }
+
+  /**
+    * @dev see { IStorageNodeManagement }
+    */
+  function getNodesByStatus(LibCommon.EnumStatus status) external view returns(LibStorageNode.StorageNode[] memory) {
+    LibStorageNode.NodeStorage storage ds = LibStorageNode.nodeStorage();
+    uint count = ds._nodeIdCounter;
+    uint filteredCount;
+
+    for(uint i; i<count;) {
+      if (ds._nodeMap[i+1].status == status) {
+        ++filteredCount;
+      }
+      unchecked {
+        ++i;
+      }
+    }
+
+    LibStorageNode.StorageNode[] memory nodeList = new LibStorageNode.StorageNode[](filteredCount);
+
+    uint nodeId;
+    for (uint i; i < count;) {
+      if (ds._nodeMap[i+1].status == status) {
+        nodeList[nodeId] = ds._nodeMap[i+1];
+        unchecked {
+          ++nodeId;
+        }
+      }
+      unchecked { ++i; }
+    }
+    return nodeList;
   }
 }

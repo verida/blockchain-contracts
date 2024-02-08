@@ -6,7 +6,7 @@ import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableMap.sol";
 
 import { LibDiamond } from "../libraries/LibDiamond.sol";
-import { LibDataCenter } from "../libraries/LibDataCenter.sol";
+import { LibDataCentre } from "../libraries/LibDataCentre.sol";
 import { LibStorageNode } from "../libraries/LibStorageNode.sol";
 import { LibVerification } from "../libraries/LibVerification.sol";
 import { LibUtils } from "../libraries/LibUtils.sol";
