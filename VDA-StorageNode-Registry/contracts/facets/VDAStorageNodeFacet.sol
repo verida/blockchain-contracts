@@ -464,7 +464,8 @@ contract VDAStorageNodeFacet is IStorageNode {
         }
     }
     // Check 1 hour condition for same node
-    for (uint i; i < logs._issueList.length;) {
+    uint len = logs._issueList.length;
+    for (uint i; i < len;) {
         if (logs._issueList[i].nodeDID == nodeAddress && 
             (block.timestamp - logs._issueList[i].time) < ds.SAME_NODE_LOG_DURATION) {
             revert InvalidSameNodeTime();

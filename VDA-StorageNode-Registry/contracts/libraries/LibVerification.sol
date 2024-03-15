@@ -64,8 +64,9 @@ library LibVerification {
 
         bool isVerified;
         uint index;
+        uint len = ds.trustedSigners.length();
 
-        while (index < ds.trustedSigners.length() && !isVerified) {
+        while (index < len && !isVerified) {
             address account = ds.trustedSigners.at(index);
 
             string memory strAccount = Strings.toHexString(uint256(uint160(account)));
@@ -116,8 +117,9 @@ library LibVerification {
 
         bool isVerified;
         uint index;
+        uint len = validSigners.length;
 
-        while (index < validSigners.length && !isVerified) {
+        while (index < len && !isVerified) {
             address account = validSigners[index];
 
             string memory strAccount = Strings.toHexString(uint256(uint160(account)));
@@ -202,8 +204,9 @@ library LibVerification {
 
         bool isVerified;
         uint index;
+        uint len = signers.length();
         
-        while (index < signers.length() && !isVerified) {
+        while (index < len && !isVerified) {
             address account = signers.at(index);
 
             if (authSigner == account) {

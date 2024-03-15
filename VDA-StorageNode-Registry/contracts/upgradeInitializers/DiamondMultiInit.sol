@@ -18,8 +18,12 @@ contract DiamondMultiInit {
         if(_addresses.length != _calldata.length) {
             revert AddressAndCalldataLengthDoNotMatch(_addresses.length, _calldata.length);
         }
-        for(uint i; i < _addresses.length; i++) {
-            LibDiamond.initializeDiamondCut(_addresses[i], _calldata[i]);            
+        uint len = _addresses.length;
+        for(uint i; i < len;) {
+            LibDiamond.initializeDiamondCut(_addresses[i], _calldata[i]);
+            unchecked {
+                ++i;
+            }
         }
     }
 }
