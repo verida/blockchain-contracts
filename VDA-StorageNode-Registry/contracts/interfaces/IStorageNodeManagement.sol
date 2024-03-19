@@ -195,37 +195,69 @@ interface IStorageNodeManagement {
   /**
     * @notice Return an array of `Storagenode` structs for countryCode
     * @param countryCode Unique two-character string code
+    * @param pageSize Number of maximum elements of returned
+    * @param pageNumber Page index. Index starts from 1
     * @return StorageNode[] An array of `Storagenode` structs. Reaturs all kinds of status
     */
-  function getNodesByCountryCode(string calldata countryCode) external view returns(LibStorageNode.StorageNode[] memory);
+  function getNodesByCountryCode(
+    string calldata countryCode,
+    uint pageSize,
+    uint pageNumber
+  ) external view returns(LibStorageNode.StorageNode[] memory);
 
   /**
     * @notice Return an array of `Storagenode` structs for countryCode
     * @param countryCode Unique two-character string code
     * @param status Target status to be returned
+    * @param pageSize Number of maximum elements of returned
+    * @param pageNumber Page index. Index starts from 1
     * @return StorageNode[] An array of `Storagenode` structs with inputed status
     */
-  function getNodesByCountryCodeAndStatus(string calldata countryCode, LibCommon.EnumStatus status) external view returns(LibStorageNode.StorageNode[] memory);
+  function getNodesByCountryCodeAndStatus(
+    string calldata countryCode, 
+    LibCommon.EnumStatus status,
+    uint pageSize,
+    uint pageNumber
+  ) external view returns(LibStorageNode.StorageNode[] memory);
 
   /**
     * @notice Return an array of `Storagenode` structs for regionCode
     * @param regionCode Unique region string code
+    * @param pageSize Number of maximum elements of returned
+    * @param pageNumber Page index. Index starts from 1
     * @return StorageNode[] An array of `Storagenode` structs
     */
-  function getNodesByRegionCode(string calldata regionCode) external view returns(LibStorageNode.StorageNode[] memory);
+  function getNodesByRegionCode(
+    string calldata regionCode,
+    uint pageSize,
+    uint pageNumber
+  ) external view returns(LibStorageNode.StorageNode[] memory);
 
   /**
     * @notice Return an array of `Storagenode` structs for regionCode
     * @param regionCode Unique region string code
     * @param status Target status to be returned
+    * @param pageSize Number of maximum elements of returned
+    * @param pageNumber Page index. Index starts from 1
     * @return StorageNode[] An array of `Storagenode` structs with inputed status
     */
-  function getNodesByRegionCodeAndStatus(string calldata regionCode, LibCommon.EnumStatus status) external view returns(LibStorageNode.StorageNode[] memory);
+  function getNodesByRegionCodeAndStatus(
+    string calldata regionCode, 
+    LibCommon.EnumStatus status,
+    uint pageSize,
+    uint pageNumber
+  ) external view returns(LibStorageNode.StorageNode[] memory);
 
   /**
    * @notice Returns an array of `StorageNode` by the specified status
    * @param status Target status to be returned
+   * @param pageSize Number of maximum elements of returned
+   * @param pageNumber Page index. Index starts from 1
    * @return StorageNode[] An array of `Storagenode` structs with inputed status
    */
-  function getNodesByStatus(LibCommon.EnumStatus status) external view returns(LibStorageNode.StorageNode[] memory);
+  function getNodesByStatus(
+    LibCommon.EnumStatus status,
+    uint pageSize,
+    uint pageNumber
+  ) external view returns(LibStorageNode.StorageNode[] memory);
 }

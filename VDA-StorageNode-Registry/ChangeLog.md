@@ -1,3 +1,9 @@
+2024-03-19 (V1.0.0)
+-------------------
+- Implemented 2-step ownership transfer
+- Added pagination to `getNodesBy...()` functions in the `StorageNodeManagementFacet.sol`
+- Updated the test codes for above 2 features
+
 2024-02-07 (V1.0.0)
 -------------------
 - Update typos in `ChangeLog.md` and `comments` : `depoist` to `deposit`

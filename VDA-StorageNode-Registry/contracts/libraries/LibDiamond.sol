@@ -65,16 +65,16 @@ library LibDiamond {
 
     function cancelTransferOwnership() internal {
         DiamondStorage storage ds = diamondStorage();
-        address pendingOwner = ds.pendingOwner;
+        address curPendingOwner = ds.pendingOwner;
         assembly {
-            if iszero(pendingOwner) {
+            if iszero(curPendingOwner) {
                 let ptr := mload(0x40)
                 mstore(ptr, 0x076fd0b400000000000000000000000000000000000000000000000000000000)
                 revert(ptr, 0x4) //revert NoPendingTrnasferOwnership()
             }
         }
         delete ds.pendingOwner;
-        emit OwnershipTransferCancelled(ds.contractOwner, pendingOwner);
+        emit OwnershipTransferCancelled(ds.contractOwner, curPendingOwner);
     }
 
     function acceptOwnership() internal {

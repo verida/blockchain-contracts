@@ -25,6 +25,8 @@ error InvalidFallbackNodeAddress();
 error InvalidFallbackNodeProofTime();
 error InvalidAvailableSlots();
 error InsufficientFallbackSlots();
+error InvalidPageSize();
+error InvalidPageNumber();
 
 contract VDAStorageNodeManagementFacet is IStorageNodeManagement {
   using EnumerableSet for EnumerableSet.UintSet;
@@ -368,60 +370,117 @@ contract VDAStorageNodeManagementFacet is IStorageNodeManagement {
   }
 
   /**
+   * @notice Revert if page information is not valid
+   * @param pageSize Number of maximum elements of returned
+   * @param pageNumber Page index. Starts from 1
+   */
+  function _validatePageInformation(uint pageSize, uint pageNumber) internal pure {
+    if (pageSize == 0) {
+      revert InvalidPageSize();
+    }
+
+    if (pageNumber == 0) {
+      revert InvalidPageNumber();
+    }
+  }
+
+  /**
     * @notice Filter nodes with inputed status
     * @dev Used for `getNodesByCountryCode()` and `getNodesByRegionCode()` functions
     * @param ids ID set
     * @param status Target status of storage nodes
+    * @param pageSize Number of maximum elements of returned
+    * @param pageNumber Page index. Starts from 1
     * @return StorageNode[] Array of active storage nodes
     */
-  function _filterNodesByStatus(EnumerableSet.UintSet storage ids, LibCommon.EnumStatus status) internal view virtual returns(LibStorageNode.StorageNode[] memory) {
+  function _filterNodesByStatus(
+    EnumerableSet.UintSet storage ids, 
+    LibCommon.EnumStatus status,
+    uint pageSize,
+    uint pageNumber
+  ) internal view virtual returns(LibStorageNode.StorageNode[] memory) {
+
+    _validatePageInformation(pageSize, pageNumber);
+
     LibStorageNode.NodeStorage storage ds = LibStorageNode.nodeStorage();
 
     uint count = ids.length();
     uint size;
 
-    {
-        uint nodeId;
-        for (uint i; i < count;) {
-            nodeId = ids.at(i);
-            if (ds._nodeMap[nodeId].status == status) {
-                ++size;
-            }
-            unchecked { ++i; }
-        }
-    }
+    LibStorageNode.StorageNode[] memory nodeList = new LibStorageNode.StorageNode[](pageSize);
 
-    LibStorageNode.StorageNode[] memory nodeList = new LibStorageNode.StorageNode[](size);
-    {
-        uint nodeId;
-        uint index;
-        for (uint i; i < count;) {
-            nodeId = ids.at(i);
-            if (ds._nodeMap[nodeId].status == status) {
-                nodeList[index] = ds._nodeMap[nodeId];
-                ++index;
-            }
-            unchecked { ++i; }
-        }
+    unchecked {
+      uint pageStartIndex = pageSize * (pageNumber - 1);
+      uint pageEndIndex = pageStartIndex + pageSize;
+      uint nodeId;
+
+      if (pageStartIndex >= count) {
+        return new LibStorageNode.StorageNode[](0);
+      }
+      
+      for (uint i; i < count && size < pageEndIndex;) {
+          nodeId = ids.at(i);
+          if (ds._nodeMap[nodeId].status == status) {
+              if (size >= pageStartIndex) {
+                nodeList[size - pageStartIndex] = ds._nodeMap[nodeId];
+              }
+              ++size;
+          }
+          ++i;
+      }
+
+      if (size < pageStartIndex) {
+        return new LibStorageNode.StorageNode[](0);
+      } else if (size == pageEndIndex) {
+        return nodeList;
+      } 
+
+      // Decrease Array Length
+      uint len = size - pageStartIndex;
+      LibStorageNode.StorageNode[] memory retList = new LibStorageNode.StorageNode[](len);
+      for (uint i; i < len;) {
+        retList[i] = nodeList[i];
+        ++i;
+      }
+      return retList;
     }
-    return nodeList;
   }
 
   /**
    * @notice Get the node list from node ids array
    * @param ids Array of nodeIds
+   * @param pageSize Number of maximum elements of returned
+   * @param pageNumber Page index. Starts from 1
    * @return StorageNode[] Array of storage node
    */
-  function _getNodesById(EnumerableSet.UintSet storage ids) internal view virtual returns(LibStorageNode.StorageNode[] memory) {
+  function _getNodesById(EnumerableSet.UintSet storage ids, uint pageSize, uint pageNumber) internal view virtual returns(LibStorageNode.StorageNode[] memory) {
+    if (pageSize == 0) {
+      revert InvalidPageSize();
+    }
+    if (pageNumber == 0) {
+      revert InvalidPageNumber();
+    }
     LibStorageNode.NodeStorage storage ds = LibStorageNode.nodeStorage();
-    
+
     uint count = ids.length();
-    LibStorageNode.StorageNode[] memory nodeList = new LibStorageNode.StorageNode[](count);
+
+    uint pageStartIndex = pageSize * (pageNumber - 1);
+    uint pageEndIndex = pageStartIndex + pageSize;
+    
+    if (pageStartIndex >= count) {
+      return new LibStorageNode.StorageNode[](0);
+    }
+
+    if (pageEndIndex > count) {
+      pageEndIndex = count;
+    }
+
+    LibStorageNode.StorageNode[] memory nodeList = new LibStorageNode.StorageNode[](pageEndIndex - pageStartIndex);
 
     uint nodeId;
-    for (uint i; i < count;) {
+    for (uint i = pageStartIndex; i < pageEndIndex;) {
         nodeId = ids.at(i);
-        nodeList[i] = ds._nodeMap[nodeId];
+        nodeList[i-pageStartIndex] = ds._nodeMap[nodeId];
         unchecked { ++i; }
     }
     return nodeList;
@@ -430,60 +489,98 @@ contract VDAStorageNodeManagementFacet is IStorageNodeManagement {
   /**
     * @dev see { IStorageNodeManagement }
     */
-  function getNodesByCountryCode(string calldata countryCode) external view virtual override returns(LibStorageNode.StorageNode[] memory) {
-    return _getNodesById(LibStorageNode.nodeStorage()._countryNodeIds[countryCode]);
+  function getNodesByCountryCode(
+    string calldata countryCode, 
+    uint pageSize, 
+    uint pageNumber
+  ) external view virtual override returns(LibStorageNode.StorageNode[] memory) {
+    return _getNodesById(LibStorageNode.nodeStorage()._countryNodeIds[countryCode], pageSize, pageNumber);
   }
 
   /**
     * @dev see { IStorageNodeManagement }
     */
-  function getNodesByCountryCodeAndStatus(string calldata countryCode, LibCommon.EnumStatus status) external view returns(LibStorageNode.StorageNode[] memory) {
-    return _filterNodesByStatus(LibStorageNode.nodeStorage()._countryNodeIds[countryCode], status);
+  function getNodesByCountryCodeAndStatus(
+    string calldata countryCode, 
+    LibCommon.EnumStatus status,
+    uint pageSize, 
+    uint pageNumber
+  ) external view returns(LibStorageNode.StorageNode[] memory) {
+    return _filterNodesByStatus(LibStorageNode.nodeStorage()._countryNodeIds[countryCode], status, pageSize, pageNumber);
   }
 
   /**
     * @dev see { IStorageNodeManagement }
     */
-  function getNodesByRegionCode(string calldata regionCode) external view virtual override returns(LibStorageNode.StorageNode[] memory) {
-    return _getNodesById(LibStorageNode.nodeStorage()._regionNodeIds[regionCode]);
+  function getNodesByRegionCode(
+    string calldata regionCode,
+    uint pageSize, 
+    uint pageNumber
+  ) external view virtual override returns(LibStorageNode.StorageNode[] memory) {
+    return _getNodesById(LibStorageNode.nodeStorage()._regionNodeIds[regionCode], pageSize, pageNumber);
   }
 
   /**
     * @dev see { IStorageNodeManagement }
     */
-  function getNodesByRegionCodeAndStatus(string calldata regionCode, LibCommon.EnumStatus status) external view returns(LibStorageNode.StorageNode[] memory) {
-    return _filterNodesByStatus(LibStorageNode.nodeStorage()._regionNodeIds[regionCode], status);
+  function getNodesByRegionCodeAndStatus(
+    string calldata regionCode, 
+    LibCommon.EnumStatus status,
+    uint pageSize, 
+    uint pageNumber
+  ) external view returns(LibStorageNode.StorageNode[] memory) {
+    return _filterNodesByStatus(LibStorageNode.nodeStorage()._regionNodeIds[regionCode], status, pageSize, pageNumber);
   }
 
   /**
     * @dev see { IStorageNodeManagement }
     */
-  function getNodesByStatus(LibCommon.EnumStatus status) external view returns(LibStorageNode.StorageNode[] memory) {
+  function getNodesByStatus(
+    LibCommon.EnumStatus status,
+    uint pageSize, 
+    uint pageNumber
+  ) external view returns(LibStorageNode.StorageNode[] memory) {
+    _validatePageInformation(pageSize, pageNumber);
+
     LibStorageNode.NodeStorage storage ds = LibStorageNode.nodeStorage();
     uint count = ds._nodeIdCounter;
-    uint filteredCount;
+    uint size;
 
-    for(uint i; i<count;) {
-      if (ds._nodeMap[i+1].status == status) {
-        ++filteredCount;
+
+    LibStorageNode.StorageNode[] memory nodeList = new LibStorageNode.StorageNode[](pageSize);
+
+    unchecked {
+      uint pageStartIndex = pageSize * (pageNumber - 1);
+      uint pageEndIndex = pageStartIndex + pageSize;
+
+      if (pageStartIndex >= count) {
+        return new LibStorageNode.StorageNode[](0);
       }
-      unchecked {
+
+      for(uint i; i<count && size < pageEndIndex;) {
+        if (ds._nodeMap[i+1].status == status) {
+          if (size >= pageStartIndex) {
+            nodeList[size-pageStartIndex] = ds._nodeMap[i+1];
+          }
+          ++size;
+        }
         ++i;
       }
-    }
 
-    LibStorageNode.StorageNode[] memory nodeList = new LibStorageNode.StorageNode[](filteredCount);
-
-    uint nodeId;
-    for (uint i; i < count;) {
-      if (ds._nodeMap[i+1].status == status) {
-        nodeList[nodeId] = ds._nodeMap[i+1];
-        unchecked {
-          ++nodeId;
-        }
+      if (size < pageStartIndex) {
+        return new LibStorageNode.StorageNode[](0);
+      } else if (size == pageEndIndex) {
+        return nodeList;
       }
-      unchecked { ++i; }
+
+      // Decrease length
+      uint len = size - pageStartIndex;
+      LibStorageNode.StorageNode[] memory retList = new LibStorageNode.StorageNode[](len);
+      for (uint i; i < len;) {
+        retList[i] = nodeList[i];
+        ++i;
+      }
+      return retList;
     }
-    return nodeList;
   }
 }
