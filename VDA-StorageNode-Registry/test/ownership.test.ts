@@ -49,7 +49,13 @@ describe('Ownership Test', async function () {
     it("Failed: To zero address", async () => {
       await expect(
         contract.transferOwnership(ethers.ZeroAddress)
-      ).to.be.revertedWithCustomError(contract, "ZeroAddress");
+      ).to.be.revertedWithCustomError(contract, "InvalidAddress");
+    })
+
+    it("Failed: To current owner", async () => {
+      await expect(
+        contract.transferOwnership(owner.address)
+      ).to.be.revertedWithCustomError(contract, "InvalidAddress");
     })
 
     it("Success", async () => {
@@ -58,6 +64,12 @@ describe('Ownership Test', async function () {
       ).to.emit(contract, "OwnershipTransferStarted").withArgs(owner.address, newOwner.address);
 
       transferStartedState = await takeSnapshot();
+    })
+
+    it("Failed: To pending owner", async () => {
+      await expect(
+        contract.transferOwnership(newOwner.address)
+      ).to.be.revertedWithCustomError(contract, "InvalidAddress");
     })
   })
 
