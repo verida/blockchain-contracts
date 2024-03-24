@@ -24,6 +24,7 @@ describe('Diamond Test', async function () {
     ({
         diamondAddress
       } = await deploy());
+        // undefined, ['VDAVerificationFacet', 'VDADataCentreFacet']));
     diamondCutFacet = await ethers.getContractAt('DiamondCutFacet', diamondAddress)
     diamondLoupeFacet = await ethers.getContractAt('DiamondLoupeFacet', diamondAddress)
     ownershipFacet = await ethers.getContractAt('OwnershipFacet', diamondAddress)
@@ -120,7 +121,7 @@ describe('Diamond Test', async function () {
 
   it('should remove some datacentre functions', async () => {
     const datacentreFacet = await ethers.getContractAt("VDADataCentreFacet", diamondAddress)
-    const functionsToKeep = ['addDataCentre', 'removeDataCentre', 'getDataCentres']
+    const functionsToKeep = ['addDataCentre', 'removeDataCentre']
     const selectors = getSelectors(datacentreFacet).remove(functionsToKeep)
     tx = await diamondCutFacet.diamondCut(
       [{

@@ -11,7 +11,7 @@ async function main() {
 
   // Polygon testnet
   const rewardTokenAddress = ""; //"0x1CD8557B2cBCfad36a1dAcB702FD7Bc90a4Fcf98"
-  const storageNodeRegistryAddress = ""; //"0xDbFa75B77f573677C2b3aA08d016b7E6A2e554C9"
+  const storageNodeRegistryAddress = ""; //"0x044B2D754923e529A780eFcc085B03ee022e3364"
 
   const contractFactory = await ethers.getContractFactory("VDARewardContract")
   const contract = (await upgrades.deployProxy(

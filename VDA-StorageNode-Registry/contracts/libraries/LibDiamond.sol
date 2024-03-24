@@ -22,6 +22,8 @@ error RemoveFacetAddressMustBeZeroAddress(address _facetAddress);
 error CannotRemoveFunctionThatDoesNotExist(bytes4 _selector);
 error CannotRemoveImmutableFunction(bytes4 _selector);
 error InitializationFunctionReverted(address _initializationContractAddress, bytes _calldata);
+error OwnableUnauthorizedAccount(address _requestor);
+// error NoPendingTrnasferOwnership();
 
 library LibDiamond {
     bytes32 constant DIAMOND_STORAGE_POSITION = keccak256("vda.storagenode.diamond.storage");
@@ -39,6 +41,9 @@ library LibDiamond {
         mapping(bytes4 => bool) supportedInterfaces;
         // owner of the contract
         address contractOwner;
+
+        // pending owner : This is for 2-step owenrship transfer mechanism
+        address pendingOwner;
     }
 
     function diamondStorage() internal pure returns (DiamondStorage storage ds) {
@@ -48,17 +53,53 @@ library LibDiamond {
         }
     }
 
+    event OwnershipTransferStarted(address indexed previousOwner, address indexed newOwner);
+    event OwnershipTransferCancelled(address indexed previousOwner, address indexed newOwner);
     event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
 
-    function setContractOwner(address _newOwner) internal {
+    function transferOwnership(address _newOwner) internal {
         DiamondStorage storage ds = diamondStorage();
-        address previousOwner = ds.contractOwner;
-        ds.contractOwner = _newOwner;
-        emit OwnershipTransferred(previousOwner, _newOwner);
+        ds.pendingOwner = _newOwner;
+        emit OwnershipTransferStarted(ds.contractOwner, _newOwner);
     }
 
-    function contractOwner() internal view returns (address contractOwner_) {
-        contractOwner_ = diamondStorage().contractOwner;
+    function cancelTransferOwnership() internal {
+        DiamondStorage storage ds = diamondStorage();
+        address curPendingOwner = ds.pendingOwner;
+        assembly {
+            if iszero(curPendingOwner) {
+                let ptr := mload(0x40)
+                mstore(ptr, 0x076fd0b400000000000000000000000000000000000000000000000000000000)
+                revert(ptr, 0x4) //revert NoPendingTrnasferOwnership()
+            }
+        }
+        delete ds.pendingOwner;
+        emit OwnershipTransferCancelled(ds.contractOwner, curPendingOwner);
+    }
+
+    function acceptOwnership() internal {
+        address sender = msg.sender;
+        DiamondStorage storage ds = diamondStorage();
+        if (sender != ds.pendingOwner) {
+            revert OwnableUnauthorizedAccount(sender);
+        }
+        _setContractOwner(sender);
+    }
+
+    function _setContractOwner(address newOwner) internal {
+        DiamondStorage storage ds = diamondStorage();
+        address previousOwner = ds.contractOwner;
+        ds.contractOwner = newOwner;
+        delete ds.pendingOwner;
+        emit OwnershipTransferred(previousOwner, newOwner);
+    }
+
+    function pendingOwner() internal view returns (address) {
+        return diamondStorage().pendingOwner;
+    }
+
+    function contractOwner() internal view returns (address) {
+        return diamondStorage().contractOwner;
     }
 
     function enforceIsContractOwner() internal view {

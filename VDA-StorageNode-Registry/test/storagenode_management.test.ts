@@ -523,15 +523,17 @@ describe('StorageNode Node Management Test', async function () {
     const users = [
         Wallet.createRandom(),
         Wallet.createRandom(),
-        Wallet.createRandom()
+        Wallet.createRandom(),
+        Wallet.createRandom(),
+        Wallet.createRandom(),
     ];
 
-    const endpointURI = ["https://1", "https://2", "https://3"];
-    const nodeCountry = ["us", "us", "uk"];
-    const nodeRegion = ["north america", "north america", "europe"];
-    const datacentreId = [1, 2, 3];
-    const lat = [-90, -88.5, 40];
-    const long = [-180, 10.436, 120.467];
+    const endpointURI = ["https://1", "https://2", "https://3", "https://4", "https://5"];
+    const nodeCountry = ["us", "us", "uk", "us", "uk"];
+    const nodeRegion = ["north america", "north america", "europe", "north america", "europe"];
+    const datacentreId = [1, 2, 3, 1, 2];
+    const lat = [-90, -88.5, 40, -89.15, 40.23];
+    const long = [-180, 10.436, 120.467, 10.55, 120.346];
 
     let storageNodes : IStorageNodeManagement.StorageNodeInputStruct[] = [];
 
@@ -716,11 +718,28 @@ describe('StorageNode Node Management Test', async function () {
         await testEnvironment.restore();
       })
 
+      it("Failed for invalid page size", async () => {
+        await expect(
+          nodeManageContract.getNodesByCountryCode("sg", 0, 1)
+        ).to.be.revertedWithCustomError(nodeManageContract, "InvalidPageSize");
+      })
+
+      it("Failed for invalid page number", async () => {
+        await expect(
+          nodeManageContract.getNodesByCountryCode("sg", 10, 0)
+        ).to.be.revertedWithCustomError(nodeManageContract, "InvalidPageNumber");
+      })
+
       it("Return empty array for unregistered country", async () => {
         const unregistedCode = "sg";
         assert(storageNodes.findIndex(item => item.countryCode === unregistedCode) === -1);
 
-        expect(await nodeManageContract.getNodesByCountryCode(unregistedCode)).to.deep.equal([]);
+        expect(await nodeManageContract.getNodesByCountryCode(unregistedCode, 1, 1)).to.deep.equal([]);
+      })
+
+      it("Return empty array for out of range page information", async () => {
+        expect(await nodeManageContract.getNodesByCountryCode(nodeCountry[0], 1, 100)).to.deep.equal([]);
+        expect(await nodeManageContract.getNodesByCountryCode(nodeCountry[0], 10, 2)).to.deep.equal([]);
       })
 
       it("Success: without status option", async () => {
@@ -729,26 +748,33 @@ describe('StorageNode Node Management Test', async function () {
 
         for (let i = 0; i < countryCodes.length; i++ ){
           const orgCountryNodes = storageNodes.filter(item => item.countryCode === countryCodes[i])
-          const nodesReturned = await nodeManageContract.getNodesByCountryCode(countryCodes[i]);
+          const pageSize = orgCountryNodes.length;
+          const nodesReturned = await nodeManageContract.getNodesByCountryCode(countryCodes[i], pageSize, 1);
           expect(orgCountryNodes.length).to.equal(nodesReturned.length);
   
           for (let j = 0; j < orgCountryNodes.length; j++) {
               checkGetNodeResult(nodesReturned[j], orgCountryNodes[j]);
           }
         }
+
+        // Check pagination
+        expect((await nodeManageContract.getNodesByCountryCode("us", 10, 1)).length).to.be.eq(3);
+        expect((await nodeManageContract.getNodesByCountryCode("us", 2, 1)).length).to.be.eq(2);
+        expect((await nodeManageContract.getNodesByCountryCode("us", 2, 2)).length).to.be.eq(1);
+        expect((await nodeManageContract.getNodesByCountryCode("us", 2, 3)).length).to.be.eq(0);
       })
 
       it("Success: pending removal state",async () => {
         const country = storageNodes[0].countryCode;
 
         expect(
-          (await nodeManageContract.getNodesByCountryCodeAndStatus(country, EnumStatus.removing)).length
+          (await nodeManageContract.getNodesByCountryCodeAndStatus(country, EnumStatus.removing, 10, 1)).length
         ).to.eq(0);
 
         await startRemove();
 
         expect(
-          (await nodeManageContract.getNodesByCountryCodeAndStatus(country, EnumStatus.removing)).length
+          (await nodeManageContract.getNodesByCountryCodeAndStatus(country, EnumStatus.removing, 10, 1)).length
         ).to.eq(1);
       })
 
@@ -757,22 +783,22 @@ describe('StorageNode Node Management Test', async function () {
         // Before complete remove
         /// 1 pending removal country
         expect(
-          (await nodeManageContract.getNodesByCountryCodeAndStatus(country, EnumStatus.removing)).length
+          (await nodeManageContract.getNodesByCountryCodeAndStatus(country, EnumStatus.removing, 10, 1)).length
         ).to.eq(1);
         /// No remove completed country
         expect(
-          (await nodeManageContract.getNodesByCountryCodeAndStatus(country, EnumStatus.removed)).length
+          (await nodeManageContract.getNodesByCountryCodeAndStatus(country, EnumStatus.removed, 10, 1)).length
         ).to.eq(0);
 
         await completeRemove();
         // After complete remove
         /// No pending removal country
         expect(
-          (await nodeManageContract.getNodesByCountryCodeAndStatus(country, EnumStatus.removing)).length
+          (await nodeManageContract.getNodesByCountryCodeAndStatus(country, EnumStatus.removing, 10, 1)).length
         ).to.eq(0);
         /// 1 remove completed country
         expect(
-          (await nodeManageContract.getNodesByCountryCodeAndStatus(country, EnumStatus.removed)).length
+          (await nodeManageContract.getNodesByCountryCodeAndStatus(country, EnumStatus.removed, 10, 1)).length
         ).to.eq(1);
       })
     })
@@ -782,11 +808,28 @@ describe('StorageNode Node Management Test', async function () {
         await testEnvironment.restore();
       })
 
+      it("Failed for invalid page size", async () => {
+        await expect(
+          nodeManageContract.getNodesByRegionCode(nodeRegion[0], 0, 1)
+        ).to.be.revertedWithCustomError(nodeManageContract, "InvalidPageSize");
+      })
+
+      it("Failed for invalid page number", async () => {
+        await expect(
+          nodeManageContract.getNodesByRegionCode(nodeRegion[0], 10, 0)
+        ).to.be.revertedWithCustomError(nodeManageContract, "InvalidPageNumber");
+      })
+
       it("Return empty array for unregistered region", async () => {
         const unregistedCode = "africa";
         assert(storageNodes.findIndex(item => item.regionCode === unregistedCode) === -1);
 
-        expect(await nodeManageContract.getNodesByRegionCode(unregistedCode)).to.deep.equal([]);
+        expect(await nodeManageContract.getNodesByRegionCode(unregistedCode, 10, 1)).to.deep.equal([]);
+      })
+
+      it("Return empty array for out of range page information", async () => {
+        expect(await nodeManageContract.getNodesByRegionCode(nodeRegion[0], 1, 100)).to.deep.equal([]);
+        expect(await nodeManageContract.getNodesByRegionCode(nodeRegion[0], 10, 2)).to.deep.equal([]);
       })
 
       it("Success: without status option", async () => {
@@ -795,28 +838,33 @@ describe('StorageNode Node Management Test', async function () {
 
         for (let i = 0; i < regionCodes.length; i++ ){
           const orgRegionNodes = storageNodes.filter(item => item.regionCode === regionCodes[i]);
-
-          const nodesReturned = await nodeManageContract.getNodesByRegionCode(regionCodes[i]);
-
+          const pageSize = orgRegionNodes.length;
+          const nodesReturned = await nodeManageContract.getNodesByRegionCode(regionCodes[i], pageSize, 1);
           expect(orgRegionNodes.length).to.equal(nodesReturned.length);
 
           for (let j = 0; j < orgRegionNodes.length; j++) {
               checkGetNodeResult(nodesReturned[j], orgRegionNodes[j]);
           }
         }
+
+        // Check pagination
+        expect((await nodeManageContract.getNodesByRegionCode("north america", 10, 1)).length).to.be.eq(3);
+        expect((await nodeManageContract.getNodesByRegionCode("north america", 2, 1)).length).to.be.eq(2);
+        expect((await nodeManageContract.getNodesByRegionCode("north america", 2, 2)).length).to.be.eq(1);
+        expect((await nodeManageContract.getNodesByRegionCode("north america", 2, 3)).length).to.be.eq(0);
       })
 
       it("Success: pending removal state",async () => {
         const region = storageNodes[0].regionCode;
 
         expect(
-          (await nodeManageContract.getNodesByRegionCodeAndStatus(region, EnumStatus.removing)).length
+          (await nodeManageContract.getNodesByRegionCodeAndStatus(region, EnumStatus.removing, 10, 1)).length
         ).to.eq(0);
 
         await startRemove();
 
         expect(
-          (await nodeManageContract.getNodesByRegionCodeAndStatus(region, EnumStatus.removing)).length
+          (await nodeManageContract.getNodesByRegionCodeAndStatus(region, EnumStatus.removing, 10, 1)).length
         ).to.eq(1);
       })
 
@@ -825,22 +873,22 @@ describe('StorageNode Node Management Test', async function () {
         // Before complete remove
         /// 1 pending removal region
         expect(
-          (await nodeManageContract.getNodesByRegionCodeAndStatus(region, EnumStatus.removing)).length
+          (await nodeManageContract.getNodesByRegionCodeAndStatus(region, EnumStatus.removing, 10, 1)).length
         ).to.eq(1);
         /// No remove completed region
         expect(
-          (await nodeManageContract.getNodesByRegionCodeAndStatus(region, EnumStatus.removed)).length
+          (await nodeManageContract.getNodesByRegionCodeAndStatus(region, EnumStatus.removed, 10, 1)).length
         ).to.eq(0);
 
         await completeRemove();
         // After complete remove
         /// No pending removal region
         expect(
-          (await nodeManageContract.getNodesByRegionCodeAndStatus(region, EnumStatus.removing)).length
+          (await nodeManageContract.getNodesByRegionCodeAndStatus(region, EnumStatus.removing, 10, 1)).length
         ).to.eq(0);
         /// 1 remove completed region
         expect(
-          (await nodeManageContract.getNodesByRegionCodeAndStatus(region, EnumStatus.removed)).length
+          (await nodeManageContract.getNodesByRegionCodeAndStatus(region, EnumStatus.removed, 10, 1)).length
         ).to.eq(1);
       })
     })
@@ -853,29 +901,83 @@ describe('StorageNode Node Management Test', async function () {
         totalNodeCount = storageNodes.length + 1; //1 is for fallback node added
       })
 
+      it("Failed for invalid page size", async () => {
+        await expect(
+          nodeManageContract.getNodesByStatus(EnumStatus.active, 0, 1)
+        ).to.be.revertedWithCustomError(nodeManageContract, "InvalidPageSize");
+
+        await expect(
+          nodeManageContract.getNodesByStatus(EnumStatus.removing, 0, 1)
+        ).to.be.revertedWithCustomError(nodeManageContract, "InvalidPageSize");
+
+        await expect(
+          nodeManageContract.getNodesByStatus(EnumStatus.removed, 0, 1)
+        ).to.be.revertedWithCustomError(nodeManageContract, "InvalidPageSize");
+      })
+
+      it("Failed for invalid page number", async () => {
+        await expect(
+          nodeManageContract.getNodesByStatus(EnumStatus.active, 10, 0)
+        ).to.be.revertedWithCustomError(nodeManageContract, "InvalidPageNumber");
+
+        await expect(
+          nodeManageContract.getNodesByStatus(EnumStatus.removing, 10, 0)
+        ).to.be.revertedWithCustomError(nodeManageContract, "InvalidPageNumber");
+
+        await expect(
+          nodeManageContract.getNodesByStatus(EnumStatus.removed, 10, 0)
+        ).to.be.revertedWithCustomError(nodeManageContract, "InvalidPageNumber");
+      })
+
+      it("Return empty array for out of range page information", async () => {
+        expect(await nodeManageContract.getNodesByStatus(EnumStatus.active, 1, 100)).to.deep.equal([]);
+        expect(await nodeManageContract.getNodesByStatus(EnumStatus.active, 10, 2)).to.deep.equal([]);
+
+        expect(await nodeManageContract.getNodesByStatus(EnumStatus.removing, 1, 100)).to.deep.equal([]);
+        expect(await nodeManageContract.getNodesByStatus(EnumStatus.removing, 10, 2)).to.deep.equal([]);
+
+        expect(await nodeManageContract.getNodesByStatus(EnumStatus.removed, 1, 100)).to.deep.equal([]);
+        expect(await nodeManageContract.getNodesByStatus(EnumStatus.removed, 10, 2)).to.deep.equal([]);
+      })
+
       it("Test after nodes added", async () => {
         expect(
-          (await nodeManageContract.getNodesByStatus(EnumStatus.active)).length
+          (await nodeManageContract.getNodesByStatus(EnumStatus.active, 100, 1)).length
         ).to.be.eq(totalNodeCount);
         expect(
-          (await nodeManageContract.getNodesByStatus(EnumStatus.removing)).length
+          (await nodeManageContract.getNodesByStatus(EnumStatus.removing, 100, 1)).length
         ).to.be.eq(0);
         expect(
-          (await nodeManageContract.getNodesByStatus(EnumStatus.removed)).length
+          (await nodeManageContract.getNodesByStatus(EnumStatus.removed, 100, 1)).length
         ).to.be.eq(0);
+
+        // Check pagination
+        const pageSize = totalNodeCount - 2;
+        expect(
+          (await nodeManageContract.getNodesByStatus(EnumStatus.active, pageSize, 1)).length
+        ).to.be.eq(totalNodeCount - 2);
+        expect(
+          (await nodeManageContract.getNodesByStatus(EnumStatus.active, pageSize, 2)).length
+        ).to.be.eq(2);
+
       })
 
       it("Test after start removing", async () => {
         await startRemove();
 
         expect(
-          (await nodeManageContract.getNodesByStatus(EnumStatus.active)).length
+          (await nodeManageContract.getNodesByStatus(EnumStatus.active, 10, 1)).length
         ).to.be.eq(totalNodeCount - 1);
         expect(
-          (await nodeManageContract.getNodesByStatus(EnumStatus.removing)).length
+          (await nodeManageContract.getNodesByStatus(EnumStatus.removing, 10, 1)).length
         ).to.be.eq(1);
         expect(
-          (await nodeManageContract.getNodesByStatus(EnumStatus.removed)).length
+          (await nodeManageContract.getNodesByStatus(EnumStatus.removed, 10, 1)).length
+        ).to.be.eq(0);
+
+        // Check pagination
+        expect(
+          (await nodeManageContract.getNodesByStatus(EnumStatus.removing, 10, 2)).length
         ).to.be.eq(0);
       })
 
@@ -883,14 +985,19 @@ describe('StorageNode Node Management Test', async function () {
         await completeRemove();
 
         expect(
-          (await nodeManageContract.getNodesByStatus(EnumStatus.active)).length
+          (await nodeManageContract.getNodesByStatus(EnumStatus.active, 10, 1)).length
         ).to.be.eq(totalNodeCount - 1);
         expect(
-          (await nodeManageContract.getNodesByStatus(EnumStatus.removing)).length
+          (await nodeManageContract.getNodesByStatus(EnumStatus.removing, 10, 1)).length
         ).to.be.eq(0);
         expect(
-          (await nodeManageContract.getNodesByStatus(EnumStatus.removed)).length
+          (await nodeManageContract.getNodesByStatus(EnumStatus.removed, 10, 1)).length
         ).to.be.eq(1);
+
+        // Check pagination
+        expect(
+          (await nodeManageContract.getNodesByStatus(EnumStatus.removed, 2, 2)).length
+        ).to.be.eq(0);
       })
     })
   })

@@ -17,7 +17,8 @@ library LibUtils {
      */
     function isLowerCase(string calldata value) internal pure returns(bool) {
         bytes memory _baseBytes = bytes(value);
-        for (uint i; i < _baseBytes.length;) {
+        uint len = _baseBytes.length;
+        for (uint i; i < len;) {
             if (_baseBytes[i] >= 0x41 && _baseBytes[i] <= 0x5A) {
                 return false;
             }
