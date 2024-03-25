@@ -32,6 +32,8 @@ contract VDAStorageNodeManagementFacet is IStorageNodeManagement {
   using EnumerableSet for EnumerableSet.UintSet;
   using EnumerableMap for EnumerableMap.AddressToUintMap;
 
+  uint internal constant PAGE_SIZE_LIMIT = 100;
+
   /**
     * @dev see { IStorageNodeManagement }
     */
@@ -375,7 +377,7 @@ contract VDAStorageNodeManagementFacet is IStorageNodeManagement {
    * @param pageNumber Page index. Starts from 1
    */
   function _validatePageInformation(uint pageSize, uint pageNumber) internal pure {
-    if (pageSize == 0) {
+    if (pageSize == 0 || pageSize > PAGE_SIZE_LIMIT) {
       revert InvalidPageSize();
     }
 
@@ -454,7 +456,7 @@ contract VDAStorageNodeManagementFacet is IStorageNodeManagement {
    * @return StorageNode[] Array of storage node
    */
   function _getNodesById(EnumerableSet.UintSet storage ids, uint pageSize, uint pageNumber) internal view virtual returns(LibStorageNode.StorageNode[] memory) {
-    if (pageSize == 0) {
+    if (pageSize == 0 || pageSize > PAGE_SIZE_LIMIT) {
       revert InvalidPageSize();
     }
     if (pageNumber == 0) {
