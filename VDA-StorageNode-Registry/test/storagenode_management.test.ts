@@ -722,6 +722,14 @@ describe('StorageNode Node Management Test', async function () {
         await expect(
           nodeManageContract.getNodesByCountryCode("sg", 0, 1)
         ).to.be.revertedWithCustomError(nodeManageContract, "InvalidPageSize");
+
+        await expect(
+          nodeManageContract.getNodesByCountryCode("sg", 101, 1)
+        ).to.be.revertedWithCustomError(nodeManageContract, "InvalidPageSize");
+
+        await expect(
+          nodeManageContract.getNodesByCountryCode("sg", 1000, 1)
+        ).to.be.revertedWithCustomError(nodeManageContract, "InvalidPageSize");
       })
 
       it("Failed for invalid page number", async () => {
@@ -811,6 +819,14 @@ describe('StorageNode Node Management Test', async function () {
       it("Failed for invalid page size", async () => {
         await expect(
           nodeManageContract.getNodesByRegionCode(nodeRegion[0], 0, 1)
+        ).to.be.revertedWithCustomError(nodeManageContract, "InvalidPageSize");
+
+        await expect(
+          nodeManageContract.getNodesByRegionCode(nodeRegion[0], 101, 1)
+        ).to.be.revertedWithCustomError(nodeManageContract, "InvalidPageSize");
+
+        await expect(
+          nodeManageContract.getNodesByRegionCode(nodeRegion[0], 1000, 1)
         ).to.be.revertedWithCustomError(nodeManageContract, "InvalidPageSize");
       })
 
@@ -907,11 +923,23 @@ describe('StorageNode Node Management Test', async function () {
         ).to.be.revertedWithCustomError(nodeManageContract, "InvalidPageSize");
 
         await expect(
+          nodeManageContract.getNodesByStatus(EnumStatus.active, 101, 1)
+        ).to.be.revertedWithCustomError(nodeManageContract, "InvalidPageSize");
+
+        await expect(
           nodeManageContract.getNodesByStatus(EnumStatus.removing, 0, 1)
         ).to.be.revertedWithCustomError(nodeManageContract, "InvalidPageSize");
 
         await expect(
+          nodeManageContract.getNodesByStatus(EnumStatus.removing, 101, 1)
+        ).to.be.revertedWithCustomError(nodeManageContract, "InvalidPageSize");
+
+        await expect(
           nodeManageContract.getNodesByStatus(EnumStatus.removed, 0, 1)
+        ).to.be.revertedWithCustomError(nodeManageContract, "InvalidPageSize");
+
+        await expect(
+          nodeManageContract.getNodesByStatus(EnumStatus.removed, 101, 1)
         ).to.be.revertedWithCustomError(nodeManageContract, "InvalidPageSize");
       })
 

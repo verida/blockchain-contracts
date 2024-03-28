@@ -1,3 +1,8 @@
+2024-03-25 (V1.0.0)
+-------------------
+- Add page size limit
+- Update the test code
+
 2024-03-19 (V1.0.0)
 -------------------
 - Implemented 2-step ownership transfer
