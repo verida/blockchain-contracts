@@ -1,6 +1,10 @@
+2024-05-09 (v0.5.2)
+-------------------
+- Fixed typos in the comment of `contracts/VDARewardContract.sol`
+
 2024-02-07 (v0.5.1)
 -------------------
-- Fixd typos in the comment of `contracts/IStorageNode.sol` : `depoist` to `deposit`
+- Fixed typos in the comment of `contracts/IStorageNode.sol` : `depoist` to `deposit`
 
 2024-01-30 (v0.5.0)
 -------------------

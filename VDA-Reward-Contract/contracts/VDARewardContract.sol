@@ -8,7 +8,7 @@ import "./IVDARewardContract.sol";
 
 contract VDARewardContract is IVDARewardContract, VDAVerificationContract {
 
-    /** ReardToken : ERC20 contract */
+    /** RewardToken : ERC20 contract */
     IERC20Upgradeable internal rewardToken;
     /** StorageNodeRegistry contract */
     IStorageNode internal storageNodeContract;
