@@ -61,18 +61,25 @@ contract VeridaDIDRegistry is OwnableUpgradeable, IVeridaDIDRegistry {
   }
 
   /**
-   * @notice Check whether the DID is registered
+   * @notice Internal function to check a DID is registered
    * @dev Revoked DIDs are not registered ones
    */
-  function isRegistered(address didAddress) internal view virtual returns(bool) {
+  function _isRegistered(address didAddress) internal view virtual returns(bool) {
     return _registeredDIDs.contains(didAddress);
+  }
+
+  /**
+   * @dev See {IVeridaDIDRegistry}
+   */
+  function isRegistered(address didAddress) external view virtual override returns(bool) {
+    return _isRegistered(didAddress);
   }
   
   /**
    * @dev See {IVeridaDIDRegistry}
    */
   function register(address didAddress, string[] calldata endpoints, bytes calldata signature ) external virtual override {
-    if (_nonce[didAddress] != 0 && !isRegistered(didAddress)) {
+    if (_nonce[didAddress] != 0 && !_isRegistered(didAddress)) {
       revert RevokedDID();
     }
 
@@ -100,7 +107,7 @@ contract VeridaDIDRegistry is OwnableUpgradeable, IVeridaDIDRegistry {
     }
 
     // Add didAddress for only new registers
-    if (!isRegistered(didAddress)) {
+    if (!_isRegistered(didAddress)) {
       _registeredDIDs.add(didAddress);
     }
 
@@ -111,7 +118,7 @@ contract VeridaDIDRegistry is OwnableUpgradeable, IVeridaDIDRegistry {
    * @dev See {IVeridaDIDRegistry}
    */
   function revoke(address didAddress, bytes calldata signature) external virtual override {
-    if (!isRegistered(didAddress)) {
+    if (!_isRegistered(didAddress)) {
       revert UnregisteredDID();
     }
     {
@@ -159,7 +166,7 @@ contract VeridaDIDRegistry is OwnableUpgradeable, IVeridaDIDRegistry {
    * @dev See {IVeridaDIDRegistry}
    */
   function setController(address didAddress, address controller, bytes calldata signature) external virtual override {
-    if (!isRegistered(didAddress)) {
+    if (!_isRegistered(didAddress)) {
       revert UnregisteredDID();
     }
     {
@@ -186,7 +193,7 @@ contract VeridaDIDRegistry is OwnableUpgradeable, IVeridaDIDRegistry {
    * @dev See {IVeridaDIDRegistry}
    */
   function lookup(address didAddress) external view virtual override returns(address, string[] memory) {
-    if (!isRegistered(didAddress)) {
+    if (!_isRegistered(didAddress)) {
       revert UnregisteredDID();
     }
 

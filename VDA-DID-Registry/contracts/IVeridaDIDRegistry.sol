@@ -24,6 +24,14 @@ interface IVeridaDIDRegistry {
     event SetController(address didAddress, address controller);
 
     /**
+     * @notice Check whether didAddress is registered
+     * @dev Used in the `VDAXPReward` contract
+     * @param didAddress DID address to be checked
+     * @return bool `true` if registered
+     */
+    function isRegistered(address didAddress) external view returns(bool);
+
+    /**
      * @notice Register a list of endpoints for a did
      * @dev Update the list if already registered
      * @param didAddress DID address, ex : 0xb794f5ea0ba39494ce839613fffba74279579268
