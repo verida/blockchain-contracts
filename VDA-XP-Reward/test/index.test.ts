@@ -267,12 +267,12 @@ describe("VeridaXPReward", () => {
         const generateClaimInfo = (trustedSigner:Wallet, did:string, data: ClaimData) : ClaimInfo => {
             const rawMsg = ethers.utils.solidityPack(
                 ['address', 'string', 'uint16', 'uint8', 'uint'],
-                [did, data.proofType, data.issueYear, data.issueMonth, data.xp]
+                [did, data.typeId, data.issueYear, data.issueMonth, data.xp]
             );
             const privateKeyArray = new Uint8Array(Buffer.from(trustedSigner.privateKey.slice(2), 'hex'))
-            const proof = EncryptionUtils.signData(rawMsg, privateKeyArray);
+            const signature = EncryptionUtils.signData(rawMsg, privateKeyArray);
 
-            return { ...data, proof }
+            return { ...data, signature }
         }
 
         const getRequestSignature = async (didAddress: string, recipient: string, claimData: ClaimInfo[], requestSigner: Wallet) => {
@@ -285,7 +285,7 @@ describe("VeridaXPReward", () => {
             for (let i = 0; i < claimData.length; i++) {
                 requestMsg = ethers.utils.solidityPack(
                     ['bytes', 'bytes'],
-                    [requestMsg, claimData[i].proof]
+                    [requestMsg, claimData[i].signature]
                 )
             }
             requestMsg = ethers.utils.solidityPack(
@@ -567,7 +567,7 @@ describe("VeridaXPReward", () => {
             );
         })
 
-        it("Failed: Duplicated ProofType", async () => {
+        it("Failed: Duplicated typeId", async () => {
             await claimAvailableState.restore();
             
             const [issueYear, issueMonth] = await getProofIssueTime();

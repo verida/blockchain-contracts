@@ -4,18 +4,20 @@ pragma solidity ^0.8.18;
 interface IVDAXPReward {
     /**
      * @notice Claim information
-     * @param proofType - Proof type. Ex: 'Facebook'
+     * @param typeId - Proof type. Ex: 'gamer31'
+     * @param uniqueId - Unique Id.
      * @param issueYear - Issued year of proof
      * @param issueMonth - Issued month of proof
      * @param xp - Value of xp
-     * @param proof - Proof signed by a trusted signer
+     * @param signature - Proof signed by a trusted signer
      */
     struct ClaimInfo {
-        string proofType;
+        string typeId;
+        string uniqueId;
         uint16 issueYear;
         uint8 issueMonth; 
         uint xp;
-        bytes proof;
+        bytes signature;
     }
 
     /**

@@ -28,12 +28,15 @@ contract VDAXPReward is IVDAXPReward, VDAVerificationContract{
     uint32 internal conversionRate; // XP to VDA token rate
 
     /**
-     * @notice Used to check that a `Proof` is used once per month
+     * @notice Used to check that a `signature` is used once per month
      */
-    mapping(bytes => bool) internal isClaimedProof;
+    mapping(bytes => bool) internal isClaimedSignature;
 
-    /** Used to check that user claim only once for same `ProofType` */
-    mapping(bytes => bool) internal isClaimedProofType;
+    /** Used to check that user claim only once for same `typeId` */
+    mapping(bytes => bool) internal isClaimedTypeId;
+
+    /** Used to check that the combination of `typeId` and `uniqueId` is claimed before*/
+    mapping(bytes => bool) internal isClaimedUniqueId;
 
     /**
      * @notice Gap for later use
@@ -45,11 +48,12 @@ contract VDAXPReward is IVDAXPReward, VDAVerificationContract{
     error InvalidConversionRate();
     error UnregisteredDIDAddress();
     error EmptyClaimData();
-    error InvalidXP(address didAddress, string proofType, uint xp);
-    error InvalidProofTime(address didAddress, string proofType, uint16 year, uint8 month);
-    error InvalidProof(address didAddress, string proofType, uint xp, bytes proof);
+    error InvalidXP(address didAddress, string typeId, uint xp);
+    error InvalidProofTime(address didAddress, string typeId, uint16 year, uint8 month);
+    error InvalidProof(address didAddress, string typeId, uint xp, bytes signature);
     error InsufficientTokenAmount(uint requestedAmount, uint currentAmount);
-    error DuplicatedRequest(address didAddress, string proofType, uint xp, bytes proof);
+    error DuplicatedRequest(address didAddress, string typeId, uint xp, bytes signature);
+    error DuplicatedUniqueId(address didAddress, string typeId, string uniqueId, uint xp);
 
     function __VDAXPReward_init(IERC20Upgradeable token, IVeridaDIDRegistry didRegistry) public initializer {
         __VDAVerificationContract_init();
@@ -122,11 +126,15 @@ contract VDAXPReward is IVDAXPReward, VDAVerificationContract{
      * @param info - Claim information
      */
     function _validateProofTime(address didAddress, DateTime._DateTime memory curTime, ClaimInfo calldata info) internal virtual view {
+        if (bytes(info.uniqueId).length != 0) {
+            return;
+        }
+
         if (curTime.year != info.issueYear || curTime.month != (info.issueMonth + 1)) {
-            revert InvalidProofTime(didAddress, info.proofType, info.issueYear, info.issueMonth);
+            revert InvalidProofTime(didAddress, info.typeId, info.issueYear, info.issueMonth);
         } else if (curTime.month == 1) {
             if (curTime.year != (info.issueYear + 1) || info.issueMonth != 12) {
-                revert InvalidProofTime(didAddress, info.proofType, info.issueYear, info.issueMonth);
+                revert InvalidProofTime(didAddress, info.typeId, info.issueYear, info.issueMonth);
             }
         }
     }
@@ -151,7 +159,7 @@ contract VDAXPReward is IVDAXPReward, VDAVerificationContract{
         }
 
         if (!isVerified) {
-            revert InvalidProof(didAddress, info.proofType, info.xp, info.proof);
+            revert InvalidProof(didAddress, info.typeId, info.xp, info.signature);
         }
     }
 
@@ -161,7 +169,7 @@ contract VDAXPReward is IVDAXPReward, VDAVerificationContract{
      * @param infos - Array of claim requests
      * @return uint - Total amount of requested claim
      */
-    function _validateClaimProof(address didAddress, ClaimInfo[] calldata infos) internal virtual returns(uint) {
+    function _validateClaimSignature(address didAddress, ClaimInfo[] calldata infos) internal virtual returns(uint) {
         uint totalXP;
 
         bytes memory rawMsg;
@@ -173,27 +181,40 @@ contract VDAXPReward is IVDAXPReward, VDAVerificationContract{
 
         for (uint i; i < infoLen;) {
             if (infos[i].xp == 0) {
-                revert InvalidXP(didAddress, infos[i].proofType, infos[i].xp);
+                revert InvalidXP(didAddress, infos[i].typeId, infos[i].xp);
             }
             _validateProofTime(didAddress, curTime, infos[i]);
 
-            rawMsg = abi.encodePacked(didAddress, infos[i].proofType, infos[i].issueYear, infos[i].issueMonth);
-            // Check whether `ProofType` is claimed in this month
-            if (isClaimedProofType[rawMsg]) {
-                revert DuplicatedRequest(didAddress, infos[i].proofType, infos[i].xp, infos[i].proof);
-            }
-            isClaimedProofType[rawMsg] = true;
-            
-            rawMsg = abi.encodePacked(rawMsg, infos[i].xp);
-            // Check `Proof` is claimed
-            if (isClaimedProof[infos[i].proof]) {
-                revert DuplicatedRequest(didAddress, infos[i].proofType, infos[i].xp, infos[i].proof);
-            }
-            isClaimedProof[infos[i].proof] = true;
+            if (bytes(infos[i].uniqueId).length != 0) {
+                rawMsg = abi.encodePacked(infos[i].typeId, infos[i].uniqueId);
+                // Check whether `uniqueId` is claimed before
+                if (isClaimedUniqueId[rawMsg]) {
+                    revert DuplicatedUniqueId(didAddress, infos[i].typeId, infos[i].uniqueId, infos[i].xp);
+                }
+                isClaimedUniqueId[rawMsg] = true;
 
+                rawMsg = abi.encodePacked(didAddress, rawMsg, infos[i].issueYear, infos[i].issueMonth, infos[i].xp);
+                
+            } else {
+                rawMsg = abi.encodePacked(didAddress, infos[i].typeId, infos[i].issueYear, infos[i].issueMonth);
+            
+                // Check whether `typeId` is claimed in this month
+                if (isClaimedTypeId[rawMsg]) {
+                    revert DuplicatedRequest(didAddress, infos[i].typeId, infos[i].xp, infos[i].signature);
+                }
+                isClaimedTypeId[rawMsg] = true;
+                
+                rawMsg = abi.encodePacked(rawMsg, infos[i].xp);
+                // Check `Proof` is claimed
+                if (isClaimedSignature[infos[i].signature]) {
+                    revert DuplicatedRequest(didAddress, infos[i].typeId, infos[i].xp, infos[i].signature);
+                }
+                isClaimedSignature[infos[i].signature] = true;
+
+            }
 
             dataHash = keccak256(rawMsg);
-            proofSigner = ECDSAUpgradeable.recover(dataHash, infos[i].proof);
+            proofSigner = ECDSAUpgradeable.recover(dataHash, infos[i].signature);
 
             _validateProofSigner(didAddress, proofSigner, infos[i]);
             
@@ -229,7 +250,7 @@ contract VDAXPReward is IVDAXPReward, VDAVerificationContract{
             bytes memory params = abi.encodePacked(didAddress, to);
             uint length = claims.length;
             for (uint i; i < length;) {
-                params = abi.encodePacked(params, claims[i].proof);
+                params = abi.encodePacked(params, claims[i].signature);
                 unchecked {
                     ++i;
                 }
@@ -238,7 +259,7 @@ contract VDAXPReward is IVDAXPReward, VDAVerificationContract{
         }
 
         // Verify proofs
-        uint totalXP = _validateClaimProof(didAddress, claims);
+        uint totalXP = _validateClaimSignature(didAddress, claims);
         uint rewardAmount = totalXP * conversionRate / rateDenominator;
         uint curBalance = rewardToken.balanceOf(address(this));
 

@@ -4,7 +4,8 @@ import { BytesLike } from "ethers"
  * @notice This interface is part of `ClaimInfo` struct of `VDAXPReward` contract
  */
 export interface ClaimData {
-    proofType: string
+    typeId: string
+    uniqueId: string
     issueYear: number
     issueMonth: number
     xp: number
@@ -14,14 +15,15 @@ export interface ClaimData {
  * @notice This interface is the same as `ClaimInfo` struct of `VDAXPReward` contract
  */
 export interface ClaimInfo extends ClaimData {
-    proof: BytesLike
+    signature: BytesLike
 }
 
 /**
  * @notice XP value is invalid
  */
 export const CLAIM_INVALID_XP : ClaimData = {
-    proofType: 'gamer31-campaign1',
+    typeId: 'gamer31-campaign1',
+    uniqueId: '',
     issueYear: 2024,
     issueMonth: 4,
     xp: 0,
@@ -32,7 +34,8 @@ export const CLAIM_INVALID_XP : ClaimData = {
  * @dev `issueYear` and `issueMonth` should be the same as the current time
  */
 export const CLAIM_GAMER31: ClaimData = {
-    proofType: 'gamer31-campaign1',
+    typeId: 'gamer31-campaign1',
+    uniqueId: '',
     issueYear: 2024,
     issueMonth: 4,
     xp: 10,
@@ -43,7 +46,8 @@ export const CLAIM_GAMER31: ClaimData = {
  * @dev `issueYear` and `issueMonth` should be the same as the current time
  */
 export const CLAIM_ZKPASS: ClaimData = {
-    proofType: 'zkpass-binance-kyc',
+    typeId: 'zkpass-binance-kyc',
+    uniqueId: '',
     issueYear: 2024,
     issueMonth: 4,
     xp: 10,
