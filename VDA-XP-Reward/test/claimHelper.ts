@@ -31,7 +31,7 @@ export const CLAIM_INVALID_XP : ClaimData = {
 
 /**
  * @notice Valid claim data
- * @dev `issueYear` and `issueMonth` should be the same as the current time
+ * @dev `issueYear` and `issueMonth` should be the previous month of the block time
  */
 export const CLAIM_GAMER31: ClaimData = {
     typeId: 'gamer31-campaign1',
@@ -43,7 +43,7 @@ export const CLAIM_GAMER31: ClaimData = {
 
 /**
  * @notice Valid claim data
- * @dev `issueYear` and `issueMonth` should be the same as the current time
+ * @dev `issueYear` and `issueMonth` should be the previous month of the block time
  */
 export const CLAIM_ZKPASS: ClaimData = {
     typeId: 'zkpass-binance-kyc',

@@ -126,10 +126,6 @@ contract VDAXPReward is IVDAXPReward, VDAVerificationContract{
      * @param info - Claim information
      */
     function _validateProofTime(address didAddress, DateTime._DateTime memory curTime, ClaimInfo calldata info) internal virtual view {
-        if (bytes(info.uniqueId).length != 0) {
-            return;
-        }
-
         if (curTime.year != info.issueYear || curTime.month != (info.issueMonth + 1)) {
             revert InvalidProofTime(didAddress, info.typeId, info.issueYear, info.issueMonth);
         } else if (curTime.month == 1) {
@@ -185,6 +181,14 @@ contract VDAXPReward is IVDAXPReward, VDAVerificationContract{
             }
             _validateProofTime(didAddress, curTime, infos[i]);
 
+            rawMsg = abi.encodePacked(didAddress, infos[i].typeId, infos[i].issueYear, infos[i].issueMonth);
+            
+            // Check whether `typeId` is claimed in this month
+            if (isClaimedTypeId[rawMsg]) {
+                revert DuplicatedRequest(didAddress, infos[i].typeId, infos[i].xp, infos[i].signature);
+            }
+            isClaimedTypeId[rawMsg] = true;
+
             if (bytes(infos[i].uniqueId).length != 0) {
                 rawMsg = abi.encodePacked(infos[i].typeId, infos[i].uniqueId);
                 // Check whether `uniqueId` is claimed before
@@ -196,14 +200,6 @@ contract VDAXPReward is IVDAXPReward, VDAVerificationContract{
                 rawMsg = abi.encodePacked(didAddress, rawMsg, infos[i].issueYear, infos[i].issueMonth, infos[i].xp);
                 
             } else {
-                rawMsg = abi.encodePacked(didAddress, infos[i].typeId, infos[i].issueYear, infos[i].issueMonth);
-            
-                // Check whether `typeId` is claimed in this month
-                if (isClaimedTypeId[rawMsg]) {
-                    revert DuplicatedRequest(didAddress, infos[i].typeId, infos[i].xp, infos[i].signature);
-                }
-                isClaimedTypeId[rawMsg] = true;
-                
                 rawMsg = abi.encodePacked(rawMsg, infos[i].xp);
                 // Check `Proof` is claimed
                 if (isClaimedSignature[infos[i].signature]) {
