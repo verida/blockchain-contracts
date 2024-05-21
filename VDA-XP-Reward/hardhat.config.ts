@@ -32,14 +32,7 @@ const config: HardhatUserConfig = {
       chainId: 137,
       accounts: PRIVATE_KEY !== undefined ? [PRIVATE_KEY] : [],
     },
-    polygonmumbai: {
-      url: POLYGON_TESTNET_RPC !== undefined ? POLYGON_TESTNET_RPC : "https://matic-mumbai.chainstacklabs.com",
-      chainId: 80001,
-      accounts: PRIVATE_KEY !== undefined ? [PRIVATE_KEY] : [], 
-      gas: 2100000,
-      gasPrice: 8000000000
-    },
-     polygonamoy: {
+    polygonamoy: {
       url: POLYGON_AMOY_RPC !== undefined ? POLYGON_AMOY_RPC : "https://rpc-amoy.polygon.technology",
       chainId: 80002,
       accounts: PRIVATE_KEY !== undefined ? [PRIVATE_KEY] : [],

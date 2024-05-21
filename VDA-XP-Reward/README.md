@@ -21,8 +21,8 @@ https://github.com/verida/blockchain-contracts/issues/152
 
 ## Dependencies
 ### Verida contracts
-This contract dependes on the followig Verida contract:
-- `@verida/vda-verification-contract` : VDA-Verification-Base contract
+This contract depends on the following Verida contract:
+- `@verida/vda-verification-contract` : Used to manage the trusted signers and verify the `claimXPReward()` request
 - `@verida/did-registry-contract` : Used to check the `did` is registered in the mainnet
 - `@verida/erc20-contract` : VDA-ERC20 - Used in test script
 ### `verida-js ` packages

@@ -184,6 +184,12 @@ describe("VeridaXPReward", () => {
                 curSnapShot = await takeSnapshot();
             })
 
+            it("Failed for non-owner", async () => {
+                await expect(
+                    contract.connect(accountList[1]).setConversionRate(0)
+                ).to.be.rejectedWith("Ownable: caller is not the owner");
+            })
+
             it("Failed for zero value", async () => {
                 // Before rate initialized (when rate is 0)
                 await expect(

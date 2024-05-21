@@ -5,7 +5,7 @@ interface IVDAXPReward {
     /**
      * @notice Claim information
      * @param typeId - Proof type. Ex: 'gamer31'
-     * @param uniqueId - Unique Id.
+     * @param uniqueId - Unique Id. Optional Ex : ''.
      * @param issueYear - Issued year of proof
      * @param issueMonth - Issued month of proof
      * @param xp - Value of xp
@@ -70,6 +70,9 @@ interface IVDAXPReward {
 
     /**
      * @notice Set the denominator for rate values
+     * @dev This is the same as `DECIMAL` in the standard `ERC-20` contract.
+     *      If you need to allow 2 decimals of precision, then you can set the `rateDenominator` as 100.
+     *      In case, the `conversionRate` value of 15 means the 0.15.
      * @dev Only the contract owenr is allowed to call this function
      * @param denominator - new value to be set
      */
@@ -105,7 +108,7 @@ interface IVDAXPReward {
     /**
      * @notice Withdraw tokens
      * @dev Only the contract owner allowed
-     * @param to - Recipient address
+     * @param to - Recipient wallet address
      * @param amount - Token amount to be withdrawn
      */
     function withdraw(address to, uint amount) external;
