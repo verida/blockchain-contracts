@@ -7,13 +7,10 @@ import { anyValue } from "@nomicfoundation/hardhat-chai-matchers/withArgs";
 import hre, { ethers , upgrades } from "hardhat"
 import { VDAXPReward } from "../typechain-types";
 import { VeridaToken } from "@verida/erc20-contract/typechain-types";
-import { VeridaDIDRegistry } from "@verida/did-registry-contract/typechain-types";
 import EncryptionUtils from '@verida/encryption-utils'
 
 import { abi as TokenABI, bytecode as TokenByteCode } from "@verida/erc20-contract/artifacts/contracts/VDA-V1.sol/VeridaToken.json";
-import { abi as DIDRegistryABI, bytecode as DIDRegistryByteCode } from "@verida/did-registry-contract/artifacts/contracts/VeridaDIDRegistry.sol/VeridaDIDRegistry.json";
 
-import { endPoints, getRegisterSignature } from "./didHelper";
 import { CLAIM_INVALID_XP, CLAIM_GAMER31, ClaimData, ClaimInfo, CLAIM_ZKPASS } from "./claimHelper";
 
 let accountList: SignerWithAddress[];
@@ -37,7 +34,6 @@ const receiverAddress = [
 describe("VeridaXPReward", () => {
     let contract: VDAXPReward;
     let token: VeridaToken;
-    let didRegistry: VeridaDIDRegistry;
     let veridaWallet: SignerWithAddress;
 
     const deployContracts = async() => {
@@ -49,16 +45,10 @@ describe("VeridaXPReward", () => {
 
         await token.enableTransfer();
 
-        // Deploy and initialize DIDRegistry
-        const didRegistryFactory = await ethers.getContractFactory(DIDRegistryABI, DIDRegistryByteCode);
-        didRegistry = await didRegistryFactory.deploy() as VeridaDIDRegistry
-        await didRegistry.deployed();
-        
-
         const contractFactory = await ethers.getContractFactory("VDAXPReward")
         contract = (await upgrades.deployProxy(
             contractFactory,
-            [token.address, didRegistry.address],
+            [token.address],
             {
                 initializer: '__VDAXPReward_init'
             }
@@ -124,12 +114,6 @@ describe("VeridaXPReward", () => {
             expect(
                 await contract.getTokenAddress()
             ).to.be.eq(token.address);
-        })
-
-        it("Get StorageNodeRegistry contract address",async () => {
-            expect(
-                await contract.getDIDRegistryAddress()
-            ).to.be.eq(didRegistry.address);
         })
     })
 
@@ -347,13 +331,7 @@ describe("VeridaXPReward", () => {
             for (let i = 0; i < trustedSigners.length; i++) {
                 await expect(contract.addTrustedSigner(trustedSigners[i].address)).to.emit(contract, "AddTrustedSigner");
             }
-
-            // Register did in the `VeridaDIDRegistry` contract
-            const signature = await getRegisterSignature(didRegistry, registeredDID.address, endPoints, registeredDID.privateKey)
-            await expect(
-                didRegistry.register(registeredDID.address, endPoints, signature)
-            ).to.emit(didRegistry, "Register");
-
+            
             conversionRate = (await contract.getRateDenominator()) * RATE_VALUE;          
         })
 
@@ -370,23 +348,10 @@ describe("VeridaXPReward", () => {
                         '0x10'
                     )
                 ).to.be.revertedWithCustomError(contract, "InvalidConversionRate");
-            })
-        })
 
-        describe("Failed : Unregistered DID", () => {
-            it("Reverted successfully", async () => {
+                // Set conversion rate for other tests
                 await contract.setConversionRate(conversionRate);
                 claimAvailableState = await takeSnapshot();
-    
-                await expect(
-                    contract.claimXPReward(
-                        Wallet.createRandom().address, // Unregistered DID
-                        receiverAddress[0],
-                        [],
-                        '0x10',
-                        '0x10'
-                    )
-                ).to.be.revertedWithCustomError(contract, "UnregisteredDIDAddress");
             })
         })
 

@@ -6,7 +6,6 @@ import "@openzeppelin/contracts-upgradeable/utils/cryptography/ECDSAUpgradeable.
 import "@openzeppelin/contracts-upgradeable/utils/structs/EnumerableSetUpgradeable.sol";
 
 import { VDAVerificationContract } from "@verida/vda-verification-contract/contracts/VDAVerificationContract.sol";
-import { IVeridaDIDRegistry } from "@verida/did-registry-contract/contracts/IVeridaDIDRegistry.sol";
 import { IVDAXPReward } from "./IVDAXPReward.sol";
 import { DateTime } from "./DateTime.sol";
 
@@ -17,9 +16,6 @@ contract VDAXPReward is IVDAXPReward, VDAVerificationContract{
 
     /** RewardToken : ERC20 contract */
     IERC20Upgradeable internal rewardToken;
-
-    /** DIDRegistryContract : Check the claiming request is registered */
-    IVeridaDIDRegistry didRegistryContract;
 
     /** Denominator for rate values */
     uint32 internal rateDenominator;
@@ -46,7 +42,6 @@ contract VDAXPReward is IVDAXPReward, VDAVerificationContract{
     // Custom errors
     error InvalidValue();
     error InvalidConversionRate();
-    error UnregisteredDIDAddress();
     error EmptyClaimData();
     error InvalidXP(address didAddress, string typeId, uint xp);
     error InvalidProofTime(address didAddress, string typeId, uint16 year, uint8 month);
@@ -55,14 +50,13 @@ contract VDAXPReward is IVDAXPReward, VDAVerificationContract{
     error DuplicatedRequest(address didAddress, string typeId, uint xp, bytes signature);
     error DuplicatedUniqueId(address didAddress, string typeId, string uniqueId, uint xp);
 
-    function __VDAXPReward_init(IERC20Upgradeable token, IVeridaDIDRegistry didRegistry) public initializer {
+    function __VDAXPReward_init(IERC20Upgradeable token) public initializer {
         __VDAVerificationContract_init();
-        __VDAXPReward_init_unchained(token, didRegistry);
+        __VDAXPReward_init_unchained(token);
     }
 
-    function __VDAXPReward_init_unchained(IERC20Upgradeable token, IVeridaDIDRegistry didRegistry) internal {
+    function __VDAXPReward_init_unchained(IERC20Upgradeable token) internal {
         rewardToken = token;
-        didRegistryContract = didRegistry;
         rateDenominator = 10000000; // Set up rate from 0.000001
     }
 
@@ -71,13 +65,6 @@ contract VDAXPReward is IVDAXPReward, VDAVerificationContract{
      */
     function getTokenAddress() external virtual view override returns(address) {
         return address(rewardToken);
-    }
-
-    /**
-     * @dev See {IVDAXPReward}
-     */
-    function getDIDRegistryAddress() external virtual view override returns(address) {
-        return address(didRegistryContract);
     }
 
     /**
@@ -233,9 +220,6 @@ contract VDAXPReward is IVDAXPReward, VDAVerificationContract{
     ) external virtual override {
         if (conversionRate == 0) {
             revert InvalidConversionRate();
-        }
-        if (!didRegistryContract.isRegistered(didAddress)) {
-            revert UnregisteredDIDAddress();
         }
         if (claims.length == 0) {
             revert EmptyClaimData();

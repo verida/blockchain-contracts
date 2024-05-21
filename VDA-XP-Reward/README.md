@@ -1,4 +1,4 @@
-# Contract Explain
+# Verida XP Rewards
 ## Description
 This contract receive signed off chain data (including Verida XP points) and use that to provide a reward to the address in the input parameters. The contract owner set and update XP to token conversion rate.
 
@@ -14,6 +14,7 @@ The key objectives are:
 8. Only the contract owner can change the XP to VDA conversion rate
 9. Any unclaimed VDA will be included in the next month reward pool
 10. Each proof can only be used once
+11. If a uniqueId is specified, it can only be claimed once for a given combination of typeId and uniqueId
 
 __*Reference*__
 
@@ -23,7 +24,6 @@ https://github.com/verida/blockchain-contracts/issues/152
 ### Verida contracts
 This contract depends on the following Verida contract:
 - `@verida/vda-verification-contract` : Used to manage the trusted signers and verify the `claimXPReward()` request
-- `@verida/did-registry-contract` : Used to check the `did` is registered in the mainnet
 - `@verida/erc20-contract` : VDA-ERC20 - Used in test script
 ### `verida-js ` packages
 This contract depends on the following `verida-js` packages:
@@ -39,10 +39,9 @@ You can run test by following command:
 
 ## Deploy
 ### Update contract addresses
-Update the contract addresses at line#13 and line#14 in the `./scripts/deploy.ts`
+Update the contract addresses at line#13 in the `./scripts/deploy.ts`
 ```ts
   const rewardTokenAddress = "<Input the Token contract address>";
-  const didRegistryAddress = "<Input the DIDRegistry contract address>";
 ```
 ### Deploy
 You can deploy contract by following command:

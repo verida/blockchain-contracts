@@ -57,12 +57,6 @@ interface IVDAXPReward {
     function getTokenAddress() external view returns(address);
 
     /**
-     * @notice Returns the `VeridaDIDRegistry` contract address
-     * @return address `VeridaDIDReigstry` contract address initialized in the deployment
-     */
-    function getDIDRegistryAddress() external view returns(address);
-
-    /**
      * @notice Get the denominator for rate values
      * @return uint Denominator value
      */
@@ -73,6 +67,7 @@ interface IVDAXPReward {
      * @dev This is the same as `DECIMAL` in the standard `ERC-20` contract.
      *      If you need to allow 2 decimals of precision, then you can set the `rateDenominator` as 100.
      *      In case, the `conversionRate` value of 15 means the 0.15.
+     *      Default value is 10000000. Can set up rate from 0.000001.
      * @dev Only the contract owenr is allowed to call this function
      * @param denominator - new value to be set
      */
