@@ -18,10 +18,10 @@ contract VDAXPReward is IVDAXPReward, VDAVerificationContract{
     IERC20Upgradeable internal rewardToken;
 
     /** Denominator for rate values */
-    uint32 internal rateDenominator;
+    uint internal rateDenominator;
 
     /** XP - VDA conversion rate */
-    uint32 internal conversionRate; // XP to VDA token rate
+    uint internal conversionRate; // XP to VDA token rate
 
     /**
      * @notice Used to check that a `signature` is used once per month
@@ -70,18 +70,18 @@ contract VDAXPReward is IVDAXPReward, VDAVerificationContract{
     /**
      * @dev See {IVDAXPReward}
      */
-    function getRateDenominator() external virtual view override returns(uint32) {
+    function getRateDenominator() external virtual view override returns(uint) {
         return rateDenominator;
     }
 
     /**
      * @dev See {IVDAXPReward}
      */
-    function setRateDenominator(uint32 denominator) external virtual override onlyOwner {
+    function setRateDenominator(uint denominator) external virtual override onlyOwner {
         if (rateDenominator == denominator || denominator == 0) {
             revert InvalidValue();
         }
-        uint32 orgVal = rateDenominator;
+        uint orgVal = rateDenominator;
         rateDenominator = denominator;
         emit UpdateRateDenominator(orgVal, denominator);
     }
@@ -89,18 +89,18 @@ contract VDAXPReward is IVDAXPReward, VDAVerificationContract{
     /**
      * @dev See {IVDAXPReward}
      */
-    function getConversionRate() external virtual view override returns(uint32) {
+    function getConversionRate() external virtual view override returns(uint) {
         return conversionRate;
     }
 
     /**
      * @dev See {IVDAXPReward}
      */
-    function setConversionRate(uint32 newRate) external virtual override onlyOwner {
+    function setConversionRate(uint newRate) external virtual override onlyOwner {
         if (newRate == 0 || newRate == conversionRate) {
             revert InvalidValue();
         }
-        uint32 orgVal = conversionRate;
+        uint orgVal = conversionRate;
         conversionRate = newRate;
         emit UpdateConversionRate(orgVal, newRate);
     }

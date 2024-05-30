@@ -25,14 +25,14 @@ interface IVDAXPReward {
      * @param orgVal - Original value
      * @param newVal - Updated value
      */
-    event UpdateRateDenominator(uint32 orgVal, uint32 newVal);
+    event UpdateRateDenominator(uint orgVal, uint newVal);
 
     /**
      * @notice Emitted when the XP-VDA conversion rate updated
      * @param orgRate - Original rate
      * @param newRate - Updated rate
      */
-    event UpdateConversionRate(uint32 orgRate, uint32 newRate);
+    event UpdateConversionRate(uint orgRate, uint newRate);
 
     /**
      * @notice Emitted when reward claimd
@@ -60,7 +60,7 @@ interface IVDAXPReward {
      * @notice Get the denominator for rate values
      * @return uint Denominator value
      */
-    function getRateDenominator() external view returns(uint32);
+    function getRateDenominator() external view returns(uint);
 
     /**
      * @notice Set the denominator for rate values
@@ -71,19 +71,19 @@ interface IVDAXPReward {
      * @dev Only the contract owenr is allowed to call this function
      * @param denominator - new value to be set
      */
-    function setRateDenominator(uint32 denominator) external;
+    function setRateDenominator(uint denominator) external;
 
     /**
      * @notice Get the current XP-VDA conversion rate
      * @return uint - XP-VDA conversion rate value set by the contract owner
      */
-    function getConversionRate() external view returns(uint32);
+    function getConversionRate() external view returns(uint);
 
     /**
      * @notice Update the XP-VDA conversion rate
      * @param newRate - New value to be updated
      */
-    function setConversionRate(uint32 newRate) external;
+    function setConversionRate(uint newRate) external;
 
     /**
      * @notice Claim XP rewards
