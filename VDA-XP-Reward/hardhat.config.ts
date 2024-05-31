@@ -53,11 +53,11 @@ const config: HardhatUserConfig = {
     apiKey: POLYGONSCAN_API_KEY,
     customChains: [
       {
-        network: "amoy",
+        network: "polygonamoy",
         chainId: 80002,
         urls: {
-          apiURL: "https://www.oklink.com/api/explorer/v1/contract/verify/async/api/polygonAmoy",
-          browserURL: "https://www.oklink.com/polygonAmoy"
+          apiURL: "https://api-amoy.polygonscan.com/api",
+          browserURL: "https://amoy.polygonscan.com"
         }
       }
     ],
