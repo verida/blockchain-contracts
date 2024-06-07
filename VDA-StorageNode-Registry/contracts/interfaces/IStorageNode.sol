@@ -12,8 +12,18 @@ interface IStorageNode {
     * @param description description of reason code
     */
   struct LogReasonCodeOutput {
-      uint reasonCode;
-      string description;
+    uint reasonCode;
+    string description;
+  }
+
+  /**
+   * @notice Locked information
+   * @param purpose Purpose of locking
+   * @param amount Amount of locked
+   */
+  struct LockedInformation {
+    string purpose;
+    uint amount;
   }
 
   /**
@@ -128,6 +138,30 @@ interface IStorageNode {
     * @param amount Token amount to be withdrawn
     */
   event WithdrawIssueFee(address indexed to, uint amount);
+
+  /**
+   * @notice Emitted when tokens are locked
+   * @param purpose Purpose of locking
+   * @param amount Token amount to be locked
+   */
+  event Lock(address indexed didAddress, string purpose, uint amount);
+
+  /**
+   * @notice Emitted when tokens are unlocked
+   * @param didAddress DID address
+   * @param purpose Purpose of locked
+   * @param amount Unlocked amount
+   */
+  event Unlock(address indexed didAddress, string purpose, uint amount);
+
+  /**
+   * @notice Emitted when tokens are unlocked and withdrawn
+   * @param didAddress DID address
+   * @param purpose Purpose of locked
+   * @param amount Unlocked amount
+   * @param withdrawWallet Recipient wallet that receives unlocked tokens
+   */
+  event UnlockAndWithdraw(address indexed didAddress, string purpose, uint amount, address withdrawWallet);
 
   /**
    * @notice Return `DECIMAL` - Denominator for latitude and logitude values
@@ -369,4 +403,72 @@ interface IStorageNode {
       uint amount,
       string calldata moreInfoUrl
   ) external;
+
+  /**
+   * @notice Lock ths specified `amount` of VDA tokens for a specific `purpose`
+   * @param didAddress DID address
+   * @param purpose Purpose of locking
+   * @param amount Token amount to be locked
+   * @param withDeposit If true, tokens will be deposited from the `msg.sender`
+   * @param requestSignature The request parameters signed by the `didAddress` private key
+   * @param requestProof Used to verify request
+   */
+  function lock(
+    address didAddress,
+    string calldata purpose,
+    uint amount,
+    bool withDeposit,
+    bytes calldata requestSignature,
+    bytes calldata requestProof
+  ) external;
+
+  /**
+   * @notice Returns the amount of locked tokens for the specified `purpose`
+   * @dev Return 0 for unknown `purpose`
+   * @param didAddress DID address
+   * @param purpose Purpose of locking
+   */
+  function locked(address didAddress, string calldata purpose) external view returns(uint);
+
+  /**
+   * @notice Unlock the token to the `didAddress`
+   * @param didAddress DID address
+   * @param purpose Purpose of locked
+   * @param requestSignature The request parameters signed by the `didAddress` private key
+   * @param requestProof Used to verify request
+   */
+  function unlock(
+    address didAddress,
+    string calldata purpose,
+    bytes calldata requestSignature,
+    bytes calldata requestProof
+  ) external;
+
+  /**
+   * @notice Unlock the token and withdraw to the `withdrawWallet` address
+   * @param didAddress DID address
+   * @param purpose Purpose of locked
+   * @param withdrawWallet Recipient wallet address that receives the unlocked token
+   * @param requestSignature The request parameters signed by the `didAddress` private key
+   * @param requestProof Used to verify request
+   */
+  function unlockAndWithdraw(
+    address didAddress,
+    string calldata purpose,
+    address withdrawWallet,
+    bytes calldata requestSignature,
+    bytes calldata requestProof
+  ) external;
+
+  /**
+   * @notice Get the locked information for a given DID
+   * @param pageSize Number of maximum elements of returned
+   * @param pageNumber Page index. Starts from 1
+   * @return LockedInformation[] Array of [purpose, amount]
+   */
+  function getLocks(
+    address didAddress,
+    uint pageSize,
+    uint pageNumber
+  ) external view returns(LockedInformation[] memory);
 }

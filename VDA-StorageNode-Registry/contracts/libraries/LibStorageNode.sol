@@ -5,12 +5,15 @@ import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableMap.sol";
 import { LibCommon } from "./LibCommon.sol";
 
+import { EnumerableSet as VDAEnumerableSet } from "@verida/common-contract/contracts/EnumerableSet.sol";
+
 // import "hardhat/console.sol";
 
 library LibStorageNode {
     bytes32 constant NODE_STORAGE_POSITION = keccak256("vda.storagenode.node.storage");
 
     using EnumerableSet for EnumerableSet.UintSet;
+    using VDAEnumerableSet for VDAEnumerableSet.StringSet;
 
     /**
      * @notice Struct representing a storage node
@@ -104,6 +107,8 @@ library LibStorageNode {
      * @param totalIssueFee Total amount of tokens that are staked by loggins issues
      * @param isStakingRequired true if staking required, otherwise false
      * @param isWithdrawalEnabled true if users are allowed to withdraw their staked tokens, otherwise false
+     * @param _didLockPurposeList Set of `purpose`s of dids
+     * @param _didLockedAmount did => purpose => amount
      */
     struct NodeStorage {
         mapping (uint => StorageNode) _nodeMap;
@@ -119,6 +124,9 @@ library LibStorageNode {
         mapping (address => mapping(uint => EnumerableMap.AddressToUintMap)) _loggedTokenAmount;
         mapping (address => mapping(uint => uint)) _issueTotalAmount;
         mapping (address => DIDLogInformation) _didLogs;
+
+        mapping (address => VDAEnumerableSet.StringSet) _didLockPurposeList;
+        mapping (address => mapping(string => uint)) _didLockedAmount;
 
         EnumerableSet.UintSet _reasonCodeSet;
         mapping(uint => LogReasonCode) _reasonCodeInfo;
