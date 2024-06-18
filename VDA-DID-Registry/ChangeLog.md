@@ -1,7 +1,6 @@
-2024-06-10 (v0.3.0)
+2024-06-18 (v0.3.0)
 -------------------
-- Create `DIDRegistryV2` contract.
-    Remove `onlyOwner` modifier from the `getDIDs()` function
+- Create `DIDRegistryV2` contract, remove `onlyOwner` modifier from the `getDIDs()` function
 
 2023-04-03 (v0.2.0)
 -------------------
