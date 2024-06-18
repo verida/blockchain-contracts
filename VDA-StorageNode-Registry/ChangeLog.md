@@ -1,8 +1,7 @@
 2024-06-07 (V1.0.0)
 -------------------
-- Update `depositToken()`
-    Any DIDs can deposit tokens. Before only node-added DIDs can deposit
-- Support locking tokens
+- Update `depositToken()` so any DIDs can deposit tokens. Previously only node-added DIDs can deposit
+- Support locking tokens for a specific purpose
 
 
 2024-03-25 (V1.0.0)
