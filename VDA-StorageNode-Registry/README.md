@@ -4,8 +4,8 @@ The selection of storage nodes occurs when a DID is first created and when a con
 
 
 ## Dependencies
-
-This contract has no dependencies to any verida contracts:
+This contract has dependency to following Verida contracts:
+- `@verida/common-contract` : Use `EnumerableSet.StringSet` in the `VDAStorageNodeFacet.sol`
 
 ## Testing
 

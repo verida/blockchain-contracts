@@ -12,6 +12,8 @@ import { LibVerification } from "../libraries/LibVerification.sol";
 import { LibUtils } from "../libraries/LibUtils.sol";
 import { IStorageNode } from "../interfaces/IStorageNode.sol"; 
 
+import { EnumerableSet as VDAEnumerableSet } from "@verida/common-contract/contracts/EnumerableSet.sol";
+
 // import "hardhat/console.sol";
 
 error InvalidDIDAddress();
@@ -23,10 +25,16 @@ error TimeNotElapsed(); // `LOG_LIMIT_PER_DAY` logs in 24 hour
 error InvalidSameNodeTime();   
 error InvalidAmount();
 error InvalidReasonCode();
+error InvalidPurpose();
+error InvalidPageSize();
+error InvalidPageNumber();
 
 contract VDAStorageNodeFacet is IStorageNode {
   using EnumerableSet for EnumerableSet.UintSet;
   using EnumerableMap for EnumerableMap.AddressToUintMap;
+  using VDAEnumerableSet for VDAEnumerableSet.StringSet;
+
+  uint internal constant PAGE_SIZE_LIMIT = 100;
 
   /**
     * @dev see { IStorageNode }
@@ -218,11 +226,7 @@ contract VDAStorageNodeFacet is IStorageNode {
    */
   function _depositToken(address didAddress, address from, uint tokenAmount) internal virtual {
     LibStorageNode.NodeStorage storage ds = LibStorageNode.nodeStorage();
-    uint nodeId = ds._didNodeId[didAddress];
-    if (nodeId == 0) {
-        revert InvalidDIDAddress();
-    }
-
+    
     IERC20(ds.vdaTokenAddress).transferFrom(from, address(this), tokenAmount);
 
     ds._stakedTokenAmount[didAddress] = ds._stakedTokenAmount[didAddress] + tokenAmount;
@@ -502,9 +506,9 @@ contract VDAStorageNodeFacet is IStorageNode {
     emit LoggedNodeIssue(didAddress, nodeAddress, reasonCode);
   }
 
-    /**
-    * @dev see { IStorageNodeRegistry }
-    */
+  /**
+  * @dev see { IStorageNodeRegistry }
+  */
   function slash(
       address nodeDID,
       uint reasonCode,
@@ -540,5 +544,172 @@ contract VDAStorageNodeFacet is IStorageNode {
     ds._stakedTokenAmount[nodeDID] = ds._stakedTokenAmount[nodeDID] - distributeTotalAmount;
 
     emit Slash(nodeDID, reasonCode, distributeTotalAmount, loggerCount, moreInfoUrl);
+  }
+
+  /**
+  * @dev see { IStorageNodeRegistry }
+  */
+  function lock(
+    address didAddress,
+    string calldata purpose,
+    uint amount,
+    bool withDeposit,
+    bytes calldata requestSignature,
+    bytes calldata requestProof
+  ) external virtual override {
+    if (bytes(purpose).length == 0) {
+      revert InvalidPurpose();
+    }
+
+    if (amount == 0) {
+      revert InvalidAmount();
+    }
+
+    {
+      bytes memory params = abi.encodePacked(didAddress, purpose, amount, withDeposit);
+      LibVerification.verifyRequest(didAddress, params, requestSignature, requestProof);
+    }
+
+    LibStorageNode.NodeStorage storage ds = LibStorageNode.nodeStorage();
+
+    // Token deposit if needed
+    if (withDeposit) {
+      IERC20(ds.vdaTokenAddress).transferFrom(msg.sender, address(this), amount);
+    } else {
+      int excessAmount = getExcessTokenAmount(didAddress);
+      if (excessAmount < 0 || uint(excessAmount) < amount) {
+        revert InvalidAmount();
+      }
+      ds._stakedTokenAmount[didAddress] = ds._stakedTokenAmount[didAddress] - amount;
+    }
+    ds._didLockPurposeList[didAddress].add(purpose);
+    ds._didLockedAmount[didAddress][purpose] = ds._didLockedAmount[didAddress][purpose] + amount;
+
+    emit Lock(didAddress, purpose, amount);
+  }
+
+  /**
+  * @dev see { IStorageNodeRegistry }
+  */
+  function locked(address didAddress, string calldata purpose) external virtual view override returns(uint) {
+    LibStorageNode.NodeStorage storage ds = LibStorageNode.nodeStorage();
+    return ds._didLockedAmount[didAddress][purpose];
+  }
+
+  /**
+   * @notice Common part of unlocking operation
+   * @dev Used in `unlock()` and `unlockAndWithdraw()`
+   * @param didAddress DID address
+   * @param purpose Purpose of locked
+   * @param isWithdraw true if this is called from `unlockAndWithdraw()` function
+   */
+  function _unlock(
+    address didAddress,
+    string calldata purpose,
+    bool isWithdraw
+  ) internal virtual returns (uint) {
+    LibStorageNode.NodeStorage storage ds = LibStorageNode.nodeStorage();
+    if (!ds._didLockPurposeList[didAddress].contains(purpose)) {
+      revert InvalidPurpose();
+    }
+
+    uint amount = ds._didLockedAmount[didAddress][purpose];
+
+    if (!isWithdraw) {
+      ds._stakedTokenAmount[didAddress] = ds._stakedTokenAmount[didAddress] + amount;
+    }
+
+    delete ds._didLockedAmount[didAddress][purpose];
+    ds._didLockPurposeList[didAddress].remove(purpose);
+
+    return amount;
+  }
+
+  /**
+  * @dev see { IStorageNodeRegistry }
+  */
+  function unlock(
+    address didAddress,
+    string calldata purpose,
+    bytes calldata requestSignature,
+    bytes calldata requestProof
+  ) external virtual override {
+    {
+        bytes memory params = abi.encodePacked(didAddress, purpose);
+        LibVerification.verifyRequest(didAddress, params, requestSignature, requestProof);
+    }
+
+    uint amount = _unlock(didAddress, purpose, false);
+
+    emit Unlock(didAddress, purpose, amount);
+  }
+
+  /**
+  * @dev see { IStorageNodeRegistry }
+  */
+  function unlockAndWithdraw(
+    address didAddress,
+    string calldata purpose,
+    address withdrawWallet,
+    bytes calldata requestSignature,
+    bytes calldata requestProof
+  ) external virtual override {
+    {
+        bytes memory params = abi.encodePacked(didAddress, purpose, withdrawWallet);
+        LibVerification.verifyRequest(didAddress, params, requestSignature, requestProof);
+    }
+
+    uint amount = _unlock(didAddress, purpose, true);
+
+    // Withdraw tokens
+    LibStorageNode.NodeStorage storage ds = LibStorageNode.nodeStorage();
+    IERC20(ds.vdaTokenAddress).transfer(withdrawWallet, amount);
+
+    emit UnlockAndWithdraw(didAddress, purpose, amount, withdrawWallet);
+  }
+
+  /**
+  * @dev see { IStorageNodeRegistry }
+  */
+  function getLocks(
+    address didAddress,
+    uint pageSize,
+    uint pageNumber
+  ) external virtual view override returns(LockedInformation[] memory) {
+    if (pageSize == 0 || pageSize > PAGE_SIZE_LIMIT) {
+      revert InvalidPageSize();
+    }
+
+    if (pageNumber == 0) {
+      revert InvalidPageNumber();
+    }
+
+    LibStorageNode.NodeStorage storage ds = LibStorageNode.nodeStorage();
+    VDAEnumerableSet.StringSet storage didPurposeList = ds._didLockPurposeList[didAddress];
+    mapping (string => uint) storage didLockAmount = ds._didLockedAmount[didAddress];
+
+    uint count = didPurposeList.length();
+
+    uint pageStartIndex = pageSize * (pageNumber - 1);
+    if (pageStartIndex >= count) {
+      return new LockedInformation[](0);
+    }
+
+    if ((pageStartIndex + pageSize) > count) {
+      pageSize = count - pageStartIndex;
+    }
+
+    LockedInformation[] memory infoList = new LockedInformation[](pageSize);
+    string memory purpose;
+    for (uint i; i < pageSize;) {
+      purpose = didPurposeList.at(pageStartIndex + i);
+      infoList[i].purpose = purpose;
+      infoList[i].amount = didLockAmount[purpose];
+      unchecked {
+        ++i;
+      }
+    }
+
+    return infoList;
   }
 }

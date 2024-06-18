@@ -199,12 +199,14 @@ describe('StorageNode Deposit/Withdraw Test', async function () {
         await tokenContract.mint(requestor.address, BigInt("10000000000000000000000"));
       })
 
+      /* // Removed in the new update for locking
       it("Failed : unregistered DID", async () => {
         const randomDID = Wallet.createRandom().address;
         await expect(
           nodeContract.connect(requestor).depositToken(randomDID, 1)
         ).to.be.revertedWithCustomError(nodeContract, "InvalidDIDAddress");
       })
+      */
   
       it("Failed : token not approved", async () => {
         await expect(
@@ -240,12 +242,14 @@ describe('StorageNode Deposit/Withdraw Test', async function () {
         await tokenContract.mint(tokenProvider.address, BigInt("10000000000000000000000"));
       })
 
+      /*
       it("Failed : unregistered DID", async () => {
         const randomDID = Wallet.createRandom().address;
         await expect(
           nodeContract.connect(requestor).depositTokenFromProvider(randomDID, tokenProvider.address, 1)
         ).to.be.revertedWithCustomError(nodeContract, "InvalidDIDAddress");
       })
+      */
   
       it("Failed : token not approved", async () => {
         await expect(
