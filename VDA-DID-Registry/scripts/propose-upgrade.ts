@@ -3,7 +3,7 @@ import contractAddresses from "./contract-address.json"
 
 async function main() {
   // Change the address to the proxy address of targeting network
-  const proxyAddress = contractAddresses.goerli.Proxy;
+  const proxyAddress = contractAddresses.polygonmainnet.Proxy;
 
   const adminAddr = await hre.upgrades.erc1967.getAdminAddress(proxyAddress);
   console.log("Proxy Admin Address : ", adminAddr);
