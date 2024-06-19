@@ -16,6 +16,7 @@ export interface ClaimData {
  */
 export interface ClaimInfo extends ClaimData {
     signature: BytesLike
+    proof: BytesLike
 }
 
 /**

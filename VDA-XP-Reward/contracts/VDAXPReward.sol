@@ -45,7 +45,6 @@ contract VDAXPReward is IVDAXPReward, VDAVerificationContract{
     error EmptyClaimData();
     error InvalidXP(address didAddress, string typeId, uint xp);
     error InvalidProofTime(address didAddress, string typeId, uint16 year, uint8 month);
-    error InvalidProof(address didAddress, string typeId, uint xp, bytes signature);
     error InsufficientTokenAmount(uint requestedAmount, uint currentAmount);
     error DuplicatedRequest(address didAddress, string typeId, uint xp, bytes signature);
     error DuplicatedUniqueId(address didAddress, string typeId, string uniqueId, uint xp);
@@ -113,36 +112,12 @@ contract VDAXPReward is IVDAXPReward, VDAVerificationContract{
      * @param info - Claim information
      */
     function _validateProofTime(address didAddress, DateTime._DateTime memory curTime, ClaimInfo calldata info) internal virtual view {
-        if (curTime.year != info.issueYear || curTime.month != (info.issueMonth + 1)) {
-            revert InvalidProofTime(didAddress, info.typeId, info.issueYear, info.issueMonth);
-        } else if (curTime.month == 1) {
+        if (curTime.month == 1) {
             if (curTime.year != (info.issueYear + 1) || info.issueMonth != 12) {
                 revert InvalidProofTime(didAddress, info.typeId, info.issueYear, info.issueMonth);
             }
-        }
-    }
-
-    /**
-     * @notice Validate proof signer
-     * @dev Separated for `stack too deep`
-     * @param didAddress - DID address, Used to revert
-     * @param proofSigner - Signer of proof
-     * @param info - Claim information
-     */
-    function _validateProofSigner(address didAddress, address proofSigner, ClaimInfo calldata info) internal virtual view {
-        bool isVerified;
-        uint index;
-        uint length = _trustedSigners.length();
-
-        while (index < length && !isVerified) {
-            if (proofSigner == _trustedSigners.at(index)) {
-                isVerified = true;
-            }
-            unchecked { ++index; }
-        }
-
-        if (!isVerified) {
-            revert InvalidProof(didAddress, info.typeId, info.xp, info.signature);
+        } else if (curTime.year != info.issueYear || curTime.month != (info.issueMonth + 1)) {
+            revert InvalidProofTime(didAddress, info.typeId, info.issueYear, info.issueMonth);
         }
     }
 
@@ -156,8 +131,6 @@ contract VDAXPReward is IVDAXPReward, VDAVerificationContract{
         uint totalXP;
 
         bytes memory rawMsg;
-        bytes32 dataHash;
-        address proofSigner;
 
         uint infoLen = infos.length;
         DateTime._DateTime memory curTime = DateTime.parseTimestamp(block.timestamp);
@@ -166,6 +139,7 @@ contract VDAXPReward is IVDAXPReward, VDAVerificationContract{
             if (infos[i].xp == 0) {
                 revert InvalidXP(didAddress, infos[i].typeId, infos[i].xp);
             }
+            // Check the time of proof issued
             _validateProofTime(didAddress, curTime, infos[i]);
 
             rawMsg = abi.encodePacked(didAddress, infos[i].typeId, infos[i].issueYear, infos[i].issueMonth);
@@ -196,10 +170,8 @@ contract VDAXPReward is IVDAXPReward, VDAVerificationContract{
 
             }
 
-            dataHash = keccak256(rawMsg);
-            proofSigner = ECDSAUpgradeable.recover(dataHash, infos[i].signature);
-
-            _validateProofSigner(didAddress, proofSigner, infos[i]);
+            // Validate the signature
+            verifyData(rawMsg, infos[i].signature, infos[i].proof);
             
             totalXP = totalXP + infos[i].xp;
             unchecked {++i;}
