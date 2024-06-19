@@ -27,6 +27,10 @@ const config: HardhatUserConfig = {
       }
     ]
   },
+  defender: {
+    apiKey: process.env.DEFENDER_TEAM_API_KEY as string,
+    apiSecret: process.env.DEFENDER_TEAM_API_SECRET_KEY as string,
+  },
   paths: {
     sources: "./contracts",
     tests: "./test",
