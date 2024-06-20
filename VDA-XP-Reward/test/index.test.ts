@@ -242,6 +242,11 @@ describe("VeridaXPReward", () => {
 
         const contextSigner = Wallet.createRandom();
 
+        /**
+         * Get time that is 1 month before of the current blockchain time
+         * Month value is in range of 1 to 12
+         * @returns [issueYear, issueMonth] Array of year and month values
+         */
         const getProofIssueTime = async () => {
             const blockTime = new Date((await time.latest()) * 1000);
 
@@ -256,6 +261,11 @@ describe("VeridaXPReward", () => {
             return [issueYear, issueMonth];
         };
 
+        /**
+         * Update the `issueYear` and `issueMonth` values to valid time, that is 1 month before of current blockchain time
+         * @param claims Array of `ClaimData` type
+         * @returns Array of `ClaimData` type updated with valid `issueYear` and `issueMonth`
+         */
         const updateProofIssueTime = async (claims:ClaimData[]): Promise<ClaimData[]> => {
             const [issueYear, issueMonth] = await getProofIssueTime();
             const ret: ClaimData[] = [];
@@ -268,6 +278,13 @@ describe("VeridaXPReward", () => {
             return ret;
         }
         
+        /**
+         * Create and returns a `ClaimInfo` type 
+         * @param trustedSigner Trusted signer that is added to the contract
+         * @param did DID address
+         * @param data `ClaimData` type
+         * @returns `ClaimInfo` type that added `signature` and `proof` to the `data` parameter
+         */
         const generateClaimInfo = (trustedSigner:Wallet, did:string, data: ClaimData) : ClaimInfo => {
             const rawMsg = ethers.utils.solidityPack(
                 ['address', 'string', 'uint16', 'uint8', 'uint'],
@@ -283,6 +300,14 @@ describe("VeridaXPReward", () => {
             return { ...data, signature, proof };
         }
 
+        /**
+         * Create `requestSignature` and `requestProof` for `claimXPReward()` function
+         * @param didAddress parameter of `claimXPReward()` function
+         * @param recipient parameter of `claimXPReward()` function
+         * @param claimData parameter of `claimXPReward()` function
+         * @param requestSigner The singer of request - should be the walle that represent the above `didAddress`
+         * @returns Array of [requestSignature, requestProof]
+         */
         const getRequestSignature = async (didAddress: string, recipient: string, claimData: ClaimInfo[], requestSigner: Wallet) => {
             const nonce = await contract.nonce(didAddress);
 
@@ -309,6 +334,14 @@ describe("VeridaXPReward", () => {
             return [requestSignature, requestProof];
         }
 
+        /**
+         * Check the `claimXPReward()` function call
+         * @param didWallet DID wallet - the address of the wallet is the first parameter of the `claimXPReward()` function
+         * @param recipient The recipient address that receives the claimed reward - parameter of the `claimXPReward()` function
+         * @param claimData Array of claim information - parameter of the `claimXPReward()` function
+         * @param expectedResult - True if this transction should be succeed, false otherwise.
+         * @param expectedCustomError - Optional parameter. This is the name of the custom error when the `expectedResult` is false
+         */
         const checkClaimXPReward = async (
             didWallet : Wallet,
             recipient: string,
@@ -717,6 +750,12 @@ describe("VeridaXPReward", () => {
         })
 
         describe("Claimed successfully", () => {
+            /**
+             * Check for the success of `claimXPReward()` function
+             * This updates the `issueYear` and `issueMonth` of claim information to the valid values - 1 monthe before of the current blockchain time
+             * @param claimInfos Array of claim information that doesn't include `signature` and `proof`
+             * @param rewardXPs Targeing XP values for each calim information
+             */
             const checkClaimSuccess = async (claimInfos: ClaimData[], rewardXPs: number[]) => {
                 const claimData = [];
                 const [issueYear, issueMonth] = await getProofIssueTime();
