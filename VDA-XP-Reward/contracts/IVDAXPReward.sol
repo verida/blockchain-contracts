@@ -7,7 +7,7 @@ interface IVDAXPReward {
      * @param typeId - Type. Ex: 'gamer31'
      * @param uniqueId - Unique Id. Optional Ex : ''.
      * @param issueYear - Issued year of `signature`
-     * @param issueMonth - Issued month of `signature`
+     * @param issueMonth - Issued month of `signature` : 1 - 12
      * @param xp - Value of xp
      * @param signature - Msg signed by a context signer
      * @param proof - Proof that signature was verified by the trusted address

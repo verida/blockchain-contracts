@@ -498,26 +498,92 @@ describe("VeridaXPReward", () => {
         })
 
         describe("Failed : Invalid Proof", () => {
-            it("Invalid proof time", async () => {
-                const blockTime = new Date((await time.latest()) * 1000);
-    
-                const BLOCK_YEAR = blockTime.getFullYear();
-                const BLOCK_MONTH = blockTime.getMonth() + 1;
-    
-                // Test with and without uniqueId
+            describe("Invalid proof time", () => {
+                // Test for claim data with and without uniqueId
                 const claim_gamer31_array = [CLAIM_GAMER31, CLAIM_GAMER31_UniqueID];
+
+                let BLOCK_YEAR: number;
+                let BLOCK_MONTH: number;
+
+                before(async () => {
+                    const blockTime = new Date((await time.latest()) * 1000);
     
-                for (let n = 0; n < claim_gamer31_array.length; n++) {
-                    // Restore state
-                    await claimAvailableState.restore();
-    
-                    // Invalid Year
-                    const CLAIM_INVALID_YEAR: ClaimData = {...claim_gamer31_array[n]};
-                    const INVALID_YEAR_VALUES = [0, BLOCK_YEAR - 2, BLOCK_YEAR+1];
-                    for (let i = 0; i < INVALID_YEAR_VALUES.length; i++) {
-                        CLAIM_INVALID_YEAR.issueYear = INVALID_YEAR_VALUES[i];
-                        const claimData = [ generateClaimInfo(trustedSigners[0], registeredDID.address, CLAIM_INVALID_YEAR),];
-    
+                    BLOCK_YEAR = blockTime.getFullYear();
+                    BLOCK_MONTH = blockTime.getMonth() + 1;
+                })
+
+
+                it("Invalid year value", async () => {
+                    for (let n = 0; n < claim_gamer31_array.length; n++) {
+                        // Restore state
+                        await claimAvailableState.restore();
+        
+                        // Invalid Year
+                        const CLAIM_INVALID_YEAR: ClaimData = {...claim_gamer31_array[n]};
+                        const INVALID_YEAR_VALUES = [0, BLOCK_YEAR - 2, BLOCK_YEAR+1];
+                        for (let i = 0; i < INVALID_YEAR_VALUES.length; i++) {
+                            CLAIM_INVALID_YEAR.issueYear = INVALID_YEAR_VALUES[i];
+                            const claimData = [ generateClaimInfo(trustedSigners[0], registeredDID.address, CLAIM_INVALID_YEAR),];
+        
+                            await checkClaimXPReward(
+                                registeredDID,
+                                receiverAddress[0],
+                                claimData,
+                                false,
+                                "InvalidProofTime"
+                            )
+                        }
+                    }
+                })
+
+                it("Invalid month value", async () => {
+                    for (let n = 0; n < claim_gamer31_array.length; n++) {
+                        // Restore state
+                        await claimAvailableState.restore();
+
+                        const CLAIM_INVALID_MONTH: ClaimData = {...claim_gamer31_array[n]};
+                        // Test invalid month values - that are out of range
+                        const INVALID_MONTH_VALUES = [0, 13, 20];
+                        // Add month value that is 2 months before of current blockchain time
+                        if (BLOCK_MONTH > 2) {
+                            INVALID_MONTH_VALUES.push(BLOCK_MONTH - 2);
+                        }
+                        // Add month values that are after 1 and 5 months from current blockchain time
+                        INVALID_MONTH_VALUES.push((BLOCK_MONTH + 1) % 12, (BLOCK_MONTH + 5) % 12);
+
+                        CLAIM_INVALID_MONTH.issueYear = BLOCK_YEAR;
+                        for (let i = 0; i < INVALID_MONTH_VALUES.length; i++) {
+                            CLAIM_INVALID_MONTH.issueMonth = INVALID_MONTH_VALUES[i];
+                            const claimData = [ generateClaimInfo(trustedSigners[0], registeredDID.address, CLAIM_INVALID_MONTH),]
+        
+                            await checkClaimXPReward(
+                                registeredDID,
+                                receiverAddress[0],
+                                claimData,
+                                false,
+                                "InvalidProofTime"
+                            )
+                        }
+                    }
+        
+                })
+
+                it("Check in January", async () => {
+                    for (let n = 0; n < claim_gamer31_array.length; n++) {
+                        // Restore state
+                        await claimAvailableState.restore();
+
+                        // Set target date as Jan 2nd of next year. This consider the time zone offset
+                        // If set as Jan 1st, the block time sometimes updated to the Dec 31th.
+                        const targetDate = new Date(BLOCK_YEAR+1, 0, 2);
+                        await time.increaseTo(targetDate.getTime() / 1000);
+
+                        // Check for Nov failed
+                        const CLAIM_INVALID_YEAR: ClaimData = {...claim_gamer31_array[n]};
+                        CLAIM_INVALID_YEAR.issueYear = BLOCK_YEAR;
+                        CLAIM_INVALID_YEAR.issueMonth = 11;
+                        const claimData = [ generateClaimInfo(Wallet.createRandom(), registeredDID.address, CLAIM_INVALID_YEAR),];
+        
                         await checkClaimXPReward(
                             registeredDID,
                             receiverAddress[0],
@@ -526,79 +592,45 @@ describe("VeridaXPReward", () => {
                             "InvalidProofTime"
                         )
                     }
+                })
+            })
+            
+            describe("Invalid signatures of claim information", () => {
+                it("Claim information is not signed by trusted signer", async () => {
+                    // Test with and without uniqueId
+                    const test_claim_infos = [CLAIM_GAMER31, CLAIM_GAMER31_UniqueID];
+                    for (let i = 0; i < test_claim_infos.length; i++) {
+                        await claimAvailableState.restore();
     
-                    // Invalid Month
-                    const CLAIM_INVALID_MONTH: ClaimData = {...claim_gamer31_array[n]};
-                    const INVALID_MONTH_VALUES = [0, 13, 20];
-                    if (BLOCK_MONTH > 2) {
-                        INVALID_MONTH_VALUES.push(BLOCK_MONTH - 2);
-                    }
-                    INVALID_MONTH_VALUES.push((BLOCK_MONTH + 1) % 12, (BLOCK_MONTH + 5) % 12);
-                    CLAIM_INVALID_MONTH.issueYear = BLOCK_YEAR;
-                    for (let i = 0; i < INVALID_MONTH_VALUES.length; i++) {
-                        CLAIM_INVALID_MONTH.issueMonth = INVALID_MONTH_VALUES[i];
-                        const claimData = [ generateClaimInfo(trustedSigners[0], registeredDID.address, CLAIM_INVALID_MONTH),]
+                        const [CLAIM_1, CLAIM_2] = await updateProofIssueTime([test_claim_infos[i], CLAIM_ZKPASS]);
     
+                        // Single Claim Information
+                        let claimData = [
+                            generateClaimInfo(Wallet.createRandom(), registeredDID.address, CLAIM_1),
+                        ]
                         await checkClaimXPReward(
                             registeredDID,
                             receiverAddress[0],
                             claimData,
                             false,
-                            "InvalidProofTime"
-                        )
+                            "InvalidSignature"
+                        );
+        
+                        // Multiple information
+                        claimData = [
+                            generateClaimInfo(trustedSigners[0], registeredDID.address, CLAIM_1),
+                            generateClaimInfo(Wallet.createRandom(), registeredDID.address, CLAIM_2),
+                        ]
+                        await checkClaimXPReward(
+                            registeredDID,
+                            receiverAddress[0],
+                            claimData,
+                            false,
+                            "InvalidSignature"
+                        );
                     }
-    
-                    // Invalid year and month in Jan
-                    const targetDate = new Date(BLOCK_YEAR+1, 1, 1);
-                    await time.increaseTo(targetDate.getTime() / 1000);
-                    CLAIM_INVALID_YEAR.issueYear = BLOCK_YEAR+1;
-                    CLAIM_INVALID_YEAR.issueMonth = 0;
-                    const claimData = [ generateClaimInfo(Wallet.createRandom(), registeredDID.address, CLAIM_INVALID_YEAR),];
-    
-                    await checkClaimXPReward(
-                        registeredDID,
-                        receiverAddress[0],
-                        claimData,
-                        false,
-                        "InvalidProofTime"
-                    )
-                }
-            })
-
-            it("Claim information is not signed by trusted signer", async () => {
-                // Test with and without uniqueId
-                const test_claim_infos = [CLAIM_GAMER31, CLAIM_GAMER31_UniqueID];
-                for (let i = 0; i < test_claim_infos.length; i++) {
-                    await claimAvailableState.restore();
-
-                    const [CLAIM_1, CLAIM_2] = await updateProofIssueTime([test_claim_infos[i], CLAIM_ZKPASS]);
-
-                    // Single Claim Information
-                    let claimData = [
-                        generateClaimInfo(Wallet.createRandom(), registeredDID.address, CLAIM_1),
-                    ]
-                    await checkClaimXPReward(
-                        registeredDID,
-                        receiverAddress[0],
-                        claimData,
-                        false,
-                        "InvalidSignature"
-                    );
-    
-                    // Multiple information
-                    claimData = [
-                        generateClaimInfo(trustedSigners[0], registeredDID.address, CLAIM_1),
-                        generateClaimInfo(Wallet.createRandom(), registeredDID.address, CLAIM_2),
-                    ]
-                    await checkClaimXPReward(
-                        registeredDID,
-                        receiverAddress[0],
-                        claimData,
-                        false,
-                        "InvalidSignature"
-                    );
-                }
-            })
+                })
+            })           
         })
 
         describe("Failed : Duplicated request", () => {
