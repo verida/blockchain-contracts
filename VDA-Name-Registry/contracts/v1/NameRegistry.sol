@@ -6,13 +6,14 @@ import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 // Verida contract dependencies
 import "@verida/common-contract/contracts/EnumerableSet.sol";
 import "@verida/common-contract/contracts/StringLib.sol";
-import "./VeridaDataVerificationLib.sol";
+import "./INameRegistry.sol";
+import "../VeridaDataVerificationLib.sol";
 
 
 /**
- * @title Verida NameRegistryV2 contract
+ * @title Verida NameRegistry contract
  */
-contract NameRegistryV2 is  OwnableUpgradeable {
+contract NameRegistry is  INameRegistry, OwnableUpgradeable {
 
     using EnumerableSet for EnumerableSet.StringSet;
     using StringLib for string;
@@ -43,31 +44,9 @@ contract NameRegistryV2 is  OwnableUpgradeable {
     uint public maxNamesPerDID;
 
     /**
-     * @notice DID to Application owner name
-     */
-    mapping (address => string) internal _DIDToOwner;
-
-    /**
-     * @notice owner name => app name => MetaData
-     */
-    mapping (string => mapping(string => AppMetaDataItem[])) internal _appInfo;
-
-
-
-    /**
      * @notice Gap for later use
      */
     uint256[20] private __gap;
-
-    struct AppMetaDataItem {
-        string key;
-        string value;
-    }
-
-    event Register(string indexed name, address indexed DID);
-    event Unregister(string indexed name, address indexed DID);
-    event AddSuffix(string indexed suffix);
-    event UpdateMaxNamesPerDID(uint from, uint to);
 
     // Custom errors
     error InvalidAddress();
@@ -91,21 +70,16 @@ contract NameRegistryV2 is  OwnableUpgradeable {
     }
 
     /**
-     * @dev return nonce of a did
-     * @param did DID address
+     * @dev See {INameRegistry}
      */
-    function nonce(address did) public view returns(uint) {
+    function nonce(address did) external view virtual override returns(uint) {
         return _nonce[did];
     }
 
     /**
-     * @notice register name & DID
-     * @dev Check validity of name inside the isValidSuffix() function
-     * @param name user name. Duplication not allowed
-     * @param did DID address.
-     * @param signature - Signature provided by transaction creator
+     * @dev See {INameRegistry}
      */
-    function register(string calldata name, address did, bytes calldata signature) external virtual {
+    function register(string calldata name, address did, bytes calldata signature) external virtual override {
         assembly {
             if iszero(did) {
                 let ptr := mload(0x40)
@@ -157,10 +131,7 @@ contract NameRegistryV2 is  OwnableUpgradeable {
     }
 
     /**
-     * @dev unregister name
-     * @param name user name. Must be registered before
-     * @param did DID address.
-     * @param signature - Signature provided by transaction creator
+     * @dev See {INameRegistry}
      */
     function unregister(string calldata name, address did, bytes calldata signature) external virtual {
         assembly {
@@ -209,11 +180,9 @@ contract NameRegistryV2 is  OwnableUpgradeable {
     }
 
     /**
-     * @dev Find did for name
-     * @param name user name. Must be registered
-     * @return DID address of user
+     * @dev See {INameRegistry}
      */
-    function findDID(string memory name) external view virtual returns(address) {
+    function findDID(string memory name) external view virtual override returns(address) {
         name = name.lower();
 
         address nameDID = _nameToDID[name];
@@ -229,11 +198,9 @@ contract NameRegistryV2 is  OwnableUpgradeable {
     }
 
     /**
-     * @dev Find name of DID
-     * @param did Must be registered before.
-     * @return name
+     * @dev See {INameRegistry}
      */
-    function getUserNameList(address did) external view virtual returns(string[] memory) {
+    function getUserNameList(address did) external view virtual override returns(string[] memory) {
         EnumerableSet.StringSet storage didUserNameList = _DIDInfoList[did];
 
         uint256 length = didUserNameList.length();
@@ -252,12 +219,9 @@ contract NameRegistryV2 is  OwnableUpgradeable {
     }
 
     /**
-     * @notice Add suffix for names
-     * @dev Only the owner can add. 
-     * Will be rejected if suffix already registered
-     * @param suffix - Suffix to be added
+     * @dev See {INameRegistry}
      */
-    function addSuffix(string memory suffix) external virtual payable onlyOwner {
+    function addSuffix(string memory suffix) external virtual payable override onlyOwner {
         suffix = suffix.lower();
 
         if (suffixList.contains(suffix)) {
@@ -343,8 +307,7 @@ contract NameRegistryV2 is  OwnableUpgradeable {
     }
 
     /**
-     * @notice Update the limit of name per DID
-     * @param count New value
+     * @dev See {INameRegistry}
      */
     function updateMaxNamesPerDID(uint count) external virtual payable onlyOwner {
         uint orgValue = maxNamesPerDID;
@@ -354,12 +317,5 @@ contract NameRegistryV2 is  OwnableUpgradeable {
         maxNamesPerDID = count;
 
         emit UpdateMaxNamesPerDID(orgValue, count);
-    }
-
-    /**
-    * @notice Return the version of the contract
-    */
-    function getVersion() external pure virtual returns(string memory) {
-        return "2.0";
     }
 }
