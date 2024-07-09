@@ -12,7 +12,7 @@ import "@openzeppelin/hardhat-defender";
 
 
 dotenv.config({path: __dirname + '/.env'})
-const {PRIVATE_KEY, POLYGONSCAN_API_KEY, POLYGON_TESTNET_RPC, POLYGON_MAINNET_RPC} = process.env;
+const {PRIVATE_KEY, POLYGONSCAN_API_KEY, POLYGON_AMOY_RPC, POLYGON_MAINNET_RPC} = process.env;
 
 const config: HardhatUserConfig = {
   solidity: {
@@ -40,12 +40,10 @@ const config: HardhatUserConfig = {
       chainId: 137,
       accounts: PRIVATE_KEY !== undefined ? [PRIVATE_KEY] : [],
     },
-    polygontestnet: {
-      url: POLYGON_TESTNET_RPC !== undefined ? POLYGON_TESTNET_RPC : "https://matic-mumbai.chainstacklabs.com",
-      chainId: 80001,
-      accounts: PRIVATE_KEY !== undefined ? [PRIVATE_KEY] : [], 
-      gas: 2100000,
-      gasPrice: 8000000000
+    polygonamoy: {
+      url: POLYGON_AMOY_RPC !== undefined ? POLYGON_AMOY_RPC : "https://rpc-amoy.polygon.technology",
+      chainId: 80002,
+      accounts: PRIVATE_KEY !== undefined ? [PRIVATE_KEY] : [],
     },
     goerli: {
       url: "https://eth-goerli.public.blastapi.io", //https://goerli.infura.io/v3/
@@ -59,6 +57,16 @@ const config: HardhatUserConfig = {
   },
   etherscan: {
     apiKey: POLYGONSCAN_API_KEY,
+    customChains: [
+      {
+        network: "polygonamoy",
+        chainId: 80002,
+        urls: {
+          apiURL: "https://api-amoy.polygonscan.com/api",
+          browserURL: "https://amoy.polygonscan.com"
+        }
+      }
+    ],
   },
   mocha: {
     timeout: 0,
