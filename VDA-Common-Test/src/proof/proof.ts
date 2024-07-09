@@ -1,7 +1,7 @@
 import { DIDClient } from "@verida/did-client"
 import { AutoAccount } from "@verida/account-node";
 import { Client} from "@verida/client-ts";
-import { EnvironmentType, DIDClientConfig } from '@verida/types'
+import { DIDClientConfig, Network } from '@verida/types'
 
 import { Wallet } from "ethers"
 import { Keyring } from "@verida/keyring";
@@ -17,10 +17,12 @@ if (rpcUrl === undefined) {
 }
 console.log('RPC URL :', rpcUrl)
 
+const test_network = Network.BANKSIA;
+
 export async function getDIDClient(veridaAccount: Wallet) {
     
     const config: DIDClientConfig = {
-        network: EnvironmentType.TESTNET,
+        network: test_network,
         rpcUrl: rpcUrl
     }
 
@@ -76,7 +78,7 @@ const DEFAULT_ENDPOINTS = [
 export async function initVerida(didwallet: Wallet, CONTEXT_NAME: string) {
     const account = new AutoAccount({
         privateKey: didwallet.privateKey,
-        environment: EnvironmentType.TESTNET,
+        network: test_network,
         didClientConfig: {
             callType: 'web3',
             web3Config: {
@@ -88,9 +90,9 @@ export async function initVerida(didwallet: Wallet, CONTEXT_NAME: string) {
     })
 
     const client = new Client({
-        environment: EnvironmentType.TESTNET,
+        network: test_network,
         didClientConfig: {
-            network: EnvironmentType.TESTNET,
+            network: test_network,
             rpcUrl
         }
     })
@@ -137,15 +139,15 @@ export async function generateProof() : Promise<SignInfo> {
     const userKeyring = await userAccount.keyring(USER_CONTEXT_NAME)
 
     // Build a keyring of the signing wallet
-    const didClient = await signAccount.getDidClient()
+    const didClient = await signAccount.getDIDClient()
     const signKeyring = await signAccount.keyring(SIGN_CONTEXT_NAME)
 
     const signerDoc = await didClient.get(signerDid)
-    const signerProof = signerDoc.locateContextProof(SIGN_CONTEXT_NAME)
+    const signerProof = signerDoc.locateContextProof(SIGN_CONTEXT_NAME, test_network);
 
     // Get the keys of the signing wallet
     const userDoc = await didClient.get(userDid)
-    const userProof = userDoc.locateContextProof(USER_CONTEXT_NAME)
+    const userProof = userDoc.locateContextProof(USER_CONTEXT_NAME, test_network);
 
     return {
         signKeyring,

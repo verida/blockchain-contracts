@@ -1,6 +1,6 @@
 {
   "name": "@verida/contract-test-utils",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Common utils for contract tests",
   "main": "dist/index.js",
   "author": "Alex J",
