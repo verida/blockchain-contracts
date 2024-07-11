@@ -32,8 +32,6 @@ const config: HardhatUserConfig = {
       url: POLYGON_AMOY_RPC !== undefined ? POLYGON_AMOY_RPC : "https://rpc-amoy.polygon.technology",
       chainId: 80002,
       accounts: PRIVATE_KEY !== undefined ? [PRIVATE_KEY] : [],
-      gas: 2100000,
-      gasPrice: 8000000000
     },
     goerli: {
       url: "https://eth-goerli.public.blastapi.io", //https://goerli.infura.io/v3/
