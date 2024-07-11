@@ -26,7 +26,7 @@ export function getSelectors(contract: any, registeredSelectors?: string[]) : an
     selectors.remove = remove;
     selectors.get = get;
     // console.log("##############3", selectors)
-    return selectors;
+    return selectors;   
 }
 
 // get function selector from function signature

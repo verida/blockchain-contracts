@@ -1,3 +1,9 @@
+2024-07-12 (V1.0.1)
+-------------------
+- Make `isTrustedSigner()` function of `VDAVerificationFacet` public
+- Updated the `scripts/upgrade.ts`
+- Re-deploy the `VDAVerificationFacet` and replaced on the Amoy testnet
+
 2024-06-07 (V1.0.0)
 -------------------
 - Update `depositToken()` so any DIDs can deposit tokens. Previously only node-added DIDs can deposit

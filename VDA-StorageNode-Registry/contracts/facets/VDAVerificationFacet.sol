@@ -58,7 +58,6 @@ contract VDAVerificationFacet {
     * @return bool true if registered, otherwise false
     */
   function isTrustedSigner(address didAddress) external view virtual returns(bool) {
-    LibDiamond.enforceIsContractOwner();
     LibVerification.DiamondStorage storage ds = LibVerification.diamondStorage();
     return ds.trustedSigners.contains(didAddress);
   }  

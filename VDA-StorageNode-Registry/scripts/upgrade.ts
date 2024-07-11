@@ -1,63 +1,62 @@
-import hre, { ethers } from "hardhat";
-import { deploy } from "./libraries/deployment";
-import { saveABI, saveDeployedAddress } from "./libraries/utils";
-import { FacetCutAction, getSelector, getSelectors } from "./libraries/diamond";
+import { ethers } from "hardhat";
+import { FacetCutAction, getSelectors } from "./libraries/diamond";
+
+/**
+ * Replace all functions of that contract
+ * @param action One of {@link FacetCutAction}
+ * @param contractName Contract name to be updated
+ * @param contractAddress If not set, deploy contract
+ */
+async function diamondUpdate(
+  diamondAddress: string, 
+  action: number, 
+  contractName: string, 
+  contractAddress?: string) {
+
+    let facet;
+  if (!contractAddress) {
+    facet = await ethers.deployContract(contractName);
+    await facet.waitForDeployment();
+
+    contractAddress = await facet.getAddress();
+    console.log(contractName, " : deployed at ", contractAddress);
+  } else {
+    facet = await ethers.getContractAt(contractName, contractAddress)
+  }
+
+  const diamondCutFacet = await ethers.getContractAt("DiamondCutFacet", diamondAddress);
+
+  let selectors = getSelectors(facet);
+  // console.log(selectors);
+
+  const tx = await diamondCutFacet.diamondCut(
+    [
+      {
+        facetAddress: contractAddress,
+        action: action,
+        functionSelectors: selectors
+      }
+    ],
+    ethers.ZeroAddress,
+    '0x',
+    // {gasLimit: 800000}
+  );
+  const receipt = await tx.wait();
+  if (!receipt.status) {
+    throw Error(`Diamond update failed: ${tx.hash}`)
+  }
+
+  console.log("Update Success");
+}
 
 async function main() {
-
-  // const storagenodeFacet = await ethers.deployContract("VDAStorageNodeFacet");
-  // await storagenodeFacet.waitForDeployment();
-  // const address = await storagenodeFacet.getAddress();
-  // console.log("StorageNodeFacet deployed : ", address);
-  const address = "0x0D174006A05280A7D47e014F4381fD8AB3Fc8309";
-  const storagenodeFacet = await ethers.getContractAt("VDAStorageNodeFacet", address);
-
-  const DIAMOND_ADDRESS = "0xe3d4D1A14BD21Dda3c3e192cebdEbA651Bd30968"; //Test net address
-  const diamondCutFacet = await ethers.getContractAt("DiamondCutFacet", DIAMOND_ADDRESS);
-  
-  let selectors = getSelectors(storagenodeFacet).remove(['DECIMAL']);
-  let tx;
-  let receipt;
-  /*
-  // Replace function selectors
-  
-  tx = await diamondCutFacet.diamondCut(
-    [{
-      facetAddress: address,
-      action: FacetCutAction.Replace,
-      functionSelectors: selectors
-    }],
-    ethers.ZeroAddress,
-    '0x', 
-    {gasLimit: 800000}
-  );
-  receipt = await tx.wait()
-  if (!receipt.status) {
-    throw Error(`Diamond replace failed: ${tx.hash}`)
-  }
-  */
-
-  // Add Decimal function
-  selectors = getSelectors(storagenodeFacet).get(['DECIMAL']);
-  console.log("Selectors : ", selectors)
-  tx = await diamondCutFacet.diamondCut(
-    [{
-      facetAddress: address,
-      action: FacetCutAction.Replace,
-      functionSelectors: selectors
-    }],
-    ethers.ZeroAddress,
-    '0x', 
-    {gasLimit: 800000}
-  );
-  receipt = await tx.wait()
-  if (!receipt.status) {
-    throw Error(`Diamond add failed: ${tx.hash}`)
-  }
-  console.log("Add success");
-
-  const abiString = JSON.stringify(selectors.map((j) => JSON.parse(j)));
-  console.log("ABI String : ", abiString);
+  // Replace `VDAVerificationFacet`
+  await diamondUpdate(
+    "0xb19197875f4e76db9565c32E98e588F6A215ceb5",
+    FacetCutAction.Replace,
+    "VDAVerificationFacet",
+    "0x0A81B6031fc2985f3969115977c241A660759ce7"
+  )
 }  
  
 // We recommend this pattern to be able to use async/await everywhere
