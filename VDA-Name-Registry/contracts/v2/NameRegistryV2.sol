@@ -153,7 +153,7 @@ contract NameRegistryV2 is NameRegistry, INameRegistryV2 {
 
     /**
      * @notice Validate `metadata` of the `registerApp()` function and returns packed data
-     * @dev The packed meta data is used to veryf the request
+     * @dev The packed meta data is used to verify the request
      * @param metadata App meta data
      * @return bytes Packed meta data
      */
