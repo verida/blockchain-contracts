@@ -182,6 +182,6 @@ interface INameRegistryV2 {
      * @notice Returns the contract version
      * @return string Contract version
      */
-    function getVersion() external pure returns(string);
+    function getVersion() external pure returns(string memory);
 
 }

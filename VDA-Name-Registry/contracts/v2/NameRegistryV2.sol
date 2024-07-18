@@ -542,7 +542,7 @@ contract NameRegistryV2 is NameRegistry, INameRegistryV2 {
     /**
      * @dev See {INameRegistryV2}
      */
-    function getVersion() external pure virtual override returns(string) {
+    function getVersion() external pure virtual override returns(string memory) {
         return "2.0";
     }
 }
