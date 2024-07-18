@@ -1,7 +1,7 @@
 {
   "name": "@verida/name-registry",
   "description": "Verida name registry contract",
-  "version": "0.4.1",
+  "version": "1.0.0",
   "author": "Alex J <alex@verida.io, trust2ray@gmail.com>",
   "license": "MIT",
   "repository": {

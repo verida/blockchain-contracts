@@ -1,3 +1,9 @@
+2024-07-18 (v1.0.0)
+-------------------
+- Update contract folder structure
+- Create `NameRegistryV2` contract that support registering an application
+- Update the test script
+
 2023-12-08 (v0.4.1)
 -------------------
 - Fixed nonce no changed issue

@@ -101,7 +101,7 @@ interface INameRegistryV2 {
      * @param requestSignature The request parameters signed by the `didAddress` private key
      * @param requestProof Used to verify request
      */
-    function deregisterApp(
+    function deRegisterApp(
         address did, 
         string calldata ownerName, 
         string calldata appName,
@@ -159,6 +159,12 @@ interface INameRegistryV2 {
     function updateAppRegisterFee(uint feeAmount) external payable;
 
     /**
+     * @notice Return the fee for registering an app
+     * @return uint Amount of tokens for fee
+     */
+    function getAppRegisterFee() external view returns(uint);
+
+    /**
      * @notice Enable/disable the app registering feature
      * @dev Only the contract owner is allowe.
             The contract owner should enable the app registering feature after fee set.
@@ -171,5 +177,11 @@ interface INameRegistryV2 {
      * @return bool true if enabled.
      */
     function isAppRegisterEnabled() external view returns(bool);
+
+    /**
+     * @notice Returns the contract version
+     * @return string Contract version
+     */
+    function getVersion() external pure returns(string);
 
 }

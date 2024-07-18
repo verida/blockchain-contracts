@@ -9,7 +9,6 @@ import "@verida/common-contract/contracts/StringLib.sol";
 import "./INameRegistry.sol";
 import "../VeridaDataVerificationLib.sol";
 
-
 /**
  * @title Verida NameRegistry contract
  */
@@ -51,7 +50,7 @@ contract NameRegistry is  INameRegistry, OwnableUpgradeable {
     // Custom errors
     error InvalidAddress();
     error InvalidSuffix();
-    error InvalidSignature();
+    // error InvalidSignature();
     error InvalidName();
     error LimitedNameCount();
     error InvalidNameCount();
