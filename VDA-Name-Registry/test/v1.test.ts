@@ -168,6 +168,7 @@ describe("NameRegistry", function () {
   });
 
   describe("Max names per DID", () => {
+    
     it("Add mutiple user names failed : MaxNaemsPerDID", async () => {
       expect((await contract.maxNamesPerDID()).toNumber()).to.be.eq(1);
 
@@ -309,29 +310,47 @@ describe("NameRegistry", function () {
     });
   });
 
-  describe("Add suffix", () => {
-    it("Failed : Not a owner", async () => {
-      await expect(
-        contract.connect(accountList[1]).addSuffix(newSuffix)
-      ).to.be.rejectedWith("Ownable: caller is not the owner");
-    });
+  describe("Suffix", () => {
+    describe("Add sufix", () => {
+      it("Failed : Not a owner", async () => {
+        await expect(
+          contract.connect(accountList[1]).addSuffix(newSuffix)
+        ).to.be.rejectedWith("Ownable: caller is not the owner");
+      });
+  
+      it("Add suffix successfully", async () => {
+        let signature = await getRegisterSignature(contract, testNames[4], dids[0]);
+        // Register names failed before adding suffix
+        await expect(
+          contract.register(testNames[4], dids[0].address, signature)
+        ).to.be.revertedWithCustomError(contract, "InvalidSuffix");
+  
+        // Register new suffix
+        await contract.addSuffix(newSuffix);
+  
+        // Register naems success after adding suffix
+        signature = await getRegisterSignature(contract, testNames[4], dids[0]);
+        await contract.register(testNames[4], dids[0].address, signature);
+  
+        signature = await getRegisterSignature(contract, testNames[4], dids[0]);
+        await contract.unregister(testNames[4], dids[0].address, signature);
+      });
+    })
 
-    it("Add suffix successfully", async () => {
-      let signature = await getRegisterSignature(contract, testNames[4], dids[0]);
-      // Register names failed before adding suffix
-      await expect(
-        contract.register(testNames[4], dids[0].address, signature)
-      ).to.be.revertedWithCustomError(contract, "InvalidSuffix");
+    describe("Check the suffix", () => {
+      it("Is valid suffix", async () => {
+        expect(await contract.isValidSuffix("vda")).to.be.eq(true);
+        expect(await contract.isValidSuffix("VDA")).to.be.eq(true);
+        expect(await contract.isValidSuffix("test")).to.be.eq(true);
+        expect(await contract.isValidSuffix("TEst")).to.be.eq(true);
 
-      // Register new suffix
-      await contract.addSuffix(newSuffix);
+        expect(await contract.isValidSuffix("unknown")).to.be.eq(false);
+      })
 
-      // Register naems success after adding suffix
-      signature = await getRegisterSignature(contract, testNames[4], dids[0]);
-      await contract.register(testNames[4], dids[0].address, signature);
-
-      signature = await getRegisterSignature(contract, testNames[4], dids[0]);
-      await contract.unregister(testNames[4], dids[0].address, signature);
-    });
+      it("Get suffix list", async () => {
+        expect(await contract.getSuffixList()).to.length.gt(1);
+      })
+    })
+    
   });
 });

@@ -78,6 +78,19 @@ interface INameRegistry {
     function addSuffix(string memory suffix) external payable;
 
     /**
+     * @notice Check the given suffix is valid
+     * @param suffix Suffix to be checked
+     * @return bool true if valid
+     */
+    function isValidSuffix(string calldata suffix) external view returns(bool);
+
+    /**
+     * @notice Return array of valid suffixes
+     * @return string[] List of suffixes
+     */
+    function getSuffixList() external view returns(string[] memory);
+
+    /**
      * @notice Update maximum number of names per DID
      * @param count Value to be updated
      */

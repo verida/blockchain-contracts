@@ -86,7 +86,7 @@ contract NameRegistry is  INameRegistry, OwnableUpgradeable {
                 revert(ptr, 0x4) //revert InvalidAddress()
             }
         }
-        if(!isValidSuffix(name)) {
+        if(!_isValidSuffix(name)) {
             revert InvalidSuffix();
         }
 
@@ -234,13 +234,21 @@ contract NameRegistry is  INameRegistry, OwnableUpgradeable {
 
     /**
      * @notice Check whether name has valid suffix
-     * @dev Check all the letters of name inside getSuffix() function
+     * @dev Check all the letters of name inside _getSuffix() function
      * @param name - name to check
      * @return result
      */
-    function isValidSuffix(string calldata name) internal view virtual returns(bool) {
-        string memory suffix = getSuffix(name);
+    function _isValidSuffix(string calldata name) internal view virtual returns(bool) {
+        string memory suffix = _getSuffix(name);
         return suffixList.contains(suffix);
+    }
+
+    /**
+     * @dev See {INameRegistry}
+     */
+    function isValidSuffix(string calldata suffix) external view virtual override returns(bool) {
+        string memory lower = suffix.lower();
+        return suffixList.contains(lower);
     }
 
     /**
@@ -249,7 +257,7 @@ contract NameRegistry is  INameRegistry, OwnableUpgradeable {
      * @param name - Input name
      * @return suffix - return suffix in bytes32
      */
-    function getSuffix(string calldata name) internal pure virtual returns(string memory suffix) {
+    function _getSuffix(string calldata name) internal pure virtual returns(string memory suffix) {
         string memory _name = name.lower();
         bytes memory nameBytes = bytes(_name);
         if (nameBytes.length == 0) {
@@ -261,7 +269,7 @@ contract NameRegistry is  INameRegistry, OwnableUpgradeable {
         uint startIndex = len;
         uint index;
         uint8 dotCount;
-        while (index < len && dotCount < 2 && isValidCharacter(nameBytes[index])) {
+        while (index < len && dotCount < 2 && _isValidCharacter(nameBytes[index])) {
             // Find a "."
             unchecked {
                 if (nameBytes[index] == 0x2E) {
@@ -291,11 +299,26 @@ contract NameRegistry is  INameRegistry, OwnableUpgradeable {
     }
 
     /**
+     * @dev See {INameRegistry}
+     */
+    function getSuffixList() external view virtual override returns(string[] memory) {
+        uint len = suffixList.length();
+        string[] memory list = new string[](len);
+        for (uint i; i < len;) {
+            list[i] = suffixList.at(i);
+            unchecked {
+                ++i;
+            }
+        }
+        return list;
+    }
+
+    /**
      * @notice Check whether character is allowed in NameRegistry
      * @param char - one byte from name string value
      * @return - true if valid.
      */
-    function isValidCharacter(bytes1 char) internal pure virtual returns(bool) {
+    function _isValidCharacter(bytes1 char) internal pure virtual returns(bool) {
         if (char >= 0x61 && char <= 0x7a)
             return true;
         if (char >= 0x30 && char <= 0x39)

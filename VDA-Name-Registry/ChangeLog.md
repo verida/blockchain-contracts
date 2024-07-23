@@ -1,3 +1,11 @@
+2024-07-23 (v1.0.0)
+-------------------
+- Added following functions in the `NameRegistryV1` contract
+```ts
+function isValidSuffix(string calldata suffix) external view returns(bool);
+function getSuffixList() external view returns(string[] memory);
+```
+
 2024-07-18 (v1.0.0)
 -------------------
 - Update contract folder structure
