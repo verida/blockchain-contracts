@@ -4,6 +4,7 @@
 - Renamed `DeRegisterApp` event to `DeregisterApp`
 - Renamed `enableAppRegister()` function to `setAppRegisterEnabled()`
 - Updated test codes for above changes
+- Added `script/upgrade_manual.ts`
 
 2024-07-23 (v1.0.0)
 -------------------
