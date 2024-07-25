@@ -28,7 +28,7 @@ async function main() {
 
   // Deploy Mock Token
   // const rewardTokenAddress = (await deployMockToken()).address;
-  // const rewardTokenAddress = "0x61a544D5210FC82679f3322461F38C28D75a20A6"
+  // const rewardTokenAddress = "0x322F0273D7f6eCd9EeBc6C800a6777d1b3EEB697"
   console.log("Mock Token Deployed : ", rewardTokenAddress);
 
   const contractFactory = await ethers.getContractFactory("VDAXPReward")
