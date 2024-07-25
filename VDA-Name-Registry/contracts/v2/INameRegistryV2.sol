@@ -34,7 +34,7 @@ interface INameRegistryV2 {
      * @param ownerName Owner name
      * @param appName App name
      */
-    event DeRegisterApp(
+    event DeregisterApp(
         address did,
         string ownerName,
         string appName
@@ -94,14 +94,14 @@ interface INameRegistryV2 {
     ) external;
 
     /**
-     * @notice De-register an app
+     * @notice Deregister an app
      * @param did DID address
      * @param ownerName Owner's name
      * @param appName App name
      * @param requestSignature The request parameters signed by the `didAddress` private key
      * @param requestProof Used to verify request
      */
-    function deRegisterApp(
+    function deregisterApp(
         address did, 
         string calldata ownerName, 
         string calldata appName,
@@ -170,7 +170,7 @@ interface INameRegistryV2 {
             The contract owner should enable the app registering feature after fee set.
      * @param isEnabled true if enabling, otherwise false
      */
-    function enableAppRegister(bool isEnabled) external payable;
+    function setAppRegisterEnabled(bool isEnabled) external payable;
 
     /**
      * @notice Return whether App registering is enabled

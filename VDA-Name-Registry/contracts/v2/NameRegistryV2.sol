@@ -316,7 +316,7 @@ contract NameRegistryV2 is NameRegistry, INameRegistryV2 {
 
     /**
      * @notice Check the owner name & app name are registered to the DID
-     * @dev Used in `deRegisterApp()` and `updateApp()` functions
+     * @dev Used in `deregisterApp()` and `updateApp()` functions
      * @param did DID
      * @param ownerName Owner name - lowercased
      * @param appName App name - lowercased
@@ -339,7 +339,7 @@ contract NameRegistryV2 is NameRegistry, INameRegistryV2 {
     /**
      * @dev See {INameRegistryV2}
      */
-    function deRegisterApp(
+    function deregisterApp(
         address did, 
         string calldata ownerName, 
         string calldata appName,
@@ -368,7 +368,7 @@ contract NameRegistryV2 is NameRegistry, INameRegistryV2 {
         _didApps[did].remove(_appName);
         delete _didAppMetaData[did][_appName];
 
-        emit DeRegisterApp(did, _ownerName, _appName);
+        emit DeregisterApp(did, _ownerName, _appName);
     }
 
     /**
@@ -507,7 +507,7 @@ contract NameRegistryV2 is NameRegistry, INameRegistryV2 {
     /**
      * @dev See {INameRegistryV2}
      */
-    function enableAppRegister(bool isEnabled) external virtual payable override onlyOwner {
+    function setAppRegisterEnabled(bool isEnabled) external virtual payable override onlyOwner {
         if (_isAppRegisterEnabled == isEnabled) {
             revert InvalidValue();
         }

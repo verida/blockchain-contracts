@@ -1,3 +1,10 @@
+2024-07-25 (v1.0.0)
+-------------------
+- Renamed `deRegisterApp()` function to `deregisterApp()`
+- Renamed `DeRegisterApp` event to `DeregisterApp`
+- Renamed `enableAppRegister()` function to `setAppRegisterEnabled()`
+- Updated test codes for above changes
+
 2024-07-23 (v1.0.0)
 -------------------
 - Added following functions in the `NameRegistryV1` contract

@@ -100,7 +100,7 @@ describe("V1 to V2 migration test", function () {
       await v2.updateAppRegisterFee(APP_REGISTER_FEE);
       await v2.setTokenAddress(token.address);
 
-      await v2.enableAppRegister(true);
+      await v2.setAppRegisterEnabled(true);
     })
 
     it("Register apps", async () => {

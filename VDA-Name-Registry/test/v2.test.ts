@@ -128,7 +128,7 @@ describe("NameRegistry V2 test", function (){
             it("Enable failed: token address not set", async () => {
                 expect(await contract.getTokenAddress()).to.equal(ZeroAddress);
 
-                await (expect(contract.enableAppRegister(true))).to.be.revertedWithCustomError(contract, "TokenAddressNotSet");
+                await (expect(contract.setAppRegisterEnabled(true))).to.be.revertedWithCustomError(contract, "TokenAddressNotSet");
             })
 
             it("Enable Failed: Fee not set", async () => {
@@ -136,7 +136,7 @@ describe("NameRegistry V2 test", function (){
 
                 expect(await contract.getAppRegisterFee()).to.be.eq(0);
 
-                await (expect(contract.enableAppRegister(true))).to.be.revertedWithCustomError(contract, "AppRegisterFeeNotSet");
+                await (expect(contract.setAppRegisterEnabled(true))).to.be.revertedWithCustomError(contract, "AppRegisterFeeNotSet");
                 
             })
 
@@ -144,7 +144,7 @@ describe("NameRegistry V2 test", function (){
                 await contract.updateAppRegisterFee(APP_REGISTER_FEE);
 
                 await expect(
-                    contract.enableAppRegister(true)
+                    contract.setAppRegisterEnabled(true)
                 ).to.emit(contract, "AppRegisterEnabled").withArgs(true);
             })
 
@@ -152,12 +152,12 @@ describe("NameRegistry V2 test", function (){
                 expect(await contract.isAppRegisterEnabled()).to.be.eq(true);
 
                 // Failed for true value
-                await (expect(contract.enableAppRegister(true))).to.be.revertedWithCustomError(contract, "InvalidValue");
+                await (expect(contract.setAppRegisterEnabled(true))).to.be.revertedWithCustomError(contract, "InvalidValue");
             })
 
             it("Disable success", async () => {
                 await expect(
-                    contract.enableAppRegister(false)
+                    contract.setAppRegisterEnabled(false)
                 ).to.emit(contract, "AppRegisterEnabled").withArgs(false);
             })
 
@@ -165,7 +165,7 @@ describe("NameRegistry V2 test", function (){
                 expect(await contract.isAppRegisterEnabled()).to.be.eq(false);
 
                 // Failed for true value
-                await (expect(contract.enableAppRegister(false))).to.be.revertedWithCustomError(contract, "InvalidValue");
+                await (expect(contract.setAppRegisterEnabled(false))).to.be.revertedWithCustomError(contract, "InvalidValue");
             })
         })
     })
@@ -196,7 +196,7 @@ describe("NameRegistry V2 test", function (){
             before(async () => {
                 await contract.setTokenAddress(token.address);
                 await contract.updateAppRegisterFee(APP_REGISTER_FEE);
-                await contract.enableAppRegister(true);
+                await contract.setAppRegisterEnabled(true);
             })
 
             it("Invalid characters in owner name", async () => {
@@ -475,7 +475,7 @@ describe("NameRegistry V2 test", function (){
         })
     })
 
-    describe("De-register App", () => {
+    describe("Deregister App", () => {
         const owner2 = "Owner2";
         const app2 = "App2";
         const user2 = Wallet.createRandom();
@@ -490,38 +490,38 @@ describe("NameRegistry V2 test", function (){
         it("Failed: DID not matched owner name", async () => {
             // Unregistered DID
             await expect(
-                contract.deRegisterApp(Wallet.createRandom().address, REGISTERED_OWNER, "", "0x", "0x")
+                contract.deregisterApp(Wallet.createRandom().address, REGISTERED_OWNER, "", "0x", "0x")
             ).to.be.revertedWithCustomError(contract, "AppNotFound").withArgs(true, false);
 
             // Registered DID and other's owner name
             await expect(
-                contract.deRegisterApp(user.address, owner2, "", "0x", "0x")
+                contract.deregisterApp(user.address, owner2, "", "0x", "0x")
             ).to.be.revertedWithCustomError(contract, "AppNotFound").withArgs(true, false);
         })
 
         it("Failed: Unregistered owner name", async () => {
             await expect(
-                contract.deRegisterApp(user.address, "Unknown", "", "0x", "0x")
+                contract.deregisterApp(user.address, "Unknown", "", "0x", "0x")
             ).to.be.revertedWithCustomError(contract, "AppNotFound").withArgs(true, false);
         })
 
         it("Failed: Unregistered app name", async () => {
             await expect(
-                contract.deRegisterApp(user.address, REGISTERED_OWNER, "", "0x", "0x")
+                contract.deregisterApp(user.address, REGISTERED_OWNER, "", "0x", "0x")
             ).to.be.revertedWithCustomError(contract, "AppNotFound").withArgs(false, true);
         })
 
         it("Failed: Invalid request signature and proof", async () => {
             await expect(
-                contract.deRegisterApp(user.address, REGISTERED_OWNER, REGISTERED_APP, "0x", "0x")
+                contract.deregisterApp(user.address, REGISTERED_OWNER, REGISTERED_APP, "0x", "0x")
             ).to.be.revertedWithCustomError(contract, "InvalidSignature");
         })
 
         it("Success", async () => {
             const {requestSignature, requestProof} = await getRegisterAppSignature(contract, user, REGISTERED_OWNER, REGISTERED_APP, []);
             await expect(
-                contract.deRegisterApp(user.address, REGISTERED_OWNER, REGISTERED_APP, requestSignature, requestProof)
-            ).to.emit(contract, "DeRegisterApp").withArgs(
+                contract.deregisterApp(user.address, REGISTERED_OWNER, REGISTERED_APP, requestSignature, requestProof)
+            ).to.emit(contract, "DeregisterApp").withArgs(
                 user.address,
                 REGISTERED_OWNER.toLowerCase(),
                 REGISTERED_APP.toLowerCase()
